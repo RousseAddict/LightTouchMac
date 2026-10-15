@@ -269,27 +269,35 @@ struct Image {
         return r.lowerBound
     }
 
-    /// The load address of the com.apple.security.sandbox kext: the last _PrelinkExecutableLoadAddr named before the
-    /// bundle id in __PRELINK_INFO (the field sits ahead of the id in each kext's dict).
+    /// The load address of the com.apple.security.sandbox kext: the _PrelinkExecutableLoadAddr in the same kext dict
+    /// as the bundle id in __PRELINK_INFO. The key sits ahead of the id on 5.x-7.x but after it on 4.x, so take the
+    /// occurrence nearest the id (its own dict's) rather than the last one before it (which on 4.x is the prior kext's).
     func sandboxKextLoadAddr() -> UInt32? {
         guard let (_, _, _, size, off) = sects.first(where: { $0.0 == "__info" && $0.1 == "__PRELINK_INFO" })
         else { return nil }
         let info = String(decoding: bytes[Int(off)..<min(bytes.count, Int(off) + Int(size))], as: UTF8.self)
         guard let idRange = info.range(of: "com.apple.security.sandbox") else { return nil }
-        let window = info[info.startIndex..<idRange.lowerBound]
+        let anchor = idRange.lowerBound
         let key = "_PrelinkExecutableLoadAddr</key><integer"
-        var search = window.startIndex
-        var last: UInt32?
-        while let k = window.range(of: key, range: search..<window.endIndex) {
-            if let gt = window.range(of: ">", range: k.upperBound..<window.endIndex),
-                let lt = window.range(of: "<", range: gt.upperBound..<window.endIndex)
+        var before: (Range<String.Index>, UInt32)?  // last occurrence before the id
+        var after: (Range<String.Index>, UInt32)?  // first occurrence at or after the id
+        var search = info.startIndex
+        while let k = info.range(of: key, range: search..<info.endIndex) {
+            if let gt = info.range(of: ">", range: k.upperBound..<info.endIndex),
+                let lt = info.range(of: "<", range: gt.upperBound..<info.endIndex)
             {
-                let hex = window[gt.upperBound..<lt.lowerBound].trimmingCharacters(in: .whitespaces)
-                if hex.hasPrefix("0x"), let v = UInt32(hex.dropFirst(2), radix: 16) { last = v }
+                let hex = info[gt.upperBound..<lt.lowerBound].trimmingCharacters(in: .whitespaces)
+                if hex.hasPrefix("0x"), let v = UInt32(hex.dropFirst(2), radix: 16) {
+                    if k.lowerBound < anchor { before = (k, v) } else if after == nil { after = (k, v) }
+                }
             }
             search = k.upperBound
         }
-        return last
+        guard let before else { return after?.1 }
+        guard let after else { return before.1 }
+        let distBefore = info.distance(from: before.0.upperBound, to: anchor)
+        let distAfter = info.distance(from: anchor, to: after.0.lowerBound)
+        return distBefore <= distAfter ? before.1 : after.1
     }
 
     /// The kext Mach-O's own __text (addr, size) given its load address.

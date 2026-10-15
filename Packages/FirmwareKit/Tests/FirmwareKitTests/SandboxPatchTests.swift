@@ -75,8 +75,9 @@ struct SandboxPatchTests {
         #expect(back == want, "the re-wrapped kernelcache decrypts back to the patched kernel")
     }
 
-    /// Corpus: the two reported bases plus a board of each kboot kind resolve from a fresh decrypt.
-    @Test(arguments: ["n81ap-10B500", "k48ap-9B206", "n88ap-10B500", "n18ap-9B206"])
+    /// Corpus: the two reported bases plus a board of each kboot kind resolve from a fresh decrypt. k48ap-8J3 is
+    /// iOS 4.3.3 (xnu-1735), where _PrelinkExecutableLoadAddr follows the bundle id in the prelink dict.
+    @Test(arguments: ["n81ap-10B500", "k48ap-9B206", "n88ap-10B500", "n18ap-9B206", "k48ap-8J3"])
     func locatesForABoard(_ id: String) throws {
         guard FixtureRequirements.corpusEnabled else { return }
         guard let sha1 = try Oracle.entry(id).source.sha1 else { try FixtureRequirements.missing("\(id): no sha1") }
