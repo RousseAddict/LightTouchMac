@@ -39,7 +39,7 @@ final class DevicePlaceholderViewController: NSViewController {
     private let space = NSTextField(wrappingLabelWithString: "")
     /// Before preparing an iOS 5 or later build: prepare it past Setup Assistant (FirmwareJobs.skipsSetup).
     private let skipSetup = NSButton(checkboxWithTitle: "Skip Setup Assistant", target: nil, action: nil)
-    /// Before preparing: prepare it jailbroken (FirmwareJobs.jailbreaks: on unless turned off; disabled before iOS 5).
+    /// Before preparing: prepare it jailbroken (FirmwareJobs.jailbreaks: on unless turned off; disabled where FirmwareJobs.jailbreakWorks says no).
     private let jailbreak = NSButton(checkboxWithTitle: "Jailbreak", target: nil, action: nil)
     /// The build's catalog note (untested, experimental, where a beta came from), in a popover.
     private let info = NSButton(
@@ -225,7 +225,7 @@ final class DevicePlaceholderViewController: NSViewController {
                 jailbreak.toolTip =
                     jailbreak.isEnabled
                     ? "Files shows the whole file system."
-                    : "Not available before iOS 5 yet: Safari and Mail crash on a jailbroken device."
+                    : "Not available for this version yet: Safari crashes on a jailbroken device."
                 jailbreak.isHidden = false
             }
             if !canDownload, let why = FirmwareJobs.shared.unavailableReason {

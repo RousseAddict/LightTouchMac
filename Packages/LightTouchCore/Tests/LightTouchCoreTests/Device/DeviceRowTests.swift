@@ -46,12 +46,14 @@ struct DeviceRowTests {
         "recoverFilesystem",
     ]
 
-    /// Jailbreak…: a prepared device of iOS 5 or later while it is stopped, as the preparation's checkbox allows it
-    /// (FirmwareJobs.jailbreakWorks; on iOS 4 and earlier Safari and Mail crash jailbroken).
-    @Test func jailbreakIsForAStoppedDeviceOf5OrLater() throws {
+    /// Jailbreak…: a prepared device while it is stopped where the sandbox patch resolves, as the preparation's
+    /// checkbox allows it (FirmwareJobs.jailbreakWorks: iOS 5 on, iOS 4 on the ARMv7 boards; elsewhere Safari crashes
+    /// jailbroken).
+    @Test func jailbreakIsForAStoppedDeviceWhoseSandboxPatchResolves() throws {
         let m68 = try #require(catalog.entries.first { $0.board == "m68ap" })
         #expect(row(iPad5, instance: id).allows(.jailbreak, canDownload: false))
-        #expect(!row(iPod4, instance: id).allows(.jailbreak, canDownload: false), "4.x")
+        #expect(row(iPad4, instance: id).allows(.jailbreak, canDownload: false), "4.x on an ARMv7 board")
+        #expect(!row(iPod4, instance: id).allows(.jailbreak, canDownload: false), "4.x on the ARMv6 iPod touch 2G")
         #expect(!row(iPod, instance: id).allows(.jailbreak, canDownload: false), "3.x")
         #expect(!row(m68, instance: id).allows(.jailbreak, canDownload: false), "1.x")
         #expect(!row(iPad5).allows(.jailbreak, canDownload: true), "not prepared")
@@ -60,7 +62,7 @@ struct DeviceRowTests {
 
     /// Several rows: each command acts on the rows its one-row version allows and says how many; none, dimmed.
     @Test func severalRowsActOnTheRowsEachCommandAllows() throws {
-        // 4 selected: 2 running, 2 prepared and stopped (one of them iOS 4, which takes no jailbreak yet).
+        // 4 selected: 2 running, 2 prepared and stopped (one of them the iPod touch 2G's iOS 4, which takes no jailbreak yet).
         let rows = [
             row(iPod, instance: UUID(), session: .running), row(iPad, instance: UUID(), session: .running),
             row(iPad5, instance: UUID()), row(iPod4, instance: UUID()),

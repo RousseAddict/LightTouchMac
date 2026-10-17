@@ -13,7 +13,7 @@ import HostRuntime
 public nonisolated enum DeviceAction: CaseIterable, Sendable {
     case start, stop, forceStop, downloadAndPrepare, importIPSW, cancel, erase, showInFinder, delete, prepareAgain
     case openFilesystem, commitFilesystem, discardFilesystem, recoverFilesystem
-    /// What the Jailbreak option adds, on a prepared device of iOS 5 or later that is stopped (DeviceFilesystemEdits).
+    /// What the Jailbreak option adds, on a prepared device FirmwareJobs.jailbreakWorks allows that is stopped (DeviceFilesystemEdits).
     case jailbreak
 }
 

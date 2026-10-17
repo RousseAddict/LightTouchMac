@@ -84,11 +84,12 @@ import HostRuntime
         get { Set(defaults.stringArray(forKey: "stockEntries") ?? []) }
         set { defaults.set(newValue.sorted(), forKey: "stockEntries") }
     }
-    /// The jailbreak can be chosen from iOS 5 on, where FirmwareKit's SandboxPatch lets Substrate's library into
-    /// Safari's and Mail's sandbox; before that the patch doesn't resolve yet and they crash at launch, so the
-    /// checkbox is off and disabled.
+    /// The jailbreak can be chosen where FirmwareKit's SandboxPatch lets Substrate's library into Safari's sandbox:
+    /// iOS 5 on, and iOS 4 on the ARMv7 boards. Elsewhere (iOS 3, the ARMv6 iPod touch 2G's iOS 4) the patch doesn't
+    /// resolve yet and Safari crashes at launch on a jailbroken device, so the checkbox is off and disabled.
     public nonisolated static func jailbreakWorks(_ entry: FirmwareCatalog.Entry) -> Bool {
-        (Int(entry.version.split(separator: ".").first ?? "") ?? 0) >= 5
+        let major = Int(entry.version.split(separator: ".").first ?? "") ?? 0
+        return major >= 5 || (major == 4 && Board(rawValue: entry.board)?.arch == "armv7")
     }
     /// The preparation screen's Jailbreak checkbox for an entry.
     public func jailbreaks(_ id: String) -> Bool {

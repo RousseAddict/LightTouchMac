@@ -277,7 +277,7 @@ import os
     @Test func theSkipSetupAndJailbreakChoicesReachThePreparer() async throws {
         try await LibraryFixtures.withScratch { tmp in
             var entries: [[String: Any]] = []
-            for id in ["k48ap-9B206", "k48ap-8C148"] {
+            for id in ["k48ap-9B206", "k48ap-8C148", "k48ap-7B500"] {
                 var e = Self.entry(id)
                 let data = LibraryFixtures.randomData(1 << 20)
                 let url = tmp.appendingPathComponent("\(id).ipsw")
@@ -293,6 +293,7 @@ import os
             var seen: [String: [String]] = [:]
             for (id, chosen) in [
                 ("k48ap-9B206", true), ("k48ap-8C148", true), ("k48ap-9B206", false), ("k48ap-8C148", false),
+                ("k48ap-7B500", false),
             ] {
                 let argvURL = tmp.appendingPathComponent("argv-\(UUID().uuidString).json")
                 let h = try Harness(
@@ -300,8 +301,8 @@ import os
                     catalog: catalog,
                     preparer: try LibraryFixtures.fakePreparer(in: tmp, argv: argvURL)
                 )
-                // Skip Setup is off unless chosen; Jailbreak is on unless turned off, and can't be turned on before
-                // iOS 5. "Not chosen" flips each one's Jailbreak checkbox.
+                // Skip Setup is off unless chosen; Jailbreak is on unless turned off where the sandbox patch resolves
+                // and can't be turned on elsewhere (iOS 3). "Not chosen" flips each one's Jailbreak checkbox.
                 if chosen { h.jobs.skipsSetup = [id] } else { h.jobs.setJailbreaks(id, !h.jobs.jailbreaks(id)) }
                 h.jobs.downloadAndPrepare(try #require(catalog.entry(id: id)))
                 await h.settle(id)
@@ -312,9 +313,10 @@ import os
             #expect(seen["k48ap-9B206 false"]?.contains("--skip-setup") == false, "5.1.1, not chosen")
             #expect(seen["k48ap-8C148 true"]?.contains("--skip-setup") == false, "4.2.1 has no Setup Assistant")
             #expect(seen["k48ap-9B206 true"]?.contains("--jailbreak") == true, "5.1.1, untouched")
-            #expect(seen["k48ap-8C148 true"]?.contains("--jailbreak") == false, "4.2.1, untouched")
+            #expect(seen["k48ap-8C148 true"]?.contains("--jailbreak") == true, "4.2.1 iPad, untouched")
             #expect(seen["k48ap-9B206 false"]?.contains("--jailbreak") == false, "5.1.1, turned off")
-            #expect(seen["k48ap-8C148 false"]?.contains("--jailbreak") == false, "4.2.1, turned on")
+            #expect(seen["k48ap-8C148 false"]?.contains("--jailbreak") == false, "4.2.1 iPad, turned off")
+            #expect(seen["k48ap-7B500 false"]?.contains("--jailbreak") == false, "3.2.2 iPad, turned on")
         }
     }
 
