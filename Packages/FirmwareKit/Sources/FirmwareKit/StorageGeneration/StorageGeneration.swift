@@ -153,7 +153,8 @@ public actor StorageGeneration {
 
     /// Preserve unknown record fields. All mutable storage and snapshots move as
     /// one generation. A snapshot of the old flash cannot be selected afterward.
-    public func candidateRecord(provenance: sending [String: Any]? = nil) throws -> Data {
+    /// `format`: the record format the candidate's storage needs (an image store's 2), when it changes.
+    public func candidateRecord(provenance: sending [String: Any]? = nil, format: Int? = nil) throws -> Data {
         try requireOwner()
         guard !operationActive else {
             throw FirmwareError(.internal, "storage transaction operation is already in progress")
@@ -173,6 +174,7 @@ public actor StorageGeneration {
         record["base"] = base
         record["storage"] = storage
         if let provenance { record["provenance"] = provenance }
+        if let format { record["format"] = format }
         return try DeviceRecord.data(record)
     }
 

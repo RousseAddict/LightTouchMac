@@ -320,7 +320,9 @@ public enum StoppedVolumeEdit {
                 "lock": try edit.recordPath(lockURL), "sha256": StorageGeneration.hash(lockData),
             ]
             try Preparer.readOnly(edit.base)
-            try await edit.publish(record: edit.candidateRecord(provenance: provenance))
+            // K48NAND.rebuild lays out an image store: a format 1 device leaves the edit in format 2
+            let format = yaftl ? DeviceRecord.imageFormat : nil
+            try await edit.publish(record: edit.candidateRecord(provenance: provenance, format: format))
             log("published storage generation \(id.uuidString)")
             // the old store's clones would keep its blocks for as long as this generation lives
             for input in ["guest-nand", "guest-overlay"] {

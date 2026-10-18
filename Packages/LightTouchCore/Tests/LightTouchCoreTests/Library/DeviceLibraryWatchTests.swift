@@ -43,7 +43,7 @@ struct DeviceLibraryWatchTests {
             let instance = try record("Newer", state: state)
             let url = DeviceInstance.directory(instance.id, state: state).appendingPathComponent(DeviceRecord.name)
             var object = try DeviceRecord.object(Data(contentsOf: url))
-            object["format"] = 2
+            object["format"] = DeviceInstance.currentFormat + 1
             object["futureField"] = "kept"
             try DeviceRecord.data(object).write(to: url)
             let library = DeviceLibrary(state: state)

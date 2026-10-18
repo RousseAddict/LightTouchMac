@@ -530,3 +530,50 @@ extension BootTests {
         #expect(!FileManager.default.fileExists(atPath: f.nor.path))
     }
 }
+
+extension BootTests {
+    /// An image store boots from its live clone, overlay/nand: made on the first boot from the immutable, read-only
+    /// base (the clone writable and unflagged, the base untouched), kept after it, passed as nand= with no
+    /// nand-overlay. Format 1 pages over an image base are refused, never dropped.
+    @Test func imageStoreBootsItsLiveClone() throws {
+        let f = try Fixture(board: .n81, strategy: "kboot")
+        let fm = FileManager.default
+        let nand = f.base.appendingPathComponent("nand")
+        let chip = nand.appendingPathComponent("bus0-ce0.pages")
+        try Data(#"{"storage_format": "nand-xor-ff-v2", "layout": "generated"}"#.utf8)
+            .write(to: nand.appendingPathComponent("geometry.json"))
+        try Data([1, 2, 3]).write(to: chip)
+        chmod(chip.path, 0o444)
+        chmod(nand.path, 0o555)
+        chflags(nand.path, UInt32(UF_IMMUTABLE))
+        defer {
+            chflags(nand.path, 0)
+            chmod(nand.path, 0o755)
+        }
+        func argv() throws -> String {
+            try f.prepare(.n81).configuration(
+                bootArgs: "",
+                usbAddress: nil,
+                wifi: false,
+                guestPackage: nil,
+                serial: "null",
+                audio: [],
+                netdev: nil
+            ).argv[2]
+        }
+        let live = PreparedDeviceBoot.liveNAND(overlay: f.overlay)
+        let machine = try argv()
+        #expect(machine.contains(",nand=\(live.path)") && !machine.contains("nand-overlay"))
+        for url in [live, live.appendingPathComponent("bus0-ce0.pages")] {
+            var st = stat()
+            #expect(lstat(url.path, &st) == 0 && st.st_flags == 0 && access(url.path, W_OK) == 0, "\(url.path)")
+        }
+        try Data([9]).write(to: live.appendingPathComponent("bus0-ce0.pages"))  // the guest's write
+        _ = try argv()
+        #expect(try Data(contentsOf: live.appendingPathComponent("bus0-ce0.pages")) == Data([9]))
+        #expect(try Data(contentsOf: chip) == Data([1, 2, 3]))
+        #expect(try fm.contentsOfDirectory(atPath: f.overlay.path).sorted() == [".base-identity", "nand"])
+        try Data().write(to: f.overlay.appendingPathComponent("bus0-ce0.dirty"))
+        #expect(throws: CocoaError.self) { _ = try f.prepare(.n81) }
+    }
+}

@@ -11,6 +11,8 @@ public struct PreparedDeviceBoot {
     private let board: Board
     private let boot: URL
     private let nand: URL
+    /// The NAND overlay the emulator writes, nil when it writes `nand` itself (an image store's live clone).
+    private let nandOverlay: URL?
     private let baseNOR: URL
     private let writableNOR: URL?
     private let overlay: URL
@@ -53,6 +55,12 @@ public struct PreparedDeviceBoot {
             )
         }
         if let storageKey, try !pinOverlay(overlay, toBase: storageKey) { throw Failure.baseMismatch }
+        var nand = files.nand
+        var nandOverlay: URL? = overlay
+        if board.isKBoot, isImageStore(files.nand) {
+            nand = try liveNAND(base: files.nand, overlay: overlay)
+            nandOverlay = nil
+        }
         let identityURL = base.appendingPathComponent("identity.json")
         let identity = (try? Data(contentsOf: identityURL))
             .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
@@ -60,7 +68,8 @@ public struct PreparedDeviceBoot {
         return Self(
             board: board,
             boot: files.boot,
-            nand: files.nand,
+            nand: nand,
+            nandOverlay: nandOverlay,
             baseNOR: base.appendingPathComponent("nor.bin"),
             writableNOR: files.writableNOR,
             overlay: overlay,
@@ -92,6 +101,7 @@ public struct PreparedDeviceBoot {
             board: .n72,
             boot: URL(fileURLWithPath: iBoot.isEmpty ? "nor.bin" : iBoot),
             nand: nand,
+            nandOverlay: overlay,
             baseNOR: nor,
             writableNOR: destination,
             overlay: overlay,
@@ -137,6 +147,72 @@ public struct PreparedDeviceBoot {
             return true
         }
         return (try? String(contentsOf: stamp, encoding: .utf8)) == identity
+    }
+
+    /// An image store (geometry.json storage_format nand-xor-ff-v2: FirmwareKit's A4 and S5L8920 stores from record
+    /// format 2, K48NAND.StoreFormat.image) needs no page overlay: the device's NAND is an APFS clone of the base's,
+    /// `overlay/nand`, which the emulator writes in place. Erase removes the overlay and the next boot clones again.
+    public static func isImageStore(_ nand: URL) -> Bool {
+        let geometry = (try? Data(contentsOf: nand.appendingPathComponent("geometry.json")))
+            .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        return geometry?["storage_format"] as? String == "nand-xor-ff-v2"
+    }
+
+    public static func liveNAND(overlay: URL) -> URL { overlay.appendingPathComponent("nand", isDirectory: true) }
+
+    /// Written by the helper beside its lease when a session ends in a clean halt (QEMU paused, which flushes the
+    /// storage, then returned); boot admission reads it and removes it before the next session.
+    public static func cleanStopMarker(lease: URL) -> URL {
+        lease.deletingLastPathComponent().appendingPathComponent("clean-stop")
+    }
+
+    /// The device's live NAND, cloned from `base` (its read-only image store) on the first boot after preparation or
+    /// Erase. The clone keeps the base's uchg and modes, so they are cleared before it is published by a rename.
+    static func liveNAND(base: URL, overlay: URL) throws -> URL {
+        let fm = FileManager.default
+        let live = liveNAND(overlay: overlay)
+        // Page files an older build wrote over this base: never booted as an image, and never silently dropped.
+        for name in ["bus0-ce0.pages", "bus0-ce0.dirty"]
+        where fm.fileExists(atPath: overlay.appendingPathComponent(name).path) {
+            throw CocoaError(
+                .fileReadCorruptFile,
+                userInfo: [
+                    NSFilePathErrorKey: overlay.path,
+                    NSLocalizedDescriptionKey:
+                        "This device’s data was written in an older format over a newer system image.",
+                ]
+            )
+        }
+        if fm.fileExists(atPath: live.path) { return live }
+        let staged = overlay.appendingPathComponent(".nand-\(UUID().uuidString).tmp", isDirectory: true)
+        defer { if fm.fileExists(atPath: staged.path) { try? removeClone(staged) } }
+        // ponytail: clonefile only; the state root is always APFS. A copy would allocate every chip's full size.
+        guard clonefile(base.path, staged.path, 0) == 0 else {
+            throw CocoaError(
+                .fileWriteUnknown,
+                userInfo: [
+                    NSFilePathErrorKey: base.path,
+                    NSUnderlyingErrorKey: POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO),
+                ]
+            )
+        }
+        for name in try fm.contentsOfDirectory(atPath: staged.path) {
+            try writable(staged.appendingPathComponent(name), mode: 0o644)
+        }
+        try writable(staged, mode: 0o755)
+        guard rename(staged.path, live.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
+        return live
+    }
+
+    private static func writable(_ url: URL, mode: mode_t) throws {
+        guard chflags(url.path, 0) == 0, chmod(url.path, mode) == 0 else {
+            throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO)
+        }
+    }
+
+    private static func removeClone(_ url: URL) throws {
+        try writable(url, mode: 0o755)
+        try FileManager.default.removeItem(at: url)
     }
 
     /// The writable NOR's path; prepare requires one for every board but the iPads.
@@ -220,7 +296,7 @@ public struct PreparedDeviceBoot {
             var ipad = BootRecipe.IPad(
                 boot: bootPath,
                 nand: nand.path,
-                overlay: overlay.path,
+                overlay: nandOverlay?.path,
                 dieID: dieID,
                 usbAddress: usbAddress,
                 wifi: wifi,

@@ -9,7 +9,7 @@ import HostRuntime
 
 public nonisolated struct DeviceInstance: Codable, Equatable, Identifiable, Sendable {
     public init(
-        format: Int = currentFormat,
+        format: Int = 1,
         id: UUID,
         name: String,
         board: String,
@@ -114,7 +114,8 @@ public nonisolated struct DeviceInstance: Codable, Equatable, Identifiable, Send
         }
     }
 
-    public var format = currentFormat
+    /// 1: page overlays; 2: an image store (K48NANDMigration), which an older build must not boot.
+    public var format = 1
     public let id: UUID
     public var name: String
     public var board: String

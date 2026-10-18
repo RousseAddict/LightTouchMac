@@ -82,7 +82,8 @@ public nonisolated enum DeviceStateStorage {
                 state: state,
                 owner: owner
             )
-            for key in ["base", "storage", "provenance"] { record[key] = prepared[key] }
+            // the prepared storage's format too: an edit of a format 1 device leaves it in format 2
+            for key in ["base", "storage", "provenance", "format"] { record[key] = prepared[key] }
             try DeviceRecord.data(record).write(to: recordURL, options: .atomic)
         }
         try removeAside(generations, with: [], state: state, owner: owner)

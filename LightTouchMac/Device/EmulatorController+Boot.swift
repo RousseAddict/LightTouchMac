@@ -256,7 +256,9 @@ extension EmulatorController {
         let paths = instance.paths
         // Guest-owned files only; the app's own writes under Devices/<uuid> must not fire this.
         let nor = [paths.writableNOR].compactMap { $0 }.filter { !$0.path.hasPrefix(paths.overlay.path + "/") }
-        fileWatch = DeviceFileWatch(directories: [paths.overlay], files: nor, base: paths.base) { [weak self] path in
+        // An image store's live NAND (overlay/nand) holds the chip files QEMU has open.
+        let directories = [paths.overlay, PreparedDeviceBoot.liveNAND(overlay: paths.overlay)]
+        fileWatch = DeviceFileWatch(directories: directories, files: nor, base: paths.base) { [weak self] path in
             Task { @MainActor in self?.filesChanged(path) }
         }
     }

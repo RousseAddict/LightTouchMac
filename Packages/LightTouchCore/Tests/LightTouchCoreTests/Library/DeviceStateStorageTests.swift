@@ -139,6 +139,7 @@ struct DeviceStateStorageTests {
             try make("work", files: [:])
             try make("base", files: ["device.lock.json": lock(false), "nand": Data("prepared".utf8)])
             try make("overlay", files: ["app.page": Data("installed app".utf8)])
+            try make("overlay/nand", files: ["bus0-ce0.pages": Data("live".utf8)])  // an image store's live NAND
             try Data("nvram".utf8).write(to: device.appendingPathComponent("nor.bin"))
             try Data("state".utf8).write(to: device.appendingPathComponent("snapshot"))
             var instance = DeviceInstance(
@@ -177,6 +178,7 @@ struct DeviceStateStorageTests {
                 instance.storage.writableNOR = "\(relative)/\(g)/nor.bin"
                 instance.storage.snapshot = "\(relative)/\(g)/snapshot"
                 instance.provenance = .init(lock: "\(relative)/\(g)/base/device.lock.json", sha256: "edited")
+                instance.format = 2  // the edit laid out an image store (StoppedVolumeEdit)
                 try instance.write(state: state)
             }
             instance.name = "Renamed"

@@ -338,6 +338,8 @@ public nonisolated final class PreparationJob: @unchecked Sendable {
         let relative = "Devices/\(id.uuidString)"
         let base = keep ? staging.path : "\(relative)/base"
         let instance = DeviceInstance(
+            // an image store (the A4 and S5L8920 boards) is format 2, which an older build must not boot
+            format: PreparedDeviceBoot.isImageStore(staging.appendingPathComponent("nand")) ? DeviceRecord.imageFormat : 1,
             id: id,
             name: entry.marketingName,
             board: entry.board,
