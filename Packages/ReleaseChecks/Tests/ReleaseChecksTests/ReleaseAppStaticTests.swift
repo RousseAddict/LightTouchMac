@@ -197,8 +197,11 @@ struct ReleaseAppStaticTests {
                 == Set(assets),
             "the SecureROMs and the built-in iPod only (no raw pages, no iBoot)"
         )
-        let head = try FileHandle(forReadingFrom: device.appendingPathComponent("n72ap-7E18.itbase")).read(upToCount: 8)
-        #expect(head == Data("ITPACK01".utf8), "the built-in iPod is not a packed device")
+        let index =
+            try JSONSerialization.jsonObject(
+                with: Data(contentsOf: device.appendingPathComponent("n72ap-7E18.itbase/index.json"))
+            ) as? [String: Any]
+        #expect(index?["format"] as? Int == 2, "the built-in iPod is not a packed device")
         let entries = catalog["entries"] as! [[String: Any]]
         let first = try #require(entries.first { $0["id"] as? String == catalog["first_run"] as? String })
         #expect(first["status"] as? String == "available")

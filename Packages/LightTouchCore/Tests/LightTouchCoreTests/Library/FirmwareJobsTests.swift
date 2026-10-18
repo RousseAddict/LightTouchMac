@@ -420,14 +420,26 @@ import os
 
     // MARK: - The built-in iPod
 
-    /// A packed base in the n72 shape (pack-base, as scripts/vendor does with a real one) in a fake bundle's
-    /// Resources/Device/n72ap-7E18.itbase; the real firmwarekit unpacks it.
+    /// A packed base in the n72 shape (pack-base, as scripts/vendor does with a real one: its NAND an image store, four
+    /// sparse chip files with one page written) in a fake bundle's Resources/Device/n72ap-7E18.itbase; the real
+    /// firmwarekit unpacks it.
     @MainActor func builtIn(_ tmp: URL) async throws -> (Harness, FirmwareCatalog.Entry) {
         let fk = try await FirmwareKitTool.path()
         let template = tmp.appendingPathComponent("template")
         let fm = FileManager.default
-        try fm.createDirectory(at: template.appendingPathComponent("nand/cs0"), withIntermediateDirectories: true)
-        try Data(repeating: 7, count: 4160).write(to: template.appendingPathComponent("nand/cs0/1.page"))
+        let nand = template.appendingPathComponent("nand")
+        try fm.createDirectory(at: nand, withIntermediateDirectories: true)
+        try Data(#"{"blank": "n72-generated", "storage_format": "nand-xor-blank-v2"}"#.utf8)
+            .write(to: nand.appendingPathComponent("geometry.json"))
+        for cs in 0..<4 {
+            let chip = nand.appendingPathComponent("cs\(cs).pages")
+            fm.createFile(atPath: chip.path, contents: nil)
+            let handle = try FileHandle(forWritingTo: chip)
+            try handle.truncate(atOffset: 4096 * 128 * 4160)
+            try handle.seek(toOffset: 4160)
+            try handle.write(contentsOf: Data(repeating: 7, count: 4160))
+            try handle.close()
+        }
         for (name, data) in [
             ("iBoot.bin", Data("ibot".utf8)), ("gid-blobs.bin", Data(count: 64)), ("nor.bin", Data(count: 0x100000)),
         ] {
@@ -502,6 +514,9 @@ import os
         )
         #expect(!String(decoding: lockData, as: UTF8.self).contains("/Users/"), "no build-machine path in the lock")
         #expect((try fm.attributesOfItem(atPath: base.path)[.immutable] as? Bool) == true, "the base is locked")
+        #expect(device.format == DeviceRecord.imageFormat, "an image store: record format 2")
+        let chip = try Data(contentsOf: base.appendingPathComponent("nand/cs3.pages"), options: .alwaysMapped)
+        #expect(chip.count == 4096 * 128 * 4160 && chip[4160..<8320].allSatisfy { $0 == 7 }, "the NAND as packed")
         let nor = try Data(contentsOf: base.appendingPathComponent("nor.bin"))
         return [
             "udid": identity["udid"]!, "serial": identity["serial-number"]!, "wifi": identity["wifi-mac"]!,

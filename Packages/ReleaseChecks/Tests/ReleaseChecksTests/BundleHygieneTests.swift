@@ -82,22 +82,22 @@ struct BundleHygieneTests {
             return app
         }
 
+        /// A packed device (firmwarekit pack-base): index.json, files/, one NAND image chunk holding `extra`.
         func packed(_ app: URL, seed: String, extra: Data = Data()) throws {
+            let root = "Contents/Resources/Device/n72ap-7E18.itbase"
             let files: [(String, Data)] = [
                 ("device.lock.json", try JSONSerialization.data(withJSONObject: ["identity": ["seed": seed]])),
                 ("identity.json", try JSONSerialization.data(withJSONObject: ["seed": seed])),
-                ("nand/cs0/1.page", Data(repeating: UInt8(ascii: "p"), count: 5000) + extra),
             ]
-            let index = try JSONSerialization.data(withJSONObject: [
-                "entries": files.map { ["name": $0.0, "size": $0.1.count, "mode": 0o444] }
-            ])
-            let body = files.reduce(Data()) { $0 + $1.1 }
-            var length = UInt32(index.count).littleEndian
-            try write(
-                Data("ITPACK01".utf8) + Data(bytes: &length, count: 4) + index + deflate(body),
-                "Contents/Resources/Device/n72ap-7E18.itbase",
-                in: app
-            )
+            for (name, data) in files { try write(data, "\(root)/files/\(name)", in: app) }
+            let chunk = Data(repeating: UInt8(ascii: "p"), count: 5000) + extra
+            try write(deflate(chunk), "\(root)/nand/cs0/000000.z", in: app)
+            let index: [String: Any] = [
+                "format": 2, "chunkBytes": 1 << 20,
+                "files": files.map { ["name": $0.0, "size": $0.1.count, "mode": 0o444, "sha256": ""] },
+                "images": [["name": "nand/cs0.pages", "size": chunk.count, "mode": 0o444, "chunks": ["000000": ""]]],
+            ]
+            try write(try JSONSerialization.data(withJSONObject: index), "\(root)/index.json", in: app)
         }
 
         func deflate(_ data: Data) -> Data {

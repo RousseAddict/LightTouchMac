@@ -1,6 +1,6 @@
-// firmwarekit pack-base --base DIR --out BLOB             a create output as one blob (the release build)
-// firmwarekit unpack-base --blob BLOB --out DIR --seed S  that blob as a device of its own (the app, like create:
-//                                                         JSON Lines on stdout, done names the lock)
+// firmwarekit pack-base --base DIR --out ITBASE [--reuse PREVIOUS]   a create output packed (the release build)
+// firmwarekit unpack-base --blob ITBASE --out DIR --seed S            that as a device of its own (the app, like create:
+//                                                                     JSON Lines on stdout, done names the lock)
 
 import FirmwareKit
 import FirmwareSchema
@@ -8,7 +8,11 @@ import Foundation
 
 func packBaseCommand(_ command: FirmwareCommand.PackBase) -> Never {
     do {
-        try PreparedBase.pack(base: URL(fileURLWithPath: command.base), to: URL(fileURLWithPath: command.out))
+        try PreparedBase.pack(
+            base: URL(fileURLWithPath: command.base),
+            to: URL(fileURLWithPath: command.out),
+            reuse: command.reuse.map { URL(fileURLWithPath: $0) }
+        )
         exit(0)
     } catch {
         FileHandle.standardError.write(Data("firmwarekit pack-base: \(error)\n".utf8))

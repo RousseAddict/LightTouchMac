@@ -127,14 +127,17 @@ public enum FirmwareCommand {
         public static let configuration = CommandConfiguration(commandName: "pack-base")
         @Option(help: "A create output.") public var base: String
         @Option public var out: String
+        @Option(help: "The previous build's packed base: its chunks are reused where the raw bytes are unchanged.")
+        public var reuse: String?
 
         public init() {}
-        public init(base: URL, out: URL) {
+        public init(base: URL, out: URL, reuse: URL? = nil) {
             self.base = base.path
             self.out = out.path
+            self.reuse = reuse?.path
         }
 
-        public var arguments: [String] { ["pack-base"] + options(["base": base, "out": out]) }
+        public var arguments: [String] { ["pack-base"] + options(["base": base, "out": out, "reuse": reuse]) }
     }
 
     /// `boot-admit`: a stopped device's storage checked and migrated before its helper starts.

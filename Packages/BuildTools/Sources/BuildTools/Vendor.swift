@@ -391,12 +391,13 @@ public struct Vendor {
             throw ToolError("vendor: the built-in iPod was not prepared with the vendored guest tools")
         }
         let blob = device.appendingPathComponent("\(Self.builtIn).itbase")
+        let reuse = Self.previousBuiltIn(vendor, root: vendorRoot).map { ["--reuse", $0.path] } ?? []
         try run(
             [
                 stage.appendingPathComponent("MacOS/firmwarekit").path, "pack-base", "--base",
                 device.appendingPathComponent("out").path,
                 "--out", blob.path,
-            ],
+            ] + reuse,
             log: log,
             environment: clean
         )
@@ -405,6 +406,24 @@ public struct Vendor {
             remove(device.appendingPathComponent(name))
         }
         return blob
+    }
+
+    /// The packed built-in iPod a previous build made, for pack-base to take its unchanged chunks from (so the chunks,
+    /// and the app's Sparkle deltas, change only where the device did): this vendor directory's own, else the newest
+    /// under the vendor root.
+    static func previousBuiltIn(_ vendor: URL, root: URL) -> URL? {
+        func packed(_ dir: URL) -> URL? {
+            let itbase = dir.appendingPathComponent("Resources/Device/\(Self.builtIn).itbase")
+            return files.fileExists(atPath: itbase.appendingPathComponent("index.json").path) ? itbase : nil
+        }
+        if let own = packed(vendor) { return own }
+        let siblings = ((try? files.contentsOfDirectory(at: root, includingPropertiesForKeys: nil)) ?? [])
+            .compactMap(packed)
+        func modified(_ url: URL) -> Date {
+            (try? files.attributesOfItem(atPath: url.appendingPathComponent("index.json").path)[.modificationDate]
+                as? Date) ?? .distantPast
+        }
+        return siblings.max { modified($0) < modified($1) }
     }
 
     /// Frameworks/ and MacOS/: every non-system dependency embedded once under @rpath, build rpaths dropped.

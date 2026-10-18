@@ -137,11 +137,13 @@ public enum BundleHygiene {
         for (name, url) in files {
             let values = try? url.resourceValues(forKeys: [.isDirectoryKey, .isSymbolicLinkKey, .isRegularFileKey])
             if values?.isDirectory == true, url.pathExtension == "dSYM" { found.append("a dSYM ships: \(name)") }
-            guard values?.isSymbolicLink != true, values?.isRegularFile == true else { continue }
-            if url.pathExtension == "itbase" {
+            if values?.isDirectory == true, url.pathExtension == "itbase" {
                 found += packedProblems(url, name: name, local: local)
                 continue
             }
+            guard values?.isSymbolicLink != true, values?.isRegularFile == true else { continue }
+            // a packed device's chunks are zlib streams, which packedProblems inflates; its whole files are checked here
+            if name.contains(".itbase/"), url.pathExtension == "z" { continue }
             let data = try Data(contentsOf: url)
             if local.contains(where: { data.range(of: $0) != nil }) { found.append("names a local path: \(name)") }
             guard isMachO(url) else { continue }
@@ -194,51 +196,37 @@ public enum BundleHygiene {
         return found
     }
 
-    /// A packed device (firmwarekit pack-base, ITPACK01: a little-endian index length, the JSON index, then the
-    /// entries' bytes in one zlib stream): no local path in any entry, and only the placeholder identity. Streamed.
+    /// A packed device (firmwarekit pack-base, a directory: index.json, files/ whole, each NAND image as 1 MiB zlib
+    /// chunks): no local path in any chunk (the whole files are checked as any other), and only the placeholder
+    /// identity.
     static func packedProblems(_ url: URL, name: String, local: [Data]) -> [String] {
-        guard let handle = try? FileHandle(forReadingFrom: url) else { return ["unreadable: \(name)"] }
-        defer { try? handle.close() }
-        guard let head = try? handle.read(upToCount: 12), head.count == 12, head.prefix(8) == Data("ITPACK01".utf8)
-        else {
-            return ["not a packed device: \(name)"]
-        }
-        let length = Int(head[8]) | Int(head[9]) << 8 | Int(head[10]) << 16 | Int(head[11]) << 24
-        guard let indexData = try? handle.read(upToCount: length),
-            let index = try? JSONSerialization.jsonObject(with: indexData) as? [String: Any],
-            let entries = index["entries"] as? [[String: Any]]
-        else { return ["\(name): unreadable index"] }
+        guard
+            let index = (try? Data(contentsOf: url.appendingPathComponent("index.json")))
+                .flatMap({ try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }),
+            index["format"] as? Int == 2
+        else { return ["not a packed device: \(name)"] }
         var found: [String] = []
-        var kept: [String: Data] = [:]
-        var tail = Data()
-        var reportedLocal = false
-        var entry = 0
-        var left = entries.first?["size"] as? Int ?? 0
-        let ok = inflate(handle) { chunk in
-            if !reportedLocal, local.contains(where: { (tail + chunk).range(of: $0) != nil }) {
+        func scan(_ data: Data) {
+            if found.isEmpty, local.contains(where: { data.range(of: $0) != nil }) {
                 found.append("names a local path: \(name) (packed)")
-                reportedLocal = true
-            }
-            tail = chunk.suffix(256)
-            var rest = chunk[...]
-            while !rest.isEmpty, entry < entries.count {  // keep the small files the identity lives in
-                let take = rest.prefix(left)
-                if let entryName = entries[entry]["name"] as? String,
-                    ["identity.json", "device.lock.json"].contains(entryName)
-                {
-                    kept[entryName, default: Data()].append(contentsOf: take)
-                }
-                rest = rest.dropFirst(take.count)
-                left -= take.count
-                while left == 0, entry < entries.count {
-                    entry += 1
-                    left = entry < entries.count ? entries[entry]["size"] as? Int ?? 0 : 0
-                }
             }
         }
-        guard ok else { return found + ["\(name): unreadable body"] }
-        func json(_ name: String) -> [String: Any]? {
-            kept[name].flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
+        for image in index["images"] as? [[String: Any]] ?? [] {
+            let stem = ((image["name"] as? String ?? "") as NSString).deletingPathExtension
+            for number in (image["chunks"] as? [String: Any] ?? [:]).keys.sorted() {
+                guard let handle = try? FileHandle(forReadingFrom: url.appendingPathComponent("\(stem)/\(number).z"))
+                else { return found + ["\(name): missing chunk \(stem)/\(number)"] }
+                defer { try? handle.close() }
+                var raw = Data()
+                guard inflate(handle, { raw.append($0) }) else {
+                    return found + ["\(name): unreadable chunk \(stem)/\(number)"]
+                }
+                scan(raw)
+            }
+        }
+        func json(_ file: String) -> [String: Any]? {
+            (try? Data(contentsOf: url.appendingPathComponent("files/\(file)")))
+                .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
         }
         guard let identity = json("identity.json")?["seed"] as? String,
             let lock = (json("device.lock.json")?["identity"] as? [String: Any])?["seed"] as? String

@@ -98,4 +98,31 @@ struct VendorTests {
         try files.createDirectory(at: root.appendingPathComponent("abc"), withIntermediateDirectories: true)
         #expect(cached("abc", legacy: legacy) == root.appendingPathComponent("abc"))
     }
+
+    /// pack-base reuses the chunks of this vendor directory's own packed built-in iPod, else of the newest one under
+    /// the root; an old single-file base (no index.json) offers none.
+    @Test func previousBuiltInIsOwnElseTheNewest() throws {
+        let root = try scratch()
+        defer { remove(root) }
+        func packed(_ key: String, age: TimeInterval) throws -> URL {
+            let itbase = root.appendingPathComponent("\(key)/Resources/Device/\(Vendor.builtIn).itbase")
+            try touch(itbase.appendingPathComponent("index.json"))
+            try files.setAttributes(
+                [.modificationDate: Date(timeIntervalSinceNow: -age)],
+                ofItemAtPath: itbase.appendingPathComponent("index.json").path
+            )
+            return itbase
+        }
+        let current = root.appendingPathComponent("current")
+        #expect(Vendor.previousBuiltIn(current, root: root) == nil)
+        try touch(root.appendingPathComponent("blob/Resources/Device/\(Vendor.builtIn).itbase"))  // format 1: a file
+        #expect(Vendor.previousBuiltIn(current, root: root) == nil)
+        _ = try packed("older", age: 100)
+        let newer = try packed("newer", age: 10)
+        #expect(
+            Vendor.previousBuiltIn(current, root: root)?.resolvingSymlinksInPath() == newer.resolvingSymlinksInPath()
+        )
+        let own = try packed("current", age: 1000)
+        #expect(Vendor.previousBuiltIn(current, root: root)?.resolvingSymlinksInPath() == own.resolvingSymlinksInPath())
+    }
 }
