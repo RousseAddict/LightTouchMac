@@ -89,6 +89,9 @@ struct SingleConfig: Decodable {
     /// panel=WxH on the same overlay (EmulatorController.setPanel); then the frame's size, the dock row in the new
     /// bottom band, and a tap on a dock icon launching its app.
     var panel: String?
+    /// The base's Home reference (matrix-refs): a boot without a guest agent whose lock-screen shot already matches it
+    /// is at Home, and gets no slide.
+    var homeReference: String?
 }
 
 /// A page only wifi0 serves (a guestfwd to a shell that answers any request), so a cellular route can't stand in for
@@ -342,13 +345,21 @@ nonisolated enum WiFiProbe {
             await home()
             try? await Task.sleep(for: .seconds(2))
         }
-        d.screenshot(generation == 1 ? "lock" : "lock\(generation)")
+        let lockShot = d.screenshot(generation == 1 ? "lock" : "lock\(generation)")
         // A lock whose guest package carries the agent (framecheck's home judge expects its answer) gets the wait
         // even when this run made no offer (no --ipad-itpack): its seed package starts the agent.
         let asks = agent || (a4 && offered) || lockAgent
         let guestAgent = GuestAgent(link: d.process.link, cache: GuestAgentCache())
         if asks { _ = await guestAgent.waitAlive(seconds: 60) }
-        await d.slideToUnlock(generation, agent: asks ? guestAgent : nil)
+        // iPhone OS 1.x boots to Home, not the lock screen, and has no agent to ask: the slide would start on the
+        // first Dock icon, and a guest slowed by host load opened that app (Music) instead of ignoring the drag.
+        if !asks, let lockShot, let ref = s.homeReference,
+            FrameCheck.verdict(capture: URL(fileURLWithPath: lockShot), reference: URL(fileURLWithPath: ref)).ok
+        {
+            emit("unlock", ["device": d.name, "generation": generation, "attempts": 0, "locked": -1])
+        } else {
+            await d.slideToUnlock(generation, agent: asks ? guestAgent : nil)
+        }
         // A fresh 5.x iPad slides into the Setup Assistant instead of the home screen: walk it as a user would.
         // Ask until the agent answers (under load it comes up after the slide; one unanswered probe skipped the
         // walk on 9B176's first boot and left Setup up through the install and launch).

@@ -21,6 +21,8 @@ func single(_ args: SingleCheck) -> Never {
         "board": d, "base": base.url.path, "lockdownTZ": tools.services.path,
         "launch": args.launch, "reboot": args.reboot, "install": install, "httpget": httpget(args.inputs).path,
     ]
+    let homeReference = repository.appendingPathComponent("tests/sessions/matrix-refs/\(base.entryID)-home.png")
+    if FileManager.default.fileExists(atPath: homeReference.path) { single["homeReference"] = homeReference.path }
     if args.hostPowerGesture { single["hostPowerGesture"] = true }
     if let zone = args.secondZone { single["secondZone"] = zone }
     if let region = args.region { single["region"] = region }
