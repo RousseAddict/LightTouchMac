@@ -90,6 +90,8 @@ struct SingleCheck: ParsableCommand {
     @Option(help: "Install a newer build of the same app over it; its data must stay.", transform: path)
     var upgradeIPA: URL?
     @Option(help: "With --reboot: boot 2 asks for TZ.") var secondZone: String?
+    @Option(help: "lockdown-tz also sets LOCALE as the region, as the app sets the Mac's (ClockRegion.mac).")
+    var region: String?
     @Flag(help: "Shut down with the host's power gesture (iPod/1G).") var hostPowerGesture = false
     @Option(help: "N boots, AFC at lockdown's first answer, then Stop.") var afcRace: Int?
     @Option(help: "Free-form Apply at WxH (as the panel scans) from Home: the frame, the dock row, a tap.")

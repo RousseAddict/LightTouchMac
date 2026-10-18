@@ -40,6 +40,8 @@ struct SingleConfig: Decodable {
     var lockdownTZ: String?
     /// With reboot: boot 2 asks for this zone instead of the Mac's (the Mac's zone changed between boots).
     var secondZone: String?
+    /// lockdown-tz also sets this region (com.apple.international's Locale), as the app sets the Mac's.
+    var region: String?
     /// false: skip the IPA install (the entry has no AppSync, so the stock installd refuses it).
     var install: Bool?
     /// Qualify the shared host gesture using generic virtual-time input; never GUI Stop.
@@ -230,7 +232,9 @@ nonisolated enum WiFiProbe {
                         tool: tool,
                         socket: d.mux.clientSocket,
                         guest: guest,
-                        region: nil
+                        region: s.region.map {
+                            ClockRegion(locale: $0, uses24HourClock: ClockRegion.mac.uses24HourClock)
+                        }
                     )
                 } catch DeviceToolsError.zoneKept(let kept) {
                     emit("timezoneKept", ["device": d.name, "generation": generation, "zone": kept])

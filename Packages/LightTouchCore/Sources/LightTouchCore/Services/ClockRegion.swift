@@ -8,7 +8,12 @@ public nonisolated struct ClockRegion: Equatable, Sendable {
     public var locale: String
     public var uses24HourClock: Bool
 
-    public static var mac: ClockRegion { ClockRegion(Locale.autoupdatingCurrent) }
+    public static var mac: ClockRegion {
+        ClockRegion(
+            Locale.autoupdatingCurrent,
+            appleLocale: CFPreferencesCopyAppValue("AppleLocale" as CFString, kCFPreferencesAnyApplication) as? String
+        )
+    }
 
     public init(locale: String, uses24HourClock: Bool) {
         self.locale = locale
@@ -22,6 +27,14 @@ public nonisolated struct ClockRegion: Equatable, Sendable {
         self.locale = locale.region.map { "\(language)_\($0.identifier)" } ?? language
         let format = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: locale) ?? ""
         uses24HourClock = format.contains("H") || format.contains("k")
+    }
+
+    /// `locale`'s 24-hour setting with the region formats of `appleLocale`, the user's AppleLocale preference, where
+    /// there is one: in an app localized only in English, `locale` (Locale.current) carries the app's language with
+    /// the user's region, en_UA for a uk_UA user, which would replace the uk_UA the device was prepared with.
+    init(_ locale: Locale, appleLocale: String?) {
+        self.init(locale)
+        if let appleLocale { self.locale = ClockRegion(Locale(identifier: appleLocale)).locale }
     }
 
     /// lockdown-tz's options.
