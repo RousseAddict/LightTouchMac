@@ -430,10 +430,19 @@ final class DeviceHost: @unchecked Sendable {
             let start = Date()
             // Still in qemu_init: nothing can be scheduled on the VM yet, and nothing is written.
             while !qemu.ready(), !hasExited, Date().timeIntervalSince(start) < 5 { usleep(50_000) }
-            if qemu.ready() { qemu.pause() }  // vm_stop: storage flushed before the quit runs
+            let paused = qemu.ready()
+            if paused { qemu.pause() }  // vm_stop: storage flushed before the quit runs
+            let flushed = paused && !qemu.storageFailed()
             if !hasExited { qemu.quit() }
             let quitDeadline = Date().addingTimeInterval(5)
             while !hasExited, Date() < quitDeadline { usleep(50_000) }
+            // A clean stop: boot admission retires what it kept for one (the format-1 NAND after the image migration).
+            if flushed, hasExited, let lease = launch.lease {
+                FileManager.default.createFile(
+                    atPath: PreparedDeviceBoot.cleanStopMarker(lease: URL(fileURLWithPath: lease)).path,
+                    contents: nil
+                )
+            }
             helperLog(
                 String(
                     format: "halt: %@ after %.1f s",

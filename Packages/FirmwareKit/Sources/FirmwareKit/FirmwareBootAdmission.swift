@@ -52,11 +52,15 @@ public nonisolated enum FirmwareBootAdmission {
         guard let bytes = owner.bytes, let paths = owner.paths,
             let record = try? DeviceRecord.object(bytes)
         else { return false }
-        if let board = record["board"] as? String, HostRuntime.Board(rawValue: board)?.kbootPhone == true {
-            return try iPhoneIMEI(
+        if let board = record["board"] as? String, HostRuntime.Board(rawValue: board)?.isKBoot == true {
+            // The A4 and S5L8920 boards' format 2: an image store, written in place (K48NANDMigration).
+            let imaged = try K48NANDMigration.admit(owner)
+            guard HostRuntime.Board(rawValue: board)?.kbootPhone == true else { return imaged }
+            let identity = try iPhoneIMEI(
                 base: paths.base,
                 marker: owner.device.appendingPathComponent(FirmwareWire.migratedRecipeFile)
             )
+            return imaged || identity
         }
         guard record["board"] as? String == "n72ap" else { return false }
         return try N72NAND.migrateLegacyGPT(
