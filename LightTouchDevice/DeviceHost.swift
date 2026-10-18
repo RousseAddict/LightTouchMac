@@ -29,6 +29,7 @@ final class DeviceHost: @unchecked Sendable {
     /// The device's web proxy (WebProxy.swift), for the life of the process.
     private var webProxy: WebProxy?
     private var exited = false
+    private var cleanStopAsked = false
     private var shuttingDown = false
     private var activity: NSObjectProtocol?
     // pumpQueue: what paces the pump (pace()).
@@ -244,6 +245,7 @@ final class DeviceHost: @unchecked Sendable {
             status[.exitCode] = UInt64(bitPattern: Int64(rc))
             status[.qemuState] = QemuState.exited.rawValue
             stateLock.withLock { exited = true }
+            if rc == 0, stateLock.withLock({ cleanStopAsked }), !qemu.storageFailed() { Self.markCleanStop() }
             pumpQueue.async { [self] in
                 if let activity {
                     ProcessInfo.processInfo.endActivity(activity)
@@ -316,8 +318,21 @@ final class DeviceHost: @unchecked Sendable {
         case .powerdown: qemu.powerdown()
         case .shutdown:
             if let shutdown = qemu.shutdown { helperLog("shutdown: path \(shutdown())") } else { qemu.powerdown() }
-        case .quit: qemu.quit()
+        case .quit:
+            // after the guest powered itself off, QEMU's own exit flushes the storage: a clean stop too
+            if qemu.shutdownConfirmed() { stateLock.withLock { cleanStopAsked = true } }
+            qemu.quit()
         }
+    }
+
+    /// A clean stop (the halt, or a quit after the guest powered off, and QEMU returned 0 from its orderly exit, which
+    /// flushes the storage): boot admission retires what it kept for one (the format 1 NAND after the image migration).
+    static func markCleanStop() {
+        guard let lease = launch.lease else { return }
+        FileManager.default.createFile(
+            atPath: PreparedDeviceBoot.cleanStopMarker(lease: URL(fileURLWithPath: lease)).path,
+            contents: nil
+        )
     }
 
     /// Everything but hello (main.swift answers that).
@@ -414,6 +429,7 @@ final class DeviceHost: @unchecked Sendable {
         }
         guard proceed else { return }
         helperLog("halt: \(reason)")
+        stateLock.withLock { cleanStopAsked = true }  // QEMU returns 0 from an orderly stop, which flushes
         guard booted else {
             helperLog("halt: no VM running")
             exit(0)
@@ -430,19 +446,10 @@ final class DeviceHost: @unchecked Sendable {
             let start = Date()
             // Still in qemu_init: nothing can be scheduled on the VM yet, and nothing is written.
             while !qemu.ready(), !hasExited, Date().timeIntervalSince(start) < 5 { usleep(50_000) }
-            let paused = qemu.ready()
-            if paused { qemu.pause() }  // vm_stop: storage flushed before the quit runs
-            let flushed = paused && !qemu.storageFailed()
+            if qemu.ready() { qemu.pause() }  // vm_stop: storage flushed before the quit runs
             if !hasExited { qemu.quit() }
             let quitDeadline = Date().addingTimeInterval(5)
             while !hasExited, Date() < quitDeadline { usleep(50_000) }
-            // A clean stop: boot admission retires what it kept for one (the format-1 NAND after the image migration).
-            if flushed, hasExited, let lease = launch.lease {
-                FileManager.default.createFile(
-                    atPath: PreparedDeviceBoot.cleanStopMarker(lease: URL(fileURLWithPath: lease)).path,
-                    contents: nil
-                )
-            }
             helperLog(
                 String(
                     format: "halt: %@ after %.1f s",
