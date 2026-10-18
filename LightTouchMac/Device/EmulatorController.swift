@@ -271,7 +271,8 @@ final class EmulatorController {
         settings: settingsFile,
         version: iosVersion,
         guestTools: hasGuestTools,
-        clockPinned: lock?.pinsClock == true
+        clockPinned: lock?.pinsClock == true,
+        cellular: profile.hasCellular
     )
 
     // MARK: - Options

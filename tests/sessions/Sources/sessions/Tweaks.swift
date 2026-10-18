@@ -7,8 +7,9 @@ struct TweaksCheck: ParsableCommand {
         commandName: "tweaks",
         abstract: """
             Device ▸ Tweaks… on a base with guest tools: the app's TweakApplier turns on what the firmware takes and the \
-            status bar shows it (signal in dBm, the keynote clock, Core Animation's blended layers, then the clean status \
-            bar), a hidden app opens, all of it goes off again; a second boot with Time Machine starts at 9:41 AM.
+            status bar shows it (signal in dBm, the keynote clock, Core Animation's blended layers, then the Marketing \
+            Status Bar: 9:41 AM and a carrier, through a respring), a hidden app opens, all of it goes off again; a second \
+            boot with Time Machine starts at 9:41 AM.
             """
     )
     @Argument var base: String
@@ -28,7 +29,9 @@ func tweaksCheck(_ args: TweaksCheck) -> Never {
     let version = base.version
     let before = { (v: String) in version.compare(v, options: .numeric) == .orderedAscending }
     let keynote = !before("2.0") && before("4.1")
-    let clean = !before("4.2") && ["4.2", "4.3", "5.1", "6.1", "7.1"].contains { version.hasPrefix($0) }
+    // the Marketing Status Bar: SpringBoard's demo keys (with the keynote clock), else UIKit's overrides
+    let overrides = !before("4.2") && ["4.2", "4.3", "5.1", "6.1", "7.1"].contains { version.hasPrefix($0) }
+    let clean = keynote || overrides
     let colors = !before("3.1")
     let phone = ["n88ap", "n90ap"].contains(base.board)
     let unlock = base.major >= 7 ? "drag 0.2 0.86 0.9 0.86" : "drag 0.18 0.9 0.92 0.9"
@@ -44,8 +47,17 @@ func tweaksCheck(_ args: TweaksCheck) -> Never {
         "boot", "lit 0.1 400", "wait 20", "button 0", "wait 2", unlock, "wait 3", "waitagent 240", "ocr before",
     ]
     steps += ["tweaks \(first.joined(separator: ","))", "wait 2"] + wake + ["ocr on"]
-    // The same set with the clean status bar: no key changes, so no respring.
-    if clean { steps += ["tweaks \((first + ["cleanStatusBar"]).joined(separator: ","))", "wait 3", "ocr clean"] }
+    // The same set with the Marketing Status Bar: the overrides need no respring, the keys do. Then a respring from
+    // outside: the keys stay; SpringBoard drops the overrides, which the app's poll reads back and posts again.
+    if clean {
+        steps += ["tweaks \((first + ["cleanStatusBar"]).joined(separator: ","))", "wait 3"]
+        steps += (overrides ? [] : wake) + ["ocr clean"]
+        if overrides { steps += ["sbread clean"] }
+        steps += ["respring"] + wake
+        steps +=
+            overrides
+            ? ["sbread resprung", "sbrestore", "wait 3", "sbread restored", "ocr restored"] : ["ocr restored"]
+    }
     steps +=
         ["hidden \(hidden)", "button 0", "wait 3", "tweaks none", "wait 2"] + wake + [
             "ocr off", "quit", "expectExit 60",
@@ -86,7 +98,33 @@ func tweaksCheck(_ args: TweaksCheck) -> Never {
         r.check(red.1 > red.0 + 20, "Core Animation tints the blended layers (redness \(red.0) to \(red.1))")
     }
     if clean {
-        r.check(lines("clean").prefix(4).contains { $0.contains("9:41") }, "the clean status bar reads 9:41 AM")
+        for shot in ["clean", "restored"] {
+            let top = lines(shot).prefix(6)
+            // an iPod's 3.x status bar draws it "Cupe..."
+            r.check(
+                top.contains { $0.contains("9:41") } && top.contains { $0.contains("Cupe") },
+                "the \(shot) status bar reads 9:41 AM and Cupertino (\(top))"
+            )
+        }
+    }
+    if overrides {
+        let reads = Dictionary(e.find("sbread").map { ($0.string("name") ?? "", $0) }, uniquingKeysWith: { a, _ in a })
+        if reads["clean"]?.bool("readable") == true {
+            for name in ["clean", "restored"] {
+                let read = reads[name] ?? [:]
+                r.check(
+                    read.bool("held") == true && read.string("time") == "9:41 AM"
+                        && read.string("carrier") == "Cupertino" && read.double("battery") == 50,
+                    "SpringBoard holds the overrides and its data shows them, \(name) (\(read))"
+                )
+            }
+            r.check(
+                reads["resprung"]?.bool("held") == false && e.one("sbrestore").bool("posted") == true,
+                "a respring drops them and the app's poll posts them again"
+            )
+        } else {
+            print("SKIP: the base's agent can't read the status bar back (it_agent v4); OCR only")
+        }
     }
     let opened = e.one("hidden")
     r.check(

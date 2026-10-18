@@ -267,6 +267,14 @@ let baseVersion =
     scenario.prepared.flatMap { try? DeviceLock.read(base: URL(fileURLWithPath: $0.base)) }?.productVersion ?? ""
 nonisolated(unsafe) var tweaksWritten: [String] = []
 nonisolated(unsafe) var tweaksApplied = false
+/// The Marketing Status Bar the `tweaks` steps set: a carrier and a battery level the real ones never show (the
+/// Carrier panel's network is "Light Touch").
+let marketing = {
+    var style = StatusBarStyle()
+    style.carrier = "Cupertino"
+    style.battery = 50
+    return style
+}()
 /// An async call's result, from the scenario's thread.
 func blocking<T: Sendable>(_ body: @escaping @Sendable () async throws -> T) -> Result<T, Error> {
     sync { done in Task { done(await Result { try await body() }) } }
@@ -562,17 +570,18 @@ Thread.detachNewThread {
             let data = blocking { try await guest.agent.get(remote) }
             if case .success(let d?) = data { try? d.write(to: URL(fileURLWithPath: "\(dumpDir)/\(p[1])")) }
             emit("agentget", ["path": remote, "result": "\(data.map { $0?.count ?? -1 })"])
-        case "statusbar":  // statusbar clean|clear: Tweaks' Clean Status Bar for the base's version (the agent's op)
+        case "statusbar":  // statusbar clean|clear: the Marketing Status Bar's default, for the base's version
             guard let layout = StatusBarOverride.layout(version: baseVersion) else {
                 emit("statusbar", ["error": "no layout for \(baseVersion)"])
                 break
             }
-            let body = p[1] == "clean" ? layout.clean : layout.cleared
+            let body = p[1] == "clean" ? layout.data(StatusBarStyle()) : layout.cleared
             let r = blocking { try await guest.agent.raw("statusbar", body: body) }
             emit("statusbar", ["result": "\(r.map { $0.status })"])
         // tweaks NAME,NAME…: TweakApplier with those on, for the base's version, as DeviceTweaks applies
         case "tweaks":
             var settings = TweakSettings()
+            settings.statusBar = marketing
             settings.on = Set(
                 (p.count > 1 ? p[1] : "").split(separator: ",").compactMap { Tweak(rawValue: String($0)) }
             )
@@ -591,6 +600,32 @@ Thread.detachNewThread {
                     "resprung": (try? r.get().resprung) ?? false, "ok": (try? r.get()) != nil,
                 ]
             )
+        // sbread NAME: what SpringBoard's status bar server holds (the agent's statusbarget): whether its overrides
+        // are the Marketing Status Bar's for the base's version, and the clock, carrier and battery its data shows
+        case "sbread":
+            guard let layout = StatusBarOverride.layout(version: baseVersion) else {
+                emit("sbread", ["name": p[1], "error": "no layout for \(baseVersion)"])
+                break
+            }
+            let held = blocking { try await guest.agent.perform("statusbarget", "override \(layout.cleared.count)") }
+            let raw = blocking { try await guest.agent.perform("statusbarget", "data \(layout.rawSize)") }
+            let shown = (try? raw.get()).map { layout.shown($0) }
+            let ops = try? blocking { try await guest.agent.capabilities() }.get()
+            emit(
+                "sbread",
+                [
+                    "name": p[1], "readable": ops?.has("statusbarget") == true,
+                    "held": (try? held.get()) == layout.data(marketing), "time": shown?.time ?? "",
+                    "carrier": shown?.carrier ?? "", "battery": shown?.battery ?? -1, "result": "\(raw.map(\.count))",
+                ]
+            )
+        // sbrestore: DeviceTweaks' check at every poll (TweakApplier.restoreStatusBar) with the Marketing Status Bar on
+        case "sbrestore":
+            var settings = TweakSettings()
+            settings.statusBar = marketing
+            settings.on = [.cleanStatusBar]
+            let r = blocking { try await TweakApplier.restoreStatusBar(settings, version: baseVersion, guest: guest) }
+            emit("sbrestore", ["posted": (try? r.get()) == true, "result": "\(r)"])
         case "ocr":  // ocr NAME: the picture as the window shows it, and every line Vision reads on it
             guard let r = rotationDriver else { fail("ocr: no board") }
             dump(p[1])

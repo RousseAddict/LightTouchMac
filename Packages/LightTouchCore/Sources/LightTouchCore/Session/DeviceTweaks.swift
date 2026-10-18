@@ -14,6 +14,8 @@ import Observation
     public let guestTools: Bool
     /// The base pins its own clock (a beta kept inside its release window): Time Machine stays off.
     public let clockPinned: Bool
+    /// The board has a cellular modem: the status bar has cellular bars.
+    public let cellular: Bool
 
     /// The Developer Disk Image Developer Settings mounts: the app's for this version; nil where none fits.
     public let developerImage: URL?
@@ -24,12 +26,14 @@ import Observation
         version: String,
         guestTools: Bool,
         clockPinned: Bool,
+        cellular: Bool = true,
         guestRoot: URL? = Bundled.guestRoot
     ) {
         settingsFile = settings
         self.version = version
         self.guestTools = guestTools
         self.clockPinned = clockPinned
+        self.cellular = cellular
         developerImage = DeveloperDiskImage.image(version: version, in: guestRoot)
     }
 
@@ -98,7 +102,12 @@ import Observation
         guard guestTools else { return }
         let settings = settings
         let target = settings.applied(version: version)
-        guard target != applied else { return }
+        guard target != applied else {
+            if (try? await TweakApplier.restoreStatusBar(settings, version: version, guest: guest)) == true {
+                logEvent("tweaks: the status bar's overrides posted again (SpringBoard restarted)")
+            }
+            return
+        }
         do {
             let result = try await TweakApplier.apply(
                 settings,

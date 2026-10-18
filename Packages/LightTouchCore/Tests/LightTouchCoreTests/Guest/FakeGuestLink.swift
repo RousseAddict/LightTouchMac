@@ -14,6 +14,8 @@ nonisolated final class FakeGuestLink: GuestAgentLink, @unchecked Sendable {
     var spawnOutput: [String: (Int, String)] = [:]
     /// The v4 agent's live ops (it_agent v4): what statusbar and cadebug were sent.
     var v4 = false, statusBars: [Data] = [], caDebug: [String] = []
+    /// A v5 agent's statusbarget: what SpringBoard holds (the last post; nil after a respring, read as zeros).
+    var v5 = false, held: Data?
     var failPut: String?
     var waiting: [String: CheckedContinuation<LinkReply, Error>] = [:]
 
@@ -45,7 +47,7 @@ nonisolated final class FakeGuestLink: GuestAgentLink, @unchecked Sendable {
                 Data(
                     (version == 2
                         ? "it_agent v\(v4 ? 4 : 2)\nops ping "
-                            + (Self.v2ops + (v4 ? ["cadebug", "statusbar"] : []))
+                            + (Self.v2ops + (v4 ? ["cadebug", "statusbar"] : []) + (v5 ? ["statusbarget"] : []))
                             .joined(separator: " ") + "\n" : "it_agent v1\n").utf8
                 )
             )
@@ -86,7 +88,11 @@ nonisolated final class FakeGuestLink: GuestAgentLink, @unchecked Sendable {
         case "dlicon": return (0, Data())
         case "statusbar":
             statusBars.append(body)
+            held = body
             return (0, Data())
+        case "statusbarget":
+            let size = Int(args.split(separator: " ")[1])!
+            return (0, held.map { $0.prefix(size) } ?? Data(count: size))
         case "cadebug":
             caDebug.append(args)
             return (0, Data("0x0\n".utf8))

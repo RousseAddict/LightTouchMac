@@ -276,8 +276,12 @@ extension SharedState {
                     }
                     return hosting
                 }
-                let phone = try render("6.1.6", on: [.signalNumbers, .slowAnimations, .timeMachine], name: "616")
-                let pod = try render("3.1.3", on: [.keynoteClock, .coreAnimationColors], name: "313")
+                let phone = try render(
+                    "6.1.6",
+                    on: [.signalNumbers, .cleanStatusBar, .slowAnimations, .timeMachine],
+                    name: "616"
+                )
+                let pod = try render("3.1.3", on: [.keynoteClock, .cleanStatusBar, .coreAnimationColors], name: "313")
                 #expect(phone.fittingSize.height > pod.fittingSize.height / 2 && pod.fittingSize.height > 400)
                 // The model decides what is dimmed and why; the view shows it (TweaksTests has the rules).
                 let model = TweaksPanelModel(

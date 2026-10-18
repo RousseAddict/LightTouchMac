@@ -27,7 +27,7 @@ public nonisolated enum Tweak: String, Codable, CaseIterable, Sendable {
         switch self {
         case .signalNumbers: "Signal as Numbers"
         case .keynoteClock: "Keynote Clock"
-        case .cleanStatusBar: "Clean Status Bar"
+        case .cleanStatusBar: "Marketing Status Bar"
         case .slowAnimations: "Slow Animations"
         case .coreAnimationColors: "Core Animation Colors"
         case .emojiEverywhere: "Emoji Keyboard Everywhere"
@@ -55,8 +55,9 @@ public nonisolated enum Tweak: String, Codable, CaseIterable, Sendable {
         // SpringBoard's status bar draws "9:42 AM" for SBFakeTime with no SBFakeTimeString from 1.0 to 4.0; 4.2.1
         // has neither the string nor SBFakeTimeString.
         case .keynoteClock: ("2.0", "4.0.2")
-        // UIKit's +[UIStatusBarServer postStatusBarOverrideData:], from 4.2.1 (StatusBarOverride has the layouts).
-        case .cleanStatusBar: ("4.2", "7.1.2")
+        // SpringBoard's demo keys to 4.1, then UIKit's +[UIStatusBarServer postStatusBarOverrideData:] from 4.2.1
+        // (StatusBarOverride has both).
+        case .cleanStatusBar: ("2.0", "7.1.2")
         // UIKit reads com.apple.UIKit UIAnimationDragCoefficient from 3.0; 1.x and 2.x have the function and no key.
         case .slowAnimations: ("3.0", "7.1.2")
         // QuartzCore's CARenderServerSetDebugFlags, with the same CA_COLOR_* bits from 3.1.3 to 7.1.2.
@@ -84,7 +85,11 @@ public nonisolated enum Tweak: String, Codable, CaseIterable, Sendable {
         {
             return false
         }
-        if self == .cleanStatusBar, StatusBarOverride.layout(version: version) == nil { return false }
+        if self == .cleanStatusBar, !StatusBarStyle.takesKeys(version: version),
+            StatusBarOverride.layout(version: version) == nil
+        {
+            return false
+        }
         return guestTools
     }
 
@@ -93,7 +98,10 @@ public nonisolated enum Tweak: String, Codable, CaseIterable, Sendable {
         switch self {
         case .signalNumbers: "SBShowRSSI, SBShowGSMRSSI"
         case .keynoteClock: "SBFakeTime"
-        case .cleanStatusBar: "+[UIStatusBarServer postStatusBarOverrideData:]"
+        case .cleanStatusBar:
+            TweakSettings.before(version, "4.2")
+                ? "SBFakeTime, SBFakeTimeString, SBFakeCarrier, SBFakeBars"
+                : "+[UIStatusBarServer postStatusBarOverrideData:]"
         case .slowAnimations: "UIAnimationDragCoefficient"
         case .coreAnimationColors: "CARenderServerSetDebugFlags"
         case .emojiEverywhere: "KeyboardEmojiEverywhere"
@@ -144,6 +152,8 @@ public nonisolated struct TweakSettings: Codable, Equatable, Sendable {
     public var on: Set<Tweak> = []
     /// Core Animation Colors' color.
     public var coreAnimationColor = CoreAnimationColor.blendedLayers
+    /// Marketing Status Bar's status bar.
+    public var statusBar = StatusBarStyle()
     /// Time Machine's moment: each start begins there and the clock runs on.
     public var clock: Date = TweakSettings.macworld2007
     /// The preference keys ("domain key") these settings have written into the device, so turning a tweak off removes
@@ -170,6 +180,7 @@ public nonisolated struct TweakSettings: Codable, Equatable, Sendable {
         coreAnimationColor =
             (try c.decodeIfPresent(UInt32.self, forKey: .coreAnimationColor)).flatMap(CoreAnimationColor.init)
             ?? .blendedLayers
+        statusBar = try c.decodeIfPresent(StatusBarStyle.self, forKey: .statusBar) ?? StatusBarStyle()
         clock = try c.decodeIfPresent(Date.self, forKey: .clock) ?? Self.macworld2007
         written = try c.decodeIfPresent([String].self, forKey: .written) ?? []
     }
@@ -178,12 +189,13 @@ public nonisolated struct TweakSettings: Codable, Equatable, Sendable {
         var c = encoder.container(keyedBy: CodingKeys.self)
         try c.encode(on.map(\.rawValue).sorted(), forKey: .on)
         try c.encode(coreAnimationColor.rawValue, forKey: .coreAnimationColor)
+        try c.encode(statusBar, forKey: .statusBar)
         try c.encode(clock, forKey: .clock)
         try c.encode(written, forKey: .written)
     }
 
     enum CodingKeys: String, CodingKey {
-        case on, coreAnimationColor, clock, written
+        case on, coreAnimationColor, statusBar, clock, written
     }
 
     /// Whether `tweak` is on and works on `version` (with the guest tools: the device is running them).
@@ -202,7 +214,9 @@ public nonisolated struct TweakSettings: Codable, Equatable, Sendable {
             // SBShowRSSI: Wi-Fi's bars as dBm; SBShowGSMRSSI: the cellular bars as dBm (Field Test's numbers).
             keys += ["SBShowRSSI", "SBShowGSMRSSI"].map { GuestDefault("com.apple.springboard", $0, .bool(true)) }
         }
-        if applies(.keynoteClock, version: version) {
+        let marketing = applies(.cleanStatusBar, version: version) && StatusBarStyle.takesKeys(version: version)
+        if marketing { keys += statusBar.keys() }
+        if applies(.keynoteClock, version: version), !keys.contains(where: { $0.key == "SBFakeTime" }) {
             keys.append(GuestDefault("com.apple.springboard", "SBFakeTime", .bool(true)))
         }
         if applies(.slowAnimations, version: version) {
@@ -241,7 +255,7 @@ public nonisolated struct TweakSettings: Codable, Equatable, Sendable {
     /// What the agent's live ops are told: the status bar's override data (cleared when off) and the debug color bits.
     public func live(version: String) -> (statusBar: Data?, colors: UInt32?) {
         let layout = StatusBarOverride.layout(version: version)
-        let bar = layout.map { applies(.cleanStatusBar, version: version) ? $0.clean : $0.cleared }
+        let bar = layout.map { applies(.cleanStatusBar, version: version) ? $0.data(statusBar) : $0.cleared }
         let colorsWork = Tweak.coreAnimationColors.isAvailable(version: version, guestTools: true, clockPinned: false)
         return (bar, colorsWork ? (isOn(.coreAnimationColors) ? coreAnimationColor.rawValue : 0) : nil)
     }
@@ -324,6 +338,22 @@ public nonisolated enum TweakApplier {
             }
         }
         return (settings.defaults(version: version).map(\.id), respring, missing)
+    }
+
+    /// SpringBoard forgets posted overrides when it restarts (a respring from elsewhere, a crash): what its status bar
+    /// server holds, read back (the agent's statusbarget), is posted again where it isn't what the apply sent.
+    /// Whether it posted; never with an older agent, which can't read it back.
+    public static func restoreStatusBar(
+        _ settings: TweakSettings,
+        version: String,
+        guest: GuestServices
+    ) async throws -> Bool {
+        guard settings.applies(.cleanStatusBar, version: version), let bar = settings.live(version: version).statusBar,
+            try await guest.agent.capabilities().has("statusbarget"),
+            try await guest.agent.perform("statusbarget", "override \(bar.count)") != bar
+        else { return false }
+        try await guest.agent.perform("statusbar", body: bar)
+        return true
     }
 }
 

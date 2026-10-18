@@ -86,6 +86,8 @@ struct TweaksPanel: View {
             ) {
                 ForEach(CoreAnimationColor.allCases, id: \.self) { Text($0.title).tag($0) }
             }
+        case .cleanStatusBar:
+            StatusBarOptions(model: model)
         case .timeMachine:
             DatePicker(
                 "Starts At",
@@ -96,6 +98,73 @@ struct TweaksPanel: View {
         default:
             EmptyView()
         }
+    }
+}
+
+/// Marketing Status Bar's status bar: the clock's text and the carrier wherever it works; the bars, battery and
+/// indicators one by one where UIKit takes overrides (4.2 on), else drawn full.
+private struct StatusBarOptions: View {
+    @Bindable var model: TweaksPanelModel
+
+    var body: some View {
+        let style = model.settings.statusBar
+        let each = model.statusBarSetsEach
+        CommitField(title: "Time", prompt: "Real time", value: style.time) { v in model.setStatusBar { $0.time = v } }
+        CommitField(title: "Carrier", prompt: "Network’s own", value: style.carrier) { v in
+            model.setStatusBar { $0.carrier = v }
+        }
+        Group {
+            Stepper(
+                model.hasCellular ? "Cellular Bars: \(style.cellBars)" : "Cellular Bars: no cellular radio",
+                value: binding(\.cellBars),
+                in: 0...5
+            )
+            .disabled(!model.hasCellular)
+            Stepper("Wi-Fi Bars: \(style.wifiBars)", value: binding(\.wifiBars), in: 0...3)
+            Stepper("Battery: \(style.battery)%", value: binding(\.battery), in: 0...100, step: 5)
+            Toggle("Charging", isOn: binding(\.charging))
+            TweakToggle(
+                title: "Hide Indicators",
+                caption: "Alarm, location, Bluetooth, rotation lock, activity",
+                isOn: binding(\.hidesIndicators)
+            )
+        }
+        .disabled(!each)
+        if !each {
+            Text("This version draws the bars and battery full.").font(.callout).foregroundStyle(.secondary)
+        }
+    }
+
+    private func binding<T>(_ field: WritableKeyPath<StatusBarStyle, T>) -> Binding<T> {
+        Binding(
+            get: { model.settings.statusBar[keyPath: field] },
+            set: { v in model.setStatusBar { $0[keyPath: field] = v } }
+        )
+    }
+}
+
+/// A text field that saves when editing ends (Return or leaving it), not at every keystroke: a change to SpringBoard's
+/// keys restarts it.
+private struct CommitField: View {
+    let title: String
+    let prompt: String
+    let value: String
+    let commit: (String) -> Void
+    @State private var text = ""
+    @FocusState private var focused: Bool
+
+    var body: some View {
+        TextField(title, text: $text, prompt: Text(prompt))
+            .focused($focused)
+            .onSubmit { save() }
+            .onChange(of: focused) { if !focused { save() } }
+            .onAppear { text = value }
+            .onChange(of: value) { text = value }
+    }
+
+    private func save() {
+        let trimmed = text.trimmingCharacters(in: .whitespaces)
+        if trimmed != value { commit(trimmed) }
     }
 }
 
@@ -138,7 +207,8 @@ extension DeviceTweaks {
             settings: DeviceSettingsFile(directory: instance.paths.directory),
             version: FirmwareCatalog.bundled.entry(id: instance.firmware)?.version ?? "3.1.3",
             guestTools: instance.profile?.hasGuestTools ?? false,
-            clockPinned: (try? DeviceLock.read(base: instance.paths.base))??.pinsClock == true
+            clockPinned: (try? DeviceLock.read(base: instance.paths.base))??.pinsClock == true,
+            cellular: instance.profile?.hasCellular ?? true
         )
     }
 }

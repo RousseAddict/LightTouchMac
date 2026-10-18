@@ -17,8 +17,10 @@ import Testing
         #expect(ok(.emojiEverywhere, "4.2.1") && !ok(.emojiEverywhere, "5.1.1") && !ok(.emojiEverywhere, "2.1"))
         #expect(ok(.slowAnimations, "3.0") && !ok(.slowAnimations, "2.2.1") && ok(.slowAnimations, "7.1.2"))
         #expect(ok(.developerSettings, "6.1.6") && ok(.developerSettings, "4.2.1") && !ok(.developerSettings, "4.0"))
-        #expect(ok(.cleanStatusBar, "4.2.1") && ok(.cleanStatusBar, "7.1.2") && !ok(.cleanStatusBar, "4.0"))
-        #expect(!ok(.cleanStatusBar, "6.0"), "a layout nobody read")
+        #expect(ok(.cleanStatusBar, "4.2.1") && ok(.cleanStatusBar, "7.1.2"))
+        #expect(ok(.cleanStatusBar, "2.2.1") && ok(.cleanStatusBar, "4.1"), "SpringBoard's demo keys")
+        #expect(ok(.cleanStatusBar, "5.0.1") && ok(.cleanStatusBar, "6.0") && ok(.cleanStatusBar, "7.0.4"))
+        #expect(!ok(.cleanStatusBar, "1.1.4", tools: false), "no guest tools to write the keys")
         #expect(!ok(.signalNumbers, "1.0", tools: false) && ok(.timeMachine, "1.0", tools: false))
         #expect(!ok(.timeMachine, "6.0", pinned: true), "a beta's own pinned clock wins")
     }
@@ -60,6 +62,13 @@ import Testing
         #expect(Tweak.safariDebug.caption(version: "6.1.6") == "com.apple.webinspectord RemoteInspectorEnabled")
         #expect(Tweak.timeMachine.caption(version: "4.2.1") == "rtc-epoch")
         #expect(Tweak.timeMachine.caption(version: "7.1.2") == "rtc-epoch")
+        #expect(
+            Tweak.cleanStatusBar.caption(version: "3.1.3") == "SBFakeTime, SBFakeTimeString, SBFakeCarrier, SBFakeBars"
+        )
+        #expect(Tweak.cleanStatusBar.caption(version: "5.1.1") == "+[UIStatusBarServer postStatusBarOverrideData:]")
+        #expect(
+            Tweak.cleanStatusBar.caption(version: "4.1") == "SBFakeTime, SBFakeTimeString, SBFakeCarrier, SBFakeBars"
+        )
     }
 
     @Test func theKeysFollowTheFirmware() {
@@ -135,17 +144,112 @@ import Testing
 
     @Test func statusBarOverridesFollowEachUIKit() throws {
         // 7.1.2: 25 item switches, the bits at 25-26, values at 28 (UIKit's merge routine, 0x2fc7abd0).
-        let d = try #require(StatusBarOverride.layout(version: "7.1.2")).clean
+        let d = try #require(StatusBarOverride.layout(version: "7.1.2")).data(StatusBarStyle())
         #expect(d.count == 2000)
         #expect(d[25] == 0b101 && d[26] == 0b0011_0110, "time and GSM bars; Wi-Fi bars, data network, battery")
         #expect(String(decoding: d[53..<60], as: UTF8.self) == "9:41 AM")
         func int(_ at: Int) -> Int32 { d[at..<at + 4].withUnsafeBytes { $0.loadUnaligned(as: Int32.self) } }
         #expect(int(124) == 5 && int(1560) == 3 && int(1564) == 5 && int(1568) == 100 && int(1572) == 0)
-        let five = try #require(StatusBarOverride.layout(version: "5.1.1")).clean
+        let five = try #require(StatusBarOverride.layout(version: "5.1.1")).data(StatusBarStyle())
         #expect(five.count == 2092 && five[23] == 0b101 && five[24] == 0b0110_1100)
         #expect(String(decoding: five[51..<58], as: UTF8.self) == "9:41 AM")
         #expect(StatusBarOverride.layout(version: "4.3.3")?.cleared == Data(count: 1892))
-        #expect(StatusBarOverride.layout(version: "4.1") == nil && StatusBarOverride.layout(version: "7.0") == nil)
+        #expect(StatusBarOverride.layout(version: "4.1") == nil, "4.1's UIKit has no postStatusBarOverrideData")
+        // 5.0, 6.0 and 7.0 encode the struct as 5.1, 6.1 and 7.1 do, up to the bitfields at its end
+        for (minor, next) in [("5.0.1", "5.1.1"), ("6.0", "6.1.6"), ("7.0.4", "7.1.2")] {
+            let style = StatusBarStyle()
+            #expect(
+                StatusBarOverride.layout(version: minor)?.data(style)
+                    == StatusBarOverride.layout(version: next)?.data(style)
+            )
+        }
+    }
+
+    @Test func theMarketingStatusBarSetsEachField() throws {
+        var style = StatusBarStyle()
+        style.time = "Tue 9:41 AM"
+        style.carrier = "Light Touch"
+        style.cellBars = 2
+        style.wifiBars = 1
+        style.battery = 42
+        style.charging = true
+        func int(_ d: Data, _ at: Int) -> Int32 { d[at..<at + 4].withUnsafeBytes { $0.loadUnaligned(as: Int32.self) } }
+        func text(_ d: Data, _ at: Int) -> String { String(decoding: d[at...].prefix { $0 != 0 }, as: UTF8.self) }
+        // 7.1.2: the service string at 128 after the GSM bars at 124 (bit 3 beside time's 0 and the bars' 2); the
+        // item table's Bluetooth 11, Alarm 13, Location 16, RotationLock 17, Activity 23.
+        let seven = try #require(StatusBarOverride.layout(version: "7.1.2")).data(style)
+        #expect(seven[25] == 0b1101 && text(seven, 53) == "Tue 9:41 AM" && text(seven, 128) == "Light Touch")
+        #expect(int(seven, 124) == 2 && int(seven, 1560) == 1 && int(seven, 1568) == 42 && int(seven, 1572) == 1)
+        #expect(seven.indices.prefix(25).filter { seven[$0] == 1 } == [11, 13, 16, 17, 23])
+        #expect(seven[28..<53].allSatisfy { $0 == 0 }, "hidden: overridden, and not enabled")
+        let shown = try #require(StatusBarOverride.layout(version: "7.1.2")).shown(seven.dropFirst(28))
+        #expect(shown == ("Tue 9:41 AM", "Light Touch", 42), "the values read back as getStatusBarData's raw data")
+        // 4.2.1: Bluetooth 10, Alarm 12, Location 15, RotationLock 16, Activity 20; the service string at 124.
+        let four = try #require(StatusBarOverride.layout(version: "4.2.1")).data(style)
+        #expect(four.indices.prefix(22).filter { four[$0] == 1 } == [10, 12, 15, 16, 20])
+        #expect(text(four, 124) == "Light Touch" && four[22] == 0b1101 && four[23] == 0b11110)
+        // the clamps, the C strings' capacity, and what isn't set
+        style.time = ""
+        style.carrier = String(repeating: "é", count: 60)
+        style.cellBars = 9
+        style.hidesIndicators = false
+        let six = try #require(StatusBarOverride.layout(version: "6.1.6")).data(style)
+        #expect(six[24] & 1 == 0 && six[52] == 0, "no time: the real one")
+        #expect(text(six, 124).count == 49 && six[124 + 98] == 0, "99 bytes at most, whole characters")
+        #expect(int(six, 120) == 5 && six.prefix(24).allSatisfy { $0 == 0 })
+    }
+
+    @Test func iOS2To4TakeSpringBoardsDemoKeys() {
+        var s = TweakSettings()
+        s.on = [.cleanStatusBar, .keynoteClock]
+        s.statusBar.carrier = "Light Touch"
+        let keys = s.defaults(version: "3.1.3")
+        #expect(
+            keys == [
+                GuestDefault("com.apple.springboard", "SBFakeBars", .int(1)),
+                GuestDefault("com.apple.springboard", "SBFakeTime", .bool(true)),
+                GuestDefault("com.apple.springboard", "SBFakeTimeString", .string("9:41 AM")),
+                GuestDefault("com.apple.springboard", "SBFakeCarrier", .string("Light Touch")),
+            ],
+            "the keynote clock's SBFakeTime once, under the string"
+        )
+        #expect(s.live(version: "3.1.3").statusBar == nil, "no overrides there")
+        s.statusBar.carrier = ""
+        s.statusBar.time = ""
+        #expect(s.defaults(version: "4.0.2").map(\.key) == ["SBFakeBars", "SBFakeTime"], "the keynote clock's 9:42")
+        #expect(!s.defaults(version: "4.2.1").contains { $0.key.hasPrefix("SBFake") }, "overrides from 4.2")
+        #expect(s.defaults(version: "4.1").map(\.key) == ["SBFakeBars"], "4.1's SpringBoard reads them too")
+        s.written = ["com.apple.springboard SBFakeCarrier", "com.apple.springboard SBFakeTimeString"]
+        #expect(
+            s.changes(version: "3.1.3").filter { $0.value == nil }.map(\.key) == ["SBFakeCarrier", "SBFakeTimeString"]
+        )
+    }
+
+    @Test func aRestartedSpringBoardGetsTheOverridesAgain() async throws {
+        let link = FakeGuestLink()
+        link.v4 = true
+        link.v5 = true
+        let guest = GuestServices(agent: GuestAgent(link: link, cache: GuestAgentCache()))
+        var s = TweakSettings()
+        s.on = [.cleanStatusBar]
+        _ = try await TweakApplier.apply(s, version: "7.1.2", guest: guest, again: false)
+        #expect(link.statusBars.count == 1)
+        #expect(try await !TweakApplier.restoreStatusBar(s, version: "7.1.2", guest: guest), "still held")
+        link.held = nil  // a respring
+        #expect(try await TweakApplier.restoreStatusBar(s, version: "7.1.2", guest: guest))
+        #expect(link.statusBars.count == 2 && link.held == link.statusBars[0])
+        let old = FakeGuestLink()
+        old.v4 = true
+        #expect(
+            try await !TweakApplier.restoreStatusBar(
+                s,
+                version: "7.1.2",
+                guest: GuestServices(agent: GuestAgent(link: old, cache: GuestAgentCache()))
+            ),
+            "a v4 agent can't read it back"
+        )
+        s.on = []
+        #expect(try await !TweakApplier.restoreStatusBar(s, version: "7.1.2", guest: guest), "off: nothing to keep")
     }
 
     @Test func settingsPersistAndOlderOnesDecode() throws {
@@ -155,6 +259,8 @@ import Testing
         t.clock = Date(timeIntervalSince1970: 1_183_100_400)
         t.coreAnimationColor = .offscreenRendered
         t.written = ["com.apple.UIKit UIAnimationDragCoefficient"]
+        t.statusBar.carrier = "Light Touch"
+        t.statusBar.battery = 50
         s.tweaks = t
         try withTemporaryDirectory { dir in
             try s.save(dir)
@@ -169,6 +275,7 @@ import Testing
             )
         )
         #expect(old.on == [.signalNumbers] && old.clock == TweakSettings.macworld2007)
+        #expect(old.statusBar == StatusBarStyle() && StatusBarStyle().time == "9:41 AM")
         #expect(t.clock(clockPinned: false) == t.clock && t.clock(clockPinned: true) == nil)
         #expect(TweakSettings().clock(clockPinned: false) == nil, "off: no clock")
     }
@@ -212,7 +319,7 @@ import Testing
         var s = TweakSettings()
         s.on = [.cleanStatusBar, .coreAnimationColors]
         _ = try await TweakApplier.apply(s, version: "6.1.6", guest: guest, again: false)
-        #expect(link.statusBars == [StatusBarOverride.layout(version: "6.1.6")!.clean])
+        #expect(link.statusBars == [StatusBarOverride.layout(version: "6.1.6")!.data(StatusBarStyle())])
         #expect(link.caDebug == ["\(0x4 | 0x2 | 0x4000 | 0x20000 | 0x1) 4"])
         s.on = []
         _ = try await TweakApplier.apply(s, version: "6.1.6", guest: guest, again: true)

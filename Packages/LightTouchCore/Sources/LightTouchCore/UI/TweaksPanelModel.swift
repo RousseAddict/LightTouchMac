@@ -41,6 +41,12 @@ import Observation
         tweaks.change { $0.coreAnimationColor = coreAnimationColor }
     }
     public func set(clock: Date) { tweaks.change { $0.clock = clock } }
+    public func setStatusBar(_ change: (inout StatusBarStyle) -> Void) { tweaks.change { change(&$0.statusBar) } }
+
+    /// Marketing Status Bar sets the bars, battery and indicators one by one: UIKit's overrides (4.2 on). 2.0 to 4.1
+    /// SpringBoard draws them full or real (SBFakeBars).
+    public var statusBarSetsEach: Bool { !StatusBarStyle.takesKeys(version: tweaks.version) }
+    public var hasCellular: Bool { tweaks.cellular }
 
     /// What the panel says under the switches: why the session couldn't apply something.
     public var status: String? {
