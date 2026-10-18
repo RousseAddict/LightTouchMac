@@ -37,6 +37,7 @@ func single(_ args: SingleCheck) -> Never {
     if args.skipSetup { single["skipSetup"] = true }
     if args.jailbreak { single["jailbreak"] = true }
     if let panel = args.panel { single["panel"] = panel }
+    if args.killPersist { single["killPersist"] = true }
     if let upgrade = args.upgradeIPA { single["upgradeIPA"] = upgrade.path }
     if let wav = args.audioWAV { single["audioWAV"] = wav.path }
     let race = args.afcRace
@@ -60,7 +61,7 @@ func single(_ args: SingleCheck) -> Never {
     config["single"] = single
     // 6.x/7.x: the first boot walks the Setup Assistant; 7.x also boots and pairs far slower. Per boot.
     var timeout = base.major >= 7 ? 1400.0 : base.major >= 6 ? 700 : 560
-    if args.reboot || args.panel != nil { timeout *= 2 }
+    if args.reboot || args.panel != nil || args.killPersist { timeout *= 2 }
     if let race { timeout = 200 * Double(race) }
     // The app survey (session-driver apps.swift): 150 s an app on top of the boot.
     if let list = ProcessInfo.processInfo.environment["LTM_APPS_LIST"],
@@ -100,6 +101,20 @@ func single(_ args: SingleCheck) -> Never {
             events.find("race", ["device": d]).count == race && events.any("done"),
             "\(d): \(events.find("race", ["device": d]).count)/\(race) boots ran"
         )
+        finish(r, work: work)
+    }
+
+    if args.killPersist {
+        let lit = events.find("lit", ["device": d])
+        r.check(lit.count == 2, "\(d): lit on both boots (\(lit.count))")
+        let kept = events.one("killPersist", ["device": d])
+        r.check(
+            kept.bool("kept") && kept.bool("same"),
+            "\(d): the file uploaded before the SIGKILL is there after it"
+                + (kept.string("error").map { ": \(clip($0, 120))" } ?? "")
+        )
+        r.check(SessionJudge.tree(base.url) == before, "\(d): the prepared base is unchanged")
+        r.check(events.any("done") && status == 0, "driver finished (exit \(status.map(String.init) ?? "timeout"))")
         finish(r, work: work)
     }
 

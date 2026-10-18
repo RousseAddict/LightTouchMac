@@ -31,6 +31,9 @@ struct SingleConfig: Decodable {
     /// AFC, the install and the clean shutdown; boot 2 must light, answer lockdown and reach home (smoke #70: the
     /// 1.x FTL comes back from that Stop through _FTLRestore). No persist marker: a hard halt may lose it.
     var hardStop: Bool?
+    /// The kill test: at boot 1's Home a file goes up over AFC, the guest agent's 5 s sync puts it on the NAND, then
+    /// the helper is SIGKILLed (no pause, no flush, no stop); boot 2 must still hold the file (`killPersist`).
+    var killPersist: Bool?
     /// smoke.md #5: this many boots, each starting AFC at lockdown's first answer, then the app's Stop.
     var raceBoots: Int?
     var raceDirty: Bool?
@@ -726,6 +729,42 @@ nonisolated enum WiFiProbe {
 
     if let panel = s.panel {
         await resize(d, to: panel, boot: boot, shutdown: shutdown)
+        d.serial?.finish()
+        emit("done")
+        exit(0)
+    }
+
+    if s.killPersist == true {
+        let marker = "ltm-kill-persist.bin"
+        let bytes = Data((0..<65_536).map { UInt8(truncatingIfNeeded: $0 &* 2_654_435_761 >> 7) })
+        let local = d.dir.appendingPathComponent(marker)
+        var uploaded = false
+        do {
+            try bytes.write(to: local)
+            try await d.services.uploadFile(local, into: "") { _ in }
+            uploaded = true
+        } catch { emit("killPersist", ["device": d.name, "kept": false, "same": false, "error": "upload: \(error)"]) }
+        try? await Task.sleep(for: .seconds(15))  // three of the agent's 5 s syncs
+        d.process.kill()
+        let exited = await d.process.waitForExit(timeout: 30)
+        emit("quit", ["device": d.name, "generation": 1, "killed": true, "exited": exited])
+        await d.services.stopWorker()
+        d.mux.stop()
+        d.serial?.removeEndpoints()
+        await boot(2)
+        if uploaded {
+            let back = d.dir.appendingPathComponent("back-" + marker)
+            do {
+                guard let file = try await d.services.files(in: "").first(where: { $0.name == marker }) else {
+                    throw DeviceError.preflight("\(marker) not listed")
+                }
+                try await d.services.download(file, to: back) { _ in }
+                emit("killPersist", ["device": d.name, "kept": true, "same": try Data(contentsOf: back) == bytes])
+            } catch {
+                emit("killPersist", ["device": d.name, "kept": false, "same": false, "error": "\(error)"])
+            }
+        }
+        await shutdown(2)
         d.serial?.finish()
         emit("done")
         exit(0)

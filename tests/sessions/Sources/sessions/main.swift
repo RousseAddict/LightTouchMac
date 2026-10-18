@@ -70,6 +70,8 @@ struct SingleCheck: ParsableCommand {
     @Argument var base: String
     @Flag(help: "Launch the installed IPA through the guest agent; it must be frontmost.") var launch = false
     @Flag(help: "A second cold boot on the same overlay: a file and the app must survive.") var reboot = false
+    @Flag(help: "A file uploaded at Home, the helper SIGKILLed, a second boot: the file must survive.")
+    var killPersist = false
     @Option(help: "The guest agent reads PATH back at Home.") var readFile: String?
     @Flag(help: "Tweaks' Developer Settings: mount the guest archive's Developer Disk Image for the base at Home.")
     var developerImage = false
