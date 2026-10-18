@@ -6,6 +6,20 @@ public nonisolated enum DeviceRecord {
     public static let name = "device.plist"
     public static let legacyName = "device.json"
 
+    /// The newest record `format` this build can boot. A record without one is format 1.
+    public static let currentFormat = 1
+
+    public struct NewerFormat: LocalizedError {
+        public init() {}
+        public var errorDescription: String? { "This device was made by a newer version of Light Touch." }
+    }
+
+    /// A record a newer build wrote may name storage this build would misread: it is listed, never booted or
+    /// rewritten.
+    public static func requireReadable(_ object: [String: Any]) throws {
+        guard (object["format"] as? Int ?? 1) <= currentFormat else { throw NewerFormat() }
+    }
+
     /// The record of `device`, converted from device.json first when that is all it has.
     public static func url(_ device: URL) -> URL {
         _ = try? migrate(device)

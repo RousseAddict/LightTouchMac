@@ -15,6 +15,7 @@ extension EmulatorController {
         let paths = instance.paths
         do {
             try Bundled.requireStorage()
+            guard instance.format <= DeviceInstance.currentFormat else { throw DeviceInstance.NewerFormat() }
             try DeviceStateStorage.checkBootPaths(
                 base: paths.base,
                 mutable: [
@@ -85,6 +86,7 @@ extension EmulatorController {
                 try Task.checkCancellation()
                 let recordBytes = try Data(contentsOf: DeviceRecord.url(self.instance.paths.directory))
                 let refreshed = try DeviceInstance.decoder.decode(DeviceInstance.self, from: recordBytes)
+                guard refreshed.format <= DeviceInstance.currentFormat else { throw DeviceInstance.NewerFormat() }
                 guard refreshed.id == self.instance.id, refreshed.board == self.instance.board else {
                     throw DeviceToolsError.failed("The device identity changed while preparing to start.")
                 }

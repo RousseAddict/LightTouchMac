@@ -55,6 +55,23 @@ struct DeviceLibraryWatchTests {
         }
     }
 
+    /// The reader a start goes through refuses a newer build's record (its storage may be a format this build would
+    /// misread); the library still lists it.
+    @Test func aNewerBuildsRecordIsListedButNotRead() async throws {
+        try await LibraryFixtures.withScratch { state in
+            let instance = try record("Newer", state: state)
+            let url = DeviceInstance.directory(instance.id, state: state).appendingPathComponent(DeviceRecord.name)
+            var object = try DeviceRecord.object(Data(contentsOf: url))
+            object["format"] = DeviceInstance.currentFormat + 1
+            try DeviceRecord.data(object).write(to: url)
+            #expect(throws: DeviceInstance.NewerFormat.self) { try DeviceInstance.read(url) }
+            #expect(DeviceInstance.all(state: state).map(\.id) == [instance.id])
+            object["format"] = DeviceInstance.currentFormat
+            try DeviceRecord.data(object).write(to: url)
+            #expect(try DeviceInstance.read(url).id == instance.id)
+        }
+    }
+
     @Test func aFolderMovedToTheTrashOrRemovedLeavesTheLibraryAndOnePutBackReturns() async throws {
         _ = LibraryFixtures.isolatedAppState
         try await LibraryFixtures.withScratch { scratch in

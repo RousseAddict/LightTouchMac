@@ -35,6 +35,9 @@ public nonisolated enum FirmwareBootAdmission {
     ) async throws -> Result {
         // 1.x's step is a stopped edit, which takes its own lease, so it runs before admission's. A failure (an FTL
         // the guest didn't shut down cleanly is refused) doesn't keep the device from starting; the next start retries.
+        if let record = try? DeviceRecord.object(Data(contentsOf: device.appendingPathComponent(DeviceRecord.name))) {
+            try DeviceRecord.requireReadable(record)  // before any step touches storage this build may not know
+        }
         var edited = false
         do {
             edited = try await N45Migration.systemConfiguration(device: device, policy: policy, allowRaw: allowRaw)
@@ -97,9 +100,10 @@ public nonisolated enum FirmwareBootAdmission {
     ) async throws -> Result {
         try Task.checkCancellation()
         let owner = try OwnedStorageRecord.acquire(device: device, policy: policy, allowRaw: allowRaw)
-        guard let paths = owner.paths, owner.bytes != nil else {
+        guard let paths = owner.paths, let bytes = owner.bytes else {
             return Result(changed: false, record: nil, paths: nil)
         }
+        try DeviceRecord.requireReadable(DeviceRecord.object(bytes))
         // Keep the shared lease live through preparation, record reread and
         // refreshed ownership validation, including cancellation/error paths.
         defer { withExtendedLifetime(owner.lease) {} }

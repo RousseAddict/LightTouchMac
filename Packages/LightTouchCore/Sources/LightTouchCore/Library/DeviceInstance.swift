@@ -209,11 +209,9 @@ public nonisolated struct DeviceInstance: Codable, Equatable, Identifiable, Send
 
     public static let decoder = PropertyListDecoder()
 
-    /// The record format this build reads and writes.
-    public static let currentFormat = 1
-    public struct NewerFormat: LocalizedError {
-        public var errorDescription: String? { "This device was made by a newer version of Light Touch." }
-    }
+    /// The newest record format this build reads and writes.
+    public static let currentFormat = DeviceRecord.currentFormat
+    public typealias NewerFormat = DeviceRecord.NewerFormat
 
     /// Atomic: a crash leaves the old record or the new one, never half. A record of a newer format is not
     /// rewritten, which would drop the fields this build doesn't know.
@@ -224,20 +222,27 @@ public nonisolated struct DeviceInstance: Codable, Equatable, Identifiable, Send
         try Self.encoder.encode(self).write(to: directory.appendingPathComponent(Self.recordName), options: .atomic)
     }
 
-    /// `url` is the record or, converting a device.json first, its device directory.
+    /// `url` is the record or, converting a device.json first, its device directory. A record of a newer format is
+    /// refused: its storage may be one this build would misread.
     public static func read(_ url: URL) throws -> DeviceInstance {
+        let record = try decode(url)
+        guard record.format <= currentFormat else { throw NewerFormat() }
+        return record
+    }
+
+    private static func decode(_ url: URL) throws -> DeviceInstance {
         let record = url.lastPathComponent == recordName ? url : DeviceRecord.url(url)
         return try decoder.decode(DeviceInstance.self, from: Data(contentsOf: record))
     }
 
     /// Every readable record under State/Devices, oldest first. A directory
-    /// without a readable record is skipped, not deleted.
+    /// without a readable record is skipped, not deleted. A newer build's record is listed (its start is refused).
     public static func all(state: URL) -> [DeviceInstance] {
         let devices = state.appendingPathComponent("Devices", isDirectory: true)
         let names = (try? FileManager.default.contentsOfDirectory(atPath: devices.path)) ?? []
         return names.compactMap { name in
             guard let id = UUID(uuidString: name),
-                let record = try? read(devices.appendingPathComponent(name, isDirectory: true)),
+                let record = try? decode(devices.appendingPathComponent(name, isDirectory: true)),
                 record.id == id
             else { return nil }
             return record
