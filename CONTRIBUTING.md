@@ -63,8 +63,9 @@ writable state and logs inside one directory.
 A release is an Xcode archive; nothing edits the bundle after Xcode.
 
 1. **`scripts/vendor`**, once per pin change (`build-support/sources.json`, `dependencies.json`, the patches or the
-   native recipes). It builds what Xcode can't, from the pins, into `~/Developer/ltm-vendor/<pin-hash>/`
-   (`LTM_VENDOR_ROOT` moves it; nothing deletes it) and points `Configuration/Vendor.xcconfig` (`VENDOR_DIR`) at it:
+   native recipes). It builds what Xcode can't, from the pins, into `~/Developer/ltm-vendor.noindex/<pin-hash>/`
+   (`.noindex` keeps Spotlight out; `LTM_VENDOR_ROOT` moves it; nothing deletes it, and a build that only the old
+   `~/Developer/ltm-vendor` has complete is still used there) and points `Configuration/Vendor.xcconfig` (`VENDOR_DIR`) at it:
    the native dependencies, usbmuxd and QEMU for arm64 and x86_64, merged universal with final install names
    (`Frameworks/`, `MacOS/`), the guest tools and the developer SSH payload packed into
    `Resources/Guest/guest.aar`, the SecureROMs and the built-in iPod (`Resources/Device/`), the licenses and

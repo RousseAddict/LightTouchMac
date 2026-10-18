@@ -53,4 +53,49 @@ struct VendorTests {
         let (waited, acquired) = try await second.value
         #expect(waited && acquired >= released)
     }
+
+    func lock(_ dir: URL, guestTools: String) throws -> URL {
+        let lock = dir.appendingPathComponent("device.lock.json")
+        try writeJSON(["inputs": ["guest_tools": guestTools]], to: lock)
+        return lock
+    }
+
+    /// firmwarekit records the guest tools path it was given; through a symlinked vendor root that is the unresolved
+    /// path, which the check accepts as the resolved one, and the other way round; another directory is refused.
+    @Test func lockNamesTheGuestToolsThroughSymlinks() throws {
+        let dir = try scratch()
+        defer { remove(dir) }
+        let real = dir.appendingPathComponent("real.noindex/ipad-guest-tools")
+        try files.createDirectory(at: real, withIntermediateDirectories: true)
+        try files.createSymbolicLink(
+            at: dir.appendingPathComponent("link"),
+            withDestinationURL: dir.appendingPathComponent("real.noindex")
+        )
+        let linked = dir.appendingPathComponent("link/ipad-guest-tools")
+        #expect(Vendor.preparedWith(linked, lock: try lock(dir, guestTools: linked.path)))
+        #expect(Vendor.preparedWith(real, lock: try lock(dir, guestTools: linked.path)))
+        #expect(Vendor.preparedWith(linked, lock: try lock(dir, guestTools: MergeNative.real(real.path))))
+        let other = dir.appendingPathComponent("other")
+        try files.createDirectory(at: other, withIntermediateDirectories: true)
+        #expect(!Vendor.preparedWith(linked, lock: try lock(dir, guestTools: other.path)))
+    }
+
+    /// A vendor directory or static build complete only in the old root is used there; an incomplete one, one the
+    /// new root has, or any with LTM_VENDOR_ROOT set (no legacy root) is under the new root.
+    @Test func legacyRootIsReadWhereComplete() throws {
+        let home = try scratch()
+        defer { remove(home) }
+        let root = home.appendingPathComponent("Developer/ltm-vendor.noindex")
+        let legacy = home.appendingPathComponent("Developer/ltm-vendor")
+        try files.createDirectory(at: legacy.appendingPathComponent("def"), withIntermediateDirectories: true)
+        try touch(legacy.appendingPathComponent("abc/vendor.json"))
+        func cached(_ name: String, legacy: URL?) -> URL {
+            Vendor.cached(name, record: "vendor.json", root: root, legacy: legacy)
+        }
+        #expect(cached("abc", legacy: legacy) == legacy.appendingPathComponent("abc"))
+        #expect(cached("def", legacy: legacy) == root.appendingPathComponent("def"))
+        #expect(cached("abc", legacy: nil) == root.appendingPathComponent("abc"))
+        try files.createDirectory(at: root.appendingPathComponent("abc"), withIntermediateDirectories: true)
+        #expect(cached("abc", legacy: legacy) == root.appendingPathComponent("abc"))
+    }
 }
