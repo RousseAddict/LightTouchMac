@@ -186,22 +186,40 @@ public struct PreparedDeviceBoot {
         if fm.fileExists(atPath: live.path) { return live }
         let staged = overlay.appendingPathComponent(".nand-\(UUID().uuidString).tmp", isDirectory: true)
         defer { if fm.fileExists(atPath: staged.path) { try? removeClone(staged) } }
-        // ponytail: clonefile only; the state root is always APFS. A copy would allocate every chip's full size.
-        guard clonefile(base.path, staged.path, 0) == 0 else {
-            throw CocoaError(
-                .fileWriteUnknown,
-                userInfo: [
-                    NSFilePathErrorKey: base.path,
-                    NSUnderlyingErrorKey: POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO),
-                ]
-            )
-        }
-        for name in try fm.contentsOfDirectory(atPath: staged.path) {
+        try fm.createDirectory(at: staged, withIntermediateDirectories: false)
+        // File by file (clonefile(2) discourages directories). ponytail: clonefile only; the state root is always
+        // APFS, and a copy would allocate every chip's full size.
+        for name in try fm.contentsOfDirectory(atPath: base.path) {
+            let source = base.appendingPathComponent(name)
+            guard clonefile(source.path, staged.appendingPathComponent(name).path, 0) == 0 else {
+                throw CocoaError(
+                    .fileWriteUnknown,
+                    userInfo: [
+                        NSFilePathErrorKey: source.path,
+                        NSUnderlyingErrorKey: POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO),
+                    ]
+                )
+            }
+            // a clone keeps the base's uchg and read-only mode, and QEMU couldn't open it for writing
             try writable(staged.appendingPathComponent(name), mode: 0o644)
         }
-        try writable(staged, mode: 0o755)
         guard rename(staged.path, live.path) == 0 else { throw POSIXError(POSIXErrorCode(rawValue: errno) ?? .EIO) }
         return live
+    }
+
+    /// Once the helper has exited (a clean stop or not): QEMU's flush on macOS is fsync, which leaves writes in the
+    /// drive's cache, so one F_FULLFSYNC on each live chip file and the NOR puts them on the medium before a power
+    /// loss. (A killed helper's writes are in the page cache, which survives it.)
+    public static func syncStorage(overlay: URL, writableNOR: URL?) {
+        let live = liveNAND(overlay: overlay)
+        let chips = ((try? FileManager.default.contentsOfDirectory(atPath: live.path)) ?? [])
+            .filter { $0.hasSuffix(".pages") }.map { live.appendingPathComponent($0) }
+        for url in chips + [writableNOR].compactMap({ $0 }) {
+            let fd = open(url.path, O_RDONLY)
+            guard fd >= 0 else { continue }
+            _ = fcntl(fd, F_FULLFSYNC)
+            close(fd)
+        }
     }
 
     private static func writable(_ url: URL, mode: mode_t) throws {

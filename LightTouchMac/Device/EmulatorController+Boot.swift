@@ -42,6 +42,7 @@ extension EmulatorController {
         self.process = process
         lastFrameSerial = 0
         process.onDeath = { [weak self, weak process] reason in
+            Task.detached { PreparedDeviceBoot.syncStorage(overlay: paths.overlay, writableNOR: paths.writableNOR) }
             guard let self, let process, self.process === process else { return }
             helperDied(reason)
         }

@@ -188,8 +188,13 @@ enum K48NANDImage {
             guard fsync(fd) == 0 else { throw FirmwareError(.internal, "\(path): \(String(cString: strerror(errno)))") }
         }
         guard let liveOut, overlayServes(overlay, geo) else { return }
-        guard clonefile(baseOut.path, liveOut.path, 0) == 0 else {
-            throw FirmwareError(.internal, "clone \(baseOut.path): \(String(cString: strerror(errno)))")
+        // file by file (clonefile(2) discourages directories); baseOut isn't locked yet, so the clones are writable
+        try fm.createDirectory(at: liveOut, withIntermediateDirectories: false)
+        for file in try fm.contentsOfDirectory(atPath: baseOut.path) {
+            let source = baseOut.appendingPathComponent(file)
+            guard clonefile(source.path, liveOut.appendingPathComponent(file).path, 0) == 0 else {
+                throw FirmwareError(.internal, "clone \(source.path): \(String(cString: strerror(errno)))")
+            }
         }
         var record = [UInt8](repeating: 0, count: stride)
         for i in 0..<geo.numCS {
