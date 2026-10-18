@@ -48,6 +48,15 @@ public enum K48NANDMigration {
         }
     }
 
+    /// The preflight: the volume lacks room for the build and its proof. The device starts as before.
+    struct NeedsSpace: Error {
+        let bytes: Int64
+        var notice: String {
+            "Light Touch needs \(ByteCountFormatter.string(fromByteCount: bytes, countStyle: .file)) of free space to "
+                + "update this device’s storage (one time). It starts as before until there’s room."
+        }
+    }
+
     struct Intent: Codable, Equatable {
         enum Phase: String, Codable { case building, committing }
         var phase: Phase
@@ -70,7 +79,10 @@ public enum K48NANDMigration {
     static func admit(
         _ owner: StoppedRecordOwner,
         log: (String) -> Void = { FirmwareDiagnostics.write(Data("\($0)\n".utf8)) },
-        checkpoint: (Checkpoint) throws -> Void = killHook
+        checkpoint: (Checkpoint) throws -> Void = killHook,
+        notice: (String) -> Void = { _ in },
+        progress: ((Double) -> Void)? = nil,
+        available: (URL) throws -> Int64 = StorageCapacity.available(at:)
     ) throws -> Bool {
         let layout = Layout(device: owner.device)
         let fm = FileManager.default
@@ -94,10 +106,31 @@ public enum K48NANDMigration {
             return changed
         }
         guard let paths = owner.paths, eligible(record, base: paths.base, device: owner.device) else { return changed }
+        // How far it is, for the start's toast (PreparedDeviceBoot.migrationProgress); gone when it ends.
+        let progressFile = PreparedDeviceBoot.migrationProgress(
+            lease: owner.device.appendingPathComponent("work/lease")
+        )
+        defer { try? fm.removeItem(at: progressFile) }
+        let report = progress ?? { try? Data(String($0).utf8).write(to: progressFile, options: .atomic) }
         do {
-            try migrate(layout, base: paths.base, overlay: paths.overlay, log: log, checkpoint: checkpoint)
+            try migrate(
+                layout,
+                base: paths.base,
+                overlay: paths.overlay,
+                log: log,
+                checkpoint: checkpoint,
+                progress: report,
+                available: available
+            )
+        } catch let space as NeedsSpace {
+            log("NAND image migration: needs \(space.bytes) bytes free; the device stays in format 1")
+            notice(space.notice)
+            return changed
         } catch {
             log("NAND image migration: \(error); the device stays in format 1")
+            notice(
+                "Light Touch couldn’t update this device’s storage, so it starts as before. The details are in the log."
+            )
             if fm.fileExists(atPath: layout.intent.path) { _ = try recover(layout) }
             return changed
         }
@@ -126,7 +159,9 @@ public enum K48NANDMigration {
         base: URL,
         overlay: URL,
         log: (String) -> Void,
-        checkpoint: (Checkpoint) throws -> Void
+        checkpoint: (Checkpoint) throws -> Void,
+        progress: (Double) -> Void = { _ in },
+        available: (URL) throws -> Int64 = StorageCapacity.available(at:)
     ) throws {
         let fm = FileManager.default
         let nand = base.appendingPathComponent("nand")
@@ -136,7 +171,7 @@ public enum K48NANDMigration {
         let needed =
             2 * allocated(nand) + overlayFiles.reduce(0) { $0 + allocated(overlay.appendingPathComponent($1)) }
             + (1 << 30)
-        try StorageCapacity.require(needed, at: layout.device)
+        guard try available(layout.device) >= needed else { throw NeedsSpace(bytes: needed) }
 
         let baseRel = try relative(base, to: layout.device)
         let overlayRel = try relative(overlay, to: layout.device)
@@ -149,17 +184,26 @@ public enum K48NANDMigration {
         for stale in [layout.migrating, layout.legacy] where fm.fileExists(atPath: stale.path) { try removeTree(stale) }
         try writeIntent(intent, layout)
         let started = Date()
+        // a step for each chip select converted (base, then live) and checked, and each volume set rebuilt
+        let steps = Double(geo.numCS * (serves ? 3 : 2) + 2)
+        var done = 0.0
+        func step() {
+            done += 1
+            progress(min(done / steps, 1))
+        }
+        progress(0)
         try fm.createDirectory(at: layout.migrating, withIntermediateDirectories: false)
         let baseOut = layout.migrating.appendingPathComponent("base-nand")
         let liveOut = serves ? layout.migrating.appendingPathComponent("nand") : nil
         let legacyOverlay = serves ? overlay : nil
-        try K48NANDImage.convert(base: nand, overlay: legacyOverlay, baseOut: baseOut, liveOut: liveOut)
+        try K48NANDImage.convert(base: nand, overlay: legacyOverlay, baseOut: baseOut, liveOut: liveOut, step: step)
         try checkpoint(.built)
-        try K48NANDImage.verify(base: nand, overlay: legacyOverlay, baseOut: baseOut, liveOut: liveOut)
+        try K48NANDImage.verify(base: nand, overlay: legacyOverlay, baseOut: baseOut, liveOut: liveOut, step: step)
         let volumes = try volumeProof(
             old: (nand, legacyOverlay),
             new: liveOut ?? baseOut,
-            work: layout.migrating.appendingPathComponent("volumes")
+            work: layout.migrating.appendingPathComponent("volumes"),
+            step: step
         )
         log(
             String(
@@ -169,6 +213,7 @@ public enum K48NANDMigration {
             )
         )
         try checkpoint(.verified)
+        progress(1)  // the commit is renames and the record: moments
 
         intent.phase = .committing
         try writeIntent(intent, layout)
@@ -187,9 +232,14 @@ public enum K48NANDMigration {
 
     /// The volumes rebuilt from `old` (a legacy store and overlay) and from `new` hash the same. A legacy store
     /// VolumeRebuild can't read proves nothing either way: the page proof stands alone then.
-    static func volumeProof(old: (store: URL, overlay: URL?), new: URL, work: URL) throws -> String {
+    static func volumeProof(old: (store: URL, overlay: URL?), new: URL, work: URL, step: () -> Void = {}) throws
+        -> String
+    {
         func hashes(_ store: URL, _ overlay: URL?, _ into: URL) throws -> [String: String] {
-            defer { try? FileManager.default.removeItem(at: into) }
+            defer {
+                try? FileManager.default.removeItem(at: into)
+                step()
+            }
             let volumes = try VolumeRebuild.rebuild(base: store, overlay: overlay, into: into)
             return try Dictionary(
                 uniqueKeysWithValues: volumes.map { ($0.name, try Preparer.digest($0.image, SHA256())) }

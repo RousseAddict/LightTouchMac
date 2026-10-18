@@ -156,7 +156,7 @@ enum K48NANDImage {
 
     /// `base` (a legacy store) and `overlay` as image stores: `baseOut`, the base alone, and `liveOut` (when the
     /// overlay serves pages), a clone of `baseOut` with every owned overlay record applied, as the IOP reads them.
-    static func convert(base: URL, overlay: URL?, baseOut: URL, liveOut: URL?) throws {
+    static func convert(base: URL, overlay: URL?, baseOut: URL, liveOut: URL?, step: () -> Void = {}) throws {
         let geo = try K48NAND.geometry(store: base)
         guard try K48NAND.storeFormat(base) == .legacy else {
             throw FirmwareError(.unsupported, "\(base.path): not a legacy NAND store")
@@ -169,6 +169,7 @@ enum K48NANDImage {
         let zeros = [UInt8](repeating: 0, count: blockBytes)
         var buffer = zeros
         for i in 0..<geo.numCS {
+            defer { step() }  // a chip select done: the migration's progress
             let chip = try Chip(base: base, overlay: nil, index: i, geo: geo)
             defer { chip.close() }
             let path = baseOut.appendingPathComponent(name(i, geo, "pages")).path
@@ -198,6 +199,7 @@ enum K48NANDImage {
         }
         var record = [UInt8](repeating: 0, count: stride)
         for i in 0..<geo.numCS {
+            defer { step() }  // a chip select done: the migration's progress
             let chip = try Chip(base: base, overlay: overlay, index: i, geo: geo)
             defer { chip.close() }
             guard let source = chip.overlay else { continue }
@@ -219,7 +221,7 @@ enum K48NANDImage {
     /// Every page of every chip select of `baseOut` reads as `base` alone did, and of `liveOut` as `base` under
     /// `overlay` did, byte for byte (data and spare), as the IOP serves them; pages in no file's data read erased in
     /// all of them. Independent of `convert`: it reads both formats back.
-    static func verify(base: URL, overlay: URL?, baseOut: URL, liveOut: URL?) throws {
+    static func verify(base: URL, overlay: URL?, baseOut: URL, liveOut: URL?, step: () -> Void = {}) throws {
         let geo = try K48NAND.geometry(store: base)
         guard try K48NAND.storeFormat(baseOut) == .image, try K48NAND.geometry(store: baseOut).json == geo.json else {
             throw FirmwareError(.internal, "\(baseOut.path): not an image store of \(base.path)'s geometry")
@@ -237,6 +239,7 @@ enum K48NANDImage {
         var imageBase = legacyBase
         var imageLive = legacyBase
         for i in 0..<geo.numCS {
+            defer { step() }  // a chip select done: the migration's progress
             let chip = try Chip(base: base, overlay: serves ? overlay : nil, index: i, geo: geo)
             defer { chip.close() }
             let newBase = try open(baseOut.appendingPathComponent(name(i, geo, "pages")), size: chip.size)

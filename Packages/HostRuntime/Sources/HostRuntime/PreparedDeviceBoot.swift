@@ -166,6 +166,21 @@ public struct PreparedDeviceBoot {
         lease.deletingLastPathComponent().appendingPathComponent("clean-stop")
     }
 
+    /// While boot admission migrates the device's storage (FirmwareKit K48NANDMigration): how far it is, 0...1, as
+    /// text beside the lease. The start's toast reads it; gone when the migration ends either way.
+    public static func migrationProgress(lease: URL) -> URL {
+        lease.deletingLastPathComponent().appendingPathComponent("migration-progress")
+    }
+
+    public static func readMigrationProgress(lease: URL) -> Double? {
+        (try? String(contentsOf: migrationProgress(lease: lease), encoding: .utf8)).flatMap(Double.init)
+    }
+
+    /// The start's toast while the storage migrates.
+    public static func migrationText(_ fraction: Double) -> String {
+        "Updating storage (one time)… \(Int((min(max(fraction, 0), 1) * 100).rounded(.down)))%"
+    }
+
     /// The device's live NAND, cloned from `base` (its read-only image store) on the first boot after preparation or
     /// Erase. The clone keeps the base's uchg and modes, so they are cleared before it is published by a rename.
     static func liveNAND(base: URL, overlay: URL) throws -> URL {

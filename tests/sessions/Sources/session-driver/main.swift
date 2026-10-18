@@ -282,7 +282,7 @@ extension String {
                     managed: self.managedKey != nil,
                     executable: worker
                 )
-                emit("bootAdmission", ["device": self.name, "changed": changed, "generation": generation])
+                emit("bootAdmission", ["device": self.name, "changed": changed.changed, "generation": generation])
             }
         ) { result in
             switch result {

@@ -334,5 +334,9 @@ extension EmulatorController: MachineHost, ConnectionHost, ActivationServices, R
     var helperLink: HelperLink? { link }
     var isPainting: Bool { state == .running }
     func readyForInput() { deviceReachable = true }
-    var bootStageText: String { bootStage.text(expectingSetup: expectsSetup) }
+    /// The boot toast's subtitle: the storage update while boot admission runs one, then the boot's stage.
+    var bootStageText: String {
+        PreparedDeviceBoot.readMigrationProgress(lease: instance.paths.lease).map(PreparedDeviceBoot.migrationText)
+            ?? bootStage.text(expectingSetup: expectsSetup)
+    }
 }

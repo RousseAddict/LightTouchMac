@@ -58,7 +58,7 @@ public final class DeviceNotices {
     /// Content and Settings, so they stay until an erase (or the guest's activation) clears them. The rest are a
     /// boot's and end with it (`helperStarted`).
     public enum Operation: String, CaseIterable {
-        case storage, erase, activation, powerOff, files, preparation, lowSpace
+        case storage, erase, activation, powerOff, files, preparation, lowSpace, storageUpdate
     }
 
     private let settings: DeviceSettingsFile

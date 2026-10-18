@@ -11,9 +11,11 @@ public nonisolated enum FirmwareBootAdmission {
         public let changed: Bool
         public let record: Data?
         public let paths: StorageRecordPaths?
+        /// A quiet notice for the device's window (FirmwareWire.BootAdmission.notice).
+        public var notice: String? = nil
 
         public func jsonData() throws -> Data {
-            let header = try JSONEncoder().encode(FirmwareWire.BootAdmission(changed: changed))
+            let header = try JSONEncoder().encode(FirmwareWire.BootAdmission(changed: changed, notice: notice))
             guard var output = try JSONSerialization.jsonObject(with: header) as? [String: Any] else {
                 throw StorageRecordPaths.Failure.invalidRecord
             }
@@ -44,17 +46,28 @@ public nonisolated enum FirmwareBootAdmission {
         } catch is CancellationError { throw CancellationError() } catch {
             FirmwareDiagnostics.write(Data("boot admission: 1.x SystemConfiguration step skipped: \(error)\n".utf8))
         }
-        let result = try await admit(device: device, policy: policy, allowRaw: allowRaw, prepare: migrate)
-        return Result(changed: result.changed || edited, record: result.record, paths: result.paths)
+        let notice = NoticeBox()
+        let result = try await admit(device: device, policy: policy, allowRaw: allowRaw) { owner in
+            try migrate(owner) { notice.text = $0 }
+        }
+        return Result(
+            changed: result.changed || edited,
+            record: result.record,
+            paths: result.paths,
+            notice: notice.text
+        )
     }
 
-    @Sendable static func migrate(_ owner: StoppedRecordOwner) throws -> Bool {
+    /// Set once, by the one preparation an admission runs.
+    final class NoticeBox: @unchecked Sendable { var text: String? }
+
+    static func migrate(_ owner: StoppedRecordOwner, notice: (String) -> Void = { _ in }) throws -> Bool {
         guard let bytes = owner.bytes, let paths = owner.paths,
             let record = try? DeviceRecord.object(bytes)
         else { return false }
         if let board = record["board"] as? String, HostRuntime.Board(rawValue: board)?.isKBoot == true {
             // The A4 and S5L8920 boards' format 2: an image store, written in place (K48NANDMigration).
-            let imaged = try K48NANDMigration.admit(owner)
+            let imaged = try K48NANDMigration.admit(owner, notice: notice)
             guard HostRuntime.Board(rawValue: board)?.kbootPhone == true else { return imaged }
             let identity = try iPhoneIMEI(
                 base: paths.base,

@@ -79,11 +79,13 @@ extension EmulatorController {
                     }
                     try Task.checkCancellation()
                 }
-                _ = try await FirmwareTool.admitBoot(
+                let admitted = try await FirmwareTool.admitBoot(
                     device: self.instance.paths.directory,
                     managed: true,
                     executable: executable
                 )
+                // a storage update that couldn't run (no room, or it failed): the device starts as before
+                if let notice = admitted.notice { self.reportDeviceNotice(notice, for: .storageUpdate) }
                 try Task.checkCancellation()
                 let recordBytes = try Data(contentsOf: DeviceRecord.url(self.instance.paths.directory))
                 let refreshed = try DeviceInstance.decoder.decode(DeviceInstance.self, from: recordBytes)

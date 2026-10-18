@@ -8,7 +8,10 @@ import System
 public nonisolated enum FirmwareTool {
     /// FirmwareKit validates/migrates stopped storage and releases ownership
     /// before DeviceRuntime spawns the helper. No live NOR writer is hosted here.
-    public static func admitBoot(device: URL, managed: Bool, executable: URL) async throws -> Bool {
+    /// The worker's report: whether the storage changed, and a quiet notice for the window, if any.
+    public static func admitBoot(device: URL, managed: Bool, executable: URL) async throws
+        -> FirmwareWire.BootAdmission
+    {
         let data = try await run(
             FirmwareCommand.BootAdmit(
                 device: device,
@@ -21,7 +24,7 @@ public nonisolated enum FirmwareTool {
         guard report.event == "admitted" else {
             throw DeviceToolsError.failed("The firmware worker did not admit this device.")
         }
-        return report.changed
+        return report
     }
 
     /// iPhone OS 1.x: `certificate` (DER) as a system anchor in the stopped device (`firmwarekit edit --action

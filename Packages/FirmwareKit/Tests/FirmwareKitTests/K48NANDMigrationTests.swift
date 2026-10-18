@@ -256,6 +256,69 @@ struct K48NANDMigrationTests {
         }
     }
 
+    /// The start's toast: the migration's progress file climbs from 0 to 1 through the run (the app reads it beside the
+    /// lease) and is gone after; the toast says "Updating storage (one time)…" with the percentage.
+    @Test func progressIsReportedForTheStartsToast() async throws {
+        try await withDevice { d in
+            let lease = d.device.appendingPathComponent("work/lease")
+            var seen: [Double] = []
+            let changed = try K48NANDMigration.admit(
+                d.owner(),
+                checkpoint: { _ in
+                    if let p = PreparedDeviceBoot.readMigrationProgress(lease: lease) { seen.append(p) }
+                }
+            )
+            #expect(changed)
+            #expect(seen.count == 15, "\(seen)")  // built, verified, 12 renames, the record: there throughout
+            #expect(seen == seen.sorted() && seen.first.map { $0 > 0 && $0 < 1 } == true && seen.last == 1, "\(seen)")
+            #expect(PreparedDeviceBoot.readMigrationProgress(lease: lease) == nil)
+            #expect(!FileManager.default.fileExists(atPath: PreparedDeviceBoot.migrationProgress(lease: lease).path))
+        }
+        try await withDevice { d in
+            var reported: [Double] = []
+            _ = try K48NANDMigration.admit(d.owner(), progress: { reported.append($0) })
+            // 0, a step for each of the 4 chip selects converted (base, live) and checked, the 2 volume sets, then 1
+            #expect(reported.count == 1 + 14 + 1 && reported == reported.sorted(), "\(reported)")
+            #expect(reported.first == 0 && reported.last == 1)
+        }
+        #expect(PreparedDeviceBoot.migrationText(0.4249) == "Updating storage (one time)… 42%")
+        #expect(PreparedDeviceBoot.migrationText(1) == "Updating storage (one time)… 100%")
+    }
+
+    /// No room for the build: a quiet notice naming the space needed, and the device starts as before. A migration
+    /// that fails says so quietly too.
+    @Test func noRoomOrAFailureIsAQuietNotice() async throws {
+        try await withDevice { d in
+            let record = try Data(contentsOf: d.record)
+            var notices: [String] = []
+            let changed = try K48NANDMigration.admit(
+                d.owner(),
+                notice: { notices.append($0) },
+                available: { _ in 1 << 20 }
+            )
+            #expect(!changed && notices.count == 1)
+            #expect(notices.first?.hasPrefix("Light Touch needs 1.") == true, "\(notices)")  // GB: 2 x base + 1 GiB
+            #expect(notices.first?.contains("of free space to update this device’s storage") == true)
+            #expect(try Data(contentsOf: d.record) == record)
+            #expect(!FileManager.default.fileExists(atPath: d.layout.intent.path))
+        }
+        try await withDevice { d in
+            var notices: [String] = []
+            let changed = try K48NANDMigration.admit(
+                d.owner(),
+                checkpoint: { if $0 == .built { throw Killed() } },
+                notice: { notices.append($0) }
+            )
+            #expect(!changed)
+            #expect(try d.format() == 1)
+            #expect(
+                notices == [
+                    "Light Touch couldn’t update this device’s storage, so it starts as before. The details are in the log."
+                ]
+            )
+        }
+    }
+
     /// Only a kboot board's format 1 record over its own legacy store migrates.
     @Test func otherDevicesAreLeftAlone() async throws {
         try await withDevice(board: "n72ap") { d in
