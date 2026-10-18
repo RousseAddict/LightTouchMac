@@ -9,7 +9,7 @@ public nonisolated enum DeviceRecord {
     /// The newest record `format` this build can boot. A record without one is format 1 (page overlays); 2 is an image
     /// store (FirmwareKit K48NANDMigration).
     public static let currentFormat = imageFormat
-    /// The format of a device whose NAND is an image store (the A4 and S5L8920 boards).
+    /// The format of a device whose NAND is an image store (the A4 and S5L8920 boards, the iPod touch 2G).
     public static let imageFormat = 2
 
     public struct NewerFormat: LocalizedError {

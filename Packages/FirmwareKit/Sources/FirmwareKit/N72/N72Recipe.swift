@@ -242,7 +242,7 @@ final class N72Board: Board {
     /// as 8A293 ships just the Restore one; restored_external runs first on either).
     nonisolated(nonsending) func keybag(_ c: Recipe.Context) async throws {
         let (source, name) = try await Recipe.keybagRamdisk(c)
-        _ = try await N72Keybag.run(
+        try await N72Keybag.run(
             out: c.o.out,
             dec: c.decrypted(),
             ramdisk: source,

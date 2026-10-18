@@ -50,7 +50,9 @@ struct BootTests {
     /// Settings ▸ General's experimental 120 Hz: each board's own panel (and, but on the 1G, its touch) gets the rate,
     /// in -global's long form (the type names have dots), the helper reads it back, and 60 adds nothing.
     @Test func refreshReachesEachBoardsPanel() throws {
-        let panels: [Board: String] = [.m68: "ipodtouch.lcd", .n72: "ipodtouch.lcd", .n88: "s5l8930.display", .k48: "s5l8930.display"]
+        let panels: [Board: String] = [
+            .m68: "ipodtouch.lcd", .n72: "ipodtouch.lcd", .n88: "s5l8930.display", .k48: "s5l8930.display",
+        ]
         for (board, panel) in panels {
             let f = try Fixture(board: board, strategy: board == .m68 ? "iboot" : board == .n72 ? "bootrom" : "kboot")
             defer { try? FileManager.default.removeItem(at: f.root) }
@@ -575,5 +577,32 @@ extension BootTests {
         #expect(try fm.contentsOfDirectory(atPath: f.overlay.path).sorted() == [".base-identity", "nand"])
         try Data().write(to: f.overlay.appendingPathComponent("bus0-ce0.dirty"))
         #expect(throws: CocoaError.self) { _ = try f.prepare(.n81) }
+    }
+
+    /// The iPod touch 2G's image store (nand-xor-blank-v2) boots its live clone too: nand= names it and no nandrw
+    /// overlay is passed; a format 1 page directory left in the overlay over it is refused.
+    @Test func n72ImageStoreBootsItsLiveCloneWithoutAnOverlay() throws {
+        let f = try Fixture(board: .n72, strategy: "bootrom")
+        let nand = f.base.appendingPathComponent("nand")
+        try Data(#"{"storage_format": "nand-xor-blank-v2", "blank": "n72-generated"}"#.utf8)
+            .write(to: nand.appendingPathComponent("geometry.json"))
+        try Data([1, 2, 3]).write(to: nand.appendingPathComponent("cs0.pages"))
+        let machine = try f.prepare(.n72).configuration(
+            bootArgs: "",
+            usbAddress: nil,
+            wifi: false,
+            guestPackage: nil,
+            serial: "null",
+            audio: [],
+            netdev: nil
+        ).argv[2]
+        let live = PreparedDeviceBoot.liveNAND(overlay: f.overlay)
+        #expect(machine.contains(",nand=\(BootRecipe.escape(live.path))") && !machine.contains("nandrw"), "\(machine)")
+        #expect(try Data(contentsOf: live.appendingPathComponent("cs0.pages")) == Data([1, 2, 3]))
+        try FileManager.default.createDirectory(
+            at: f.overlay.appendingPathComponent("cs0"),
+            withIntermediateDirectories: true
+        )
+        #expect(throws: CocoaError.self) { _ = try f.prepare(.n72) }
     }
 }

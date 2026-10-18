@@ -144,11 +144,9 @@ public enum StoppedVolumeEdit {
         }
         // Certify the fixed mapping in legacy locks before applying its writer.
         // Arbitrary page directories are not an interchangeable storage format.
+        let read = try N72NANDImage.reader(base: source.base, overlay: nil)
         for (page, bytes) in N72NAND.metadataPages(blocks: 0, epoch: epoch) where page.page < 128 {
-            guard
-                try Data(contentsOf: source.base.appendingPathComponent("cs\(page.cs)/\(page.page).page"))
-                    == Data(bytes)
-            else {
+            guard try read(page) == bytes else {
                 throw FirmwareError(.unsupported, "N72 mapping metadata differs; use guest services for this store")
             }
         }
@@ -320,8 +318,8 @@ public enum StoppedVolumeEdit {
                 "lock": try edit.recordPath(lockURL), "sha256": StorageGeneration.hash(lockData),
             ]
             try Preparer.readOnly(edit.base)
-            // K48NAND.rebuild lays out an image store: a format 1 device leaves the edit in format 2
-            let format = yaftl ? DeviceRecord.imageFormat : nil
+            // K48NAND.rebuild and N72NAND.write lay out image stores: a format 1 device leaves the edit in format 2
+            let format = DeviceRecord.imageFormat
             try await edit.publish(record: edit.candidateRecord(provenance: provenance, format: format))
             log("published storage generation \(id.uuidString)")
             // the old store's clones would keep its blocks for as long as this generation lives

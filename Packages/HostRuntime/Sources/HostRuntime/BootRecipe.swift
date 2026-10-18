@@ -45,6 +45,7 @@ public nonisolated enum BootRecipe {
         public var nand: String
         public var nor: String
         public var writableNOR: String
+        /// The NAND page overlay (nandrw); empty for an image store, which the emulator writes in place.
         public var overlay: String
         public var usbAddress: String?
         public var wifi: Bool
@@ -255,7 +256,7 @@ public nonisolated enum BootRecipe {
             "\(hardware.machine),boot-args=\(escape(d.bootArgs))"
             + ",direct-iboot=\(escape(d.iBoot)),direct-llb="
             + ",bootrom=\(escape(d.bootrom)),nand=\(escape(d.nand)),nor=\(escape(d.nor))"
-            + ",nor-rw=\(escape(d.writableNOR)),nandrw=\(escape(d.overlay))"
+            + ",nor-rw=\(escape(d.writableNOR))" + (d.overlay.isEmpty ? "" : ",nandrw=\(escape(d.overlay))")
         if let usb = d.usbAddress { machine += ",usb-tcp-addr=\(usb),osk=on" }
         if d.wifi { machine += ",wifi=on" }  // brings up the emulated BCM4325
         if let blobs = d.gidBlobs { machine += ",gid-blobs=\(escape(blobs))" }

@@ -57,7 +57,7 @@ public struct PreparedDeviceBoot {
         if let storageKey, try !pinOverlay(overlay, toBase: storageKey) { throw Failure.baseMismatch }
         var nand = files.nand
         var nandOverlay: URL? = overlay
-        if board.isKBoot, isImageStore(files.nand) {
+        if isImageStore(files.nand) {
             nand = try liveNAND(base: files.nand, overlay: overlay)
             nandOverlay = nil
         }
@@ -149,13 +149,14 @@ public struct PreparedDeviceBoot {
         return (try? String(contentsOf: stamp, encoding: .utf8)) == identity
     }
 
-    /// An image store (geometry.json storage_format nand-xor-ff-v2: FirmwareKit's A4 and S5L8920 stores from record
-    /// format 2, K48NAND.StoreFormat.image) needs no page overlay: the device's NAND is an APFS clone of the base's,
-    /// `overlay/nand`, which the emulator writes in place. Erase removes the overlay and the next boot clones again.
+    /// An image store (record format 2: geometry.json storage_format nand-xor-ff-v2, FirmwareKit's A4 and S5L8920 stores,
+    /// K48NAND.StoreFormat.image; nand-xor-blank-v2, the iPod touch 2G's, N72NANDImage) needs no page overlay: the
+    /// device's NAND is an APFS clone of the base's, `overlay/nand`, which the emulator writes in place. Erase removes
+    /// the overlay and the next boot clones again.
     public static func isImageStore(_ nand: URL) -> Bool {
         let geometry = (try? Data(contentsOf: nand.appendingPathComponent("geometry.json")))
             .flatMap { try? JSONSerialization.jsonObject(with: $0) as? [String: Any] }
-        return geometry?["storage_format"] as? String == "nand-xor-ff-v2"
+        return ["nand-xor-ff-v2", "nand-xor-blank-v2"].contains(geometry?["storage_format"] as? String)
     }
 
     public static func liveNAND(overlay: URL) -> URL { overlay.appendingPathComponent("nand", isDirectory: true) }
@@ -187,7 +188,7 @@ public struct PreparedDeviceBoot {
         let fm = FileManager.default
         let live = liveNAND(overlay: overlay)
         // Page files an older build wrote over this base: never booted as an image, and never silently dropped.
-        for name in ["bus0-ce0.pages", "bus0-ce0.dirty"]
+        for name in ["bus0-ce0.pages", "bus0-ce0.dirty", "cs0"]
         where fm.fileExists(atPath: overlay.appendingPathComponent(name).path) {
             throw CocoaError(
                 .fileReadCorruptFile,
@@ -306,7 +307,7 @@ public struct PreparedDeviceBoot {
                     nand: nand.path,
                     nor: baseNOR.path,
                     writableNOR: try writableNORPath(),
-                    overlay: overlay.path,
+                    overlay: nandOverlay?.path ?? "",
                     usbAddress: usbAddress,
                     wifi: wifi,
                     gidBlobs: gidBlobs,
