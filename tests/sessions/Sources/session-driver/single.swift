@@ -92,6 +92,8 @@ struct SingleConfig: Decodable {
     /// The base's Home reference (matrix-refs): a boot without a guest agent whose lock-screen shot already matches it
     /// is at Home, and gets no slide.
     var homeReference: String?
+    /// At the first Home, Device ▸ Accessibility's White on Black and VoiceOver on and off again (`accessibility`).
+    var accessibility: Bool?
 }
 
 /// A page only wifi0 serves (a guestfwd to a shell that answers any request), so a cellular route can't stand in for
@@ -494,6 +496,9 @@ nonisolated enum WiFiProbe {
                 ["device": d.name, "agent": asks, "before": before, "after": after, "mounted": mounted]
             )
         }
+        if s.accessibility == true, generation == 1 {
+            await accessibility(guest: GuestServices(agent: guestAgent))
+        }
         if let path = s.readFile {
             let data = asks ? try? await guestAgent.get(path) : nil
             emit(
@@ -504,6 +509,112 @@ nonisolated enum WiFiProbe {
                 ]
             )
         }
+    }
+
+    /// Device ▸ Accessibility's path (DeviceServices.setAccessibility, GuestServices.accessibility): White on Black
+    /// (Invert Colors) and VoiceOver on, read back from the guest, the frame against Home's and (with audioWAV) the
+    /// guest's sound while VoiceOver reads the icon under a tap; then both off again. Emits `accessibility`.
+    func accessibility(guest: GuestServices) async {
+        var event: [String: Any] = ["device": d.name]
+        func read() async -> String {
+            guard
+                let on = try? await d.services.accessibility(
+                    guest: guest,
+                    version: lock?.productVersion ?? "",
+                    tool: s.lockdownTZ
+                )
+            else { return "unreadable" }
+            return on.map { "\($0)" }.sorted().joined(separator: ",")
+        }
+        func set(_ feature: AccessibilityFeature, _ on: Bool) async -> String {
+            do {
+                try await d.services.setAccessibility(feature, on: on, tool: s.lockdownTZ)
+                return "ok"
+            } catch { return "\(error)" }
+        }
+        /// S16 samples louder than a quiet floor in the guest's WAV after `offset` (its size then), and the size now.
+        func loud(after offset: Int) -> (loud: Int, size: Int) {
+            guard let path = s.audioWAV, let data = FileManager.default.contents(atPath: path) else { return (-1, 0) }
+            let tail = data.dropFirst(offset)
+            let loud = tail.withUnsafeBytes { raw in
+                raw.bindMemory(to: Int16.self).reduce(0) { $0 + (abs(Int($1)) > 1000 ? 1 : 0) }
+            }
+            return (loud, data.count)
+        }
+        /// Every 7th row's every 13th color byte of the frame.
+        func samples() -> [UInt8] {
+            guard let surface = d.process.link.frontSurface()?.surface else { return [] }
+            surface.lock(options: .readOnly, seed: nil)
+            defer { surface.unlock(options: .readOnly, seed: nil) }
+            var bytes: [UInt8] = []
+            for y in stride(from: 0, to: surface.height, by: 7) {
+                for x in stride(from: 0, to: surface.width * 4, by: 13) where x % 4 != 3 {
+                    bytes.append(surface.baseAddress.load(fromByteOffset: y * surface.bytesPerRow + x, as: UInt8.self))
+                }
+            }
+            return bytes
+        }
+        /// The share of samples where `b` is `a`'s inverse (or, not `inverse`, the same) within 48 levels.
+        func share(_ a: [UInt8], _ b: [UInt8], inverse: Bool) -> Double {
+            guard a.count == b.count, !a.isEmpty else { return -1 }
+            let close = zip(a, b).filter { abs((inverse ? 255 - Int($0) : Int($0)) - Int($1)) < 48 }.count
+            return Double(close) / Double(a.count)
+        }
+        await d.wakeForShot("ax-before")
+        event["before"] = await read()
+        let normal = samples()
+        event["invertSet"] = await set(.invertColors, true)
+        try? await Task.sleep(for: .seconds(5))
+        d.screenshot("ax-invert")
+        event["invertOn"] = await read()
+        event["inverted"] = share(normal, samples(), inverse: true)
+        // A quiet stretch as long as the spoken one, for comparison. The WAV grows only while the guest plays.
+        let quietStart = loud(after: 0).size
+        try? await Task.sleep(for: .seconds(14))
+        event["loudQuiet"] = loud(after: quietStart).loud
+        // What VoiceOver says as it starts, then about the icon under a tap.
+        let spokenStart = loud(after: 0).size
+        event["voiceOverSet"] = await set(.voiceOver, true)
+        try? await Task.sleep(for: .seconds(6))
+        event["voiceOverOn"] = await read()
+        await d.tap(0.5, 0.45)
+        try? await Task.sleep(for: .seconds(8))
+        (event["loudSpoken"], event["wavBytes"]) = loud(after: spokenStart)
+        event["voiceOverOff"] = await set(.voiceOver, false)
+        event["invertOff"] = await set(.invertColors, false)
+        try? await Task.sleep(for: .seconds(6))
+        await d.wakeForShot("ax-after")
+        event["after"] = await read()
+        event["restored"] = share(normal, samples(), inverse: false)
+        // Triple-click Home set to VoiceOver (3.x to 5.x's TripleClickChoice, 1), then three presses as Device ▸ Home
+        // Screen makes them (DeviceInput.tap's 100 ms hold), as a user's quick ⇧⌘H ⇧⌘H ⇧⌘H.
+        if (lock?.productVersion ?? "").compare("6.0", options: .numeric) == .orderedAscending {
+            let choice = { (value: GuestDefaultValue?) in
+                _ = try? await guest.writeDefaults([GuestDefault("com.apple.Accessibility", "TripleClickChoice", value)]
+                )
+            }
+            // SpringBoard reads it at launch (5.x's libAccessibility caches it): a respring, until it answers again.
+            await choice(.int(1))
+            _ = try? await guest.respring()
+            try? await Task.sleep(for: .seconds(5))
+            for _ in 0..<30 where (try? await guest.agent.frontmost())?.bundleID.isEmpty != false {
+                try? await Task.sleep(for: .seconds(2))
+            }
+            try? await Task.sleep(for: .seconds(5))
+            for _ in 0..<3 {
+                d.process.link.send(.button(0, down: true))
+                try? await Task.sleep(for: .milliseconds(100))
+                d.process.link.send(.button(0, down: false))
+                try? await Task.sleep(for: .milliseconds(150))
+            }
+            try? await Task.sleep(for: .seconds(6))
+            event["tripleClick"] = await read()
+            event["tripleClickOff"] = await set(.voiceOver, false)
+            await choice(nil)
+            try? await Task.sleep(for: .seconds(4))
+            event["tripleClickAfter"] = await read()
+        }
+        emit("accessibility", event)
     }
 
     /// Test-only clean shutdown: stock gesture or qualified agent halt, confirmed by PMU.

@@ -268,6 +268,23 @@ enum MainMenuBuilder {
         network.addItem(.separator())
         network.addItem(item("Proxy…", #selector(MainWindowController.configureWebProxy(_:))))
         menu.addItem(submenu(network, title: "Network"))
+        // The guest's own accessibility features (AccessibilityFeature); titles and check marks per device
+        // (MainWindowController.validateMenuItem). Its own action lets validation dim the whole submenu.
+        let accessibility = NSMenu(title: "Accessibility")
+        for feature in AccessibilityFeature.allCases {
+            accessibility.addItem(
+                item(
+                    feature.title(version: ""),
+                    #selector(MainWindowController.toggleAccessibility(_:)),
+                    tag: feature.rawValue
+                )
+            )
+        }
+        accessibility.delegate = AccessibilityMenuReader.shared
+        let accessibilityItem = submenu(accessibility, title: "Accessibility")
+        accessibilityItem.target = nil
+        accessibilityItem.action = #selector(MainWindowController.accessibilityMenu(_:))
+        menu.addItem(accessibilityItem)
         menu.addItem(item("Carrier…", #selector(MainWindowController.showCarrier(_:))))
         menu.addItem(item("Tweaks…", #selector(MainWindowController.showTweaks(_:))))
         menu.addItem(item("Play on Phone…", #selector(MainWindowController.togglePhoneRemote(_:))))
@@ -364,6 +381,16 @@ enum MainMenuBuilder {
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.submenu = menu
         return item
+    }
+}
+
+/// Device ▸ Accessibility reads the guest's state each time it opens, and checks the items again once it has it.
+final class AccessibilityMenuReader: NSObject, NSMenuDelegate {
+    static let shared = AccessibilityMenuReader()
+
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard let controller = NSApp.mainWindow?.windowController as? MainWindowController else { return }
+        controller.readAccessibility { menu.update() }
     }
 }
 

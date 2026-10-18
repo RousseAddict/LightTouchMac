@@ -86,4 +86,7 @@ import LightTouchCore
     @objc func zoomPhysicalSize(_ sender: Any?) {}
     @objc func zoomPixelAccurate(_ sender: Any?) {}
     @objc func zoomToFit(_ sender: Any?) {}
+    @objc func accessibilityMenu(_ sender: Any?) {}
+    @objc func toggleAccessibility(_ sender: NSMenuItem) {}
+    func readAccessibility(_ done: @escaping @MainActor () -> Void) {}
 }

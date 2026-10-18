@@ -73,6 +73,13 @@ struct SingleCheck: ParsableCommand {
     @Option(help: "The guest agent reads PATH back at Home.") var readFile: String?
     @Flag(help: "Tweaks' Developer Settings: mount the guest archive's Developer Disk Image for the base at Home.")
     var developerImage = false
+    @Flag(
+        help: """
+            Device ▸ Accessibility at Home: White on Black (Invert Colors) and VoiceOver on, read back from the guest, \
+            the frame brighter, VoiceOver heard (with --audio-wav), then both off.
+            """
+    )
+    var accessibility = false
     @Flag(help: "The base was prepared with --skip-setup: no Setup page, Setup's answers from the Mac.")
     var skipSetup = false
     @Option(help: "The base was prepared with create --language TAG: the guest's language and region are TAG's.")

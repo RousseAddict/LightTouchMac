@@ -22,3 +22,4 @@
 int ltm_lockdown_tz(int argc, char **argv);
 int ltm_lockdown_mcinstall(int argc, char **argv);
 int ltm_lockdown_ddi(int argc, char **argv);
+int ltm_lockdown_ax(int argc, char **argv);

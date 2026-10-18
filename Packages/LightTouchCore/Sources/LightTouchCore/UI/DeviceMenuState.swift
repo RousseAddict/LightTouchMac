@@ -20,6 +20,11 @@ public struct DeviceMenuState {
     public var compassHeading: Int?
     /// Text is being edited in the window (an NSTextView is first responder): its arrow keys aren't rotation.
     public var editingText = false
+    /// Device ▸ Accessibility: the device's firmware version (the items' titles), why it has no accessibility
+    /// features (AccessibilityFeature.unavailableReason), and what the guest last said is on (nil: not read yet).
+    public var version = ""
+    public var accessibilityUnavailable: String?
+    public var accessibilityOn: Set<AccessibilityFeature>?
 
     public init() {}
 
@@ -33,6 +38,10 @@ public struct DeviceMenuState {
         case pause
         /// Restart: in place (a paused guest is resumed first: BootCycle.reset), or Power On when powered off.
         case restart
+        /// Device ▸ Accessibility, the submenu itself.
+        case accessibilityMenu
+        /// One of its switches.
+        case accessibility(AccessibilityFeature)
     }
 
     public struct Validation: Equatable {
@@ -41,11 +50,14 @@ public struct DeviceMenuState {
         public var title: String?
         /// A check mark; nil leaves the item's state alone.
         public var isOn: Bool?
+        /// Why it is dimmed, where that isn't plain.
+        public var toolTip: String?
 
-        public init(isEnabled: Bool, title: String? = nil, isOn: Bool? = nil) {
+        public init(isEnabled: Bool, title: String? = nil, isOn: Bool? = nil, toolTip: String? = nil) {
             self.isEnabled = isEnabled
             self.title = title
             self.isOn = isOn
+            self.toolTip = toolTip
         }
     }
 
@@ -71,6 +83,18 @@ public struct DeviceMenuState {
             )
         case .restart:
             Validation(isEnabled: !isDead && !shuttingDown && !storageFailed)
+        case .accessibilityMenu:
+            Validation(
+                isEnabled: isRunning && accessibilityUnavailable == nil,
+                toolTip: isRunning ? accessibilityUnavailable : nil
+            )
+        case .accessibility(let feature):
+            Validation(
+                isEnabled: isRunning && accessibilityUnavailable == nil,
+                title: feature.title(version: version),
+                isOn: isRunning && accessibilityOn?.contains(feature) == true,
+                toolTip: isRunning ? accessibilityUnavailable : nil
+            )
         }
     }
 }

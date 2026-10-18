@@ -71,6 +71,37 @@ extension EmulatorController {
         )
     }
 
+    // MARK: - Accessibility (Device ▸ Accessibility)
+
+    /// Why this device has no accessibility features; nil where it has them.
+    var accessibilityUnavailable: String? {
+        AccessibilityFeature.unavailableReason(board: profile, version: iosVersion)
+    }
+
+    /// Reads what the guest has on (its agent), then `done`; a guest without an agent leaves the check marks off.
+    func readAccessibility(_ done: @escaping @MainActor () -> Void = {}) {
+        guard isRunning, accessibilityUnavailable == nil, guestAgent.status == 1,
+            let services = try? services
+        else { return }
+        let (guest, version) = (guest, iosVersion)
+        Task {
+            guard let on = try? await services.accessibility(guest: guest, version: version) else { return }
+            accessibilityOn = on
+            done()
+        }
+    }
+
+    /// Turns `feature` on or off as iTunes did; the guest's state is read back once SpringBoard has applied it.
+    func setAccessibility(_ feature: AccessibilityFeature, on: Bool) async throws {
+        try await services.setAccessibility(feature, on: on)
+        var now = accessibilityOn ?? []
+        if on { now.insert(feature) } else { now.remove(feature) }
+        accessibilityOn = now
+        logEvent("accessibility: \(feature) \(on ? "on" : "off")")
+        try? await Task.sleep(for: .seconds(3))
+        readAccessibility()
+    }
+
     // MARK: - Activation (prepared offline, completed and verified per boot)
     func activationState() async -> String? { await (try? services)?.activationState() }
     func finishActivation() async throws { try await services.finishActivation() }

@@ -14,6 +14,20 @@ extension MainWindowController {
         guard let emulator else { return }
         if emulator.isPoweredOff { emulator.powerOn() } else { emulator.pressLock() }
     }
+    /// Device ▸ Accessibility itself: only validated (the submenu is dimmed with no device running).
+    @objc func accessibilityMenu(_ sender: Any?) {}
+    /// Device ▸ Accessibility opening: what the guest has on, then `done`.
+    func readAccessibility(_ done: @escaping @MainActor () -> Void) { emulator?.readAccessibility(done) }
+    /// One of Device ▸ Accessibility's switches, by the item's tag (AccessibilityFeature).
+    @objc func toggleAccessibility(_ sender: NSMenuItem) {
+        guard let emulator, let feature = AccessibilityFeature(rawValue: sender.tag) else { return }
+        let on = sender.state != .on
+        Task {
+            do { try await emulator.setAccessibility(feature, on: on) } catch {
+                if let window { await NSAlert(error: error).beginSheetModal(for: window) }
+            }
+        }
+    }
     @objc func deviceVolumeUp(_ sender: Any?) { emulator?.pressVolumeUp() }
     @objc func deviceVolumeDown(_ sender: Any?) { emulator?.pressVolumeDown() }
     @objc func deviceRotate(_ sender: Any?) {

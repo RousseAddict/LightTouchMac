@@ -33,6 +33,7 @@ func single(_ args: SingleCheck) -> Never {
         }
         single["developerImage"] = image.path
     }
+    if args.accessibility { single["accessibility"] = true }
     if args.skipSetup { single["skipSetup"] = true }
     if args.jailbreak { single["jailbreak"] = true }
     if let panel = args.panel { single["panel"] = panel }
@@ -378,6 +379,40 @@ func single(_ args: SingleCheck) -> Never {
         r.check(
             mount.string("mounted") == "mounted" && !mount.bool("before") && mount.bool("after"),
             "\(d): the Developer Disk Image mounts and Settings' Developer bundle appears (\(mount))"
+        )
+    }
+    if args.accessibility {
+        let ax = events.one("accessibility", ["device": d])
+        let (inverted, restored) = (ax.double("inverted") ?? -1, ax.double("restored") ?? -1)
+        // The share of the frame's sampled bytes that are the Home frame's inverse, then the Home frame again.
+        r.check(
+            ax.string("invertSet") == "ok" && ax.string("invertOn")?.contains("invertColors") == true && inverted > 0.6,
+            "\(d): White on Black turns on, the guest says so and the frame inverts (\(format(inverted, 2)) of it, "
+                + "on: \(ax.string("invertOn") ?? "?"))"
+        )
+        r.check(
+            ax.string("voiceOverSet") == "ok" && ax.string("voiceOverOn")?.contains("voiceOver") == true,
+            "\(d): VoiceOver turns on and the guest says so (on: \(ax.string("voiceOverOn") ?? "?"))"
+        )
+        if args.audioWAV != nil {
+            let (quiet, spoken) = (ax.int("loudQuiet") ?? -1, ax.int("loudSpoken") ?? -1)
+            r.check(
+                spoken > max(quiet, 0) * 4 + 2000,
+                "\(d): VoiceOver is heard (loud samples \(quiet) quiet, \(spoken) spoken; the guest's WAV "
+                    + "\(ax.int("wavBytes") ?? -1) bytes)"
+            )
+        }
+        if let triple = ax.string("tripleClick") {
+            r.check(
+                triple.contains("voiceOver") && ax.string("tripleClickAfter") == "",
+                "\(d): three quick Home presses turn VoiceOver on with Triple-click Home set to it (on: '\(triple)', "
+                    + "then '\(ax.string("tripleClickAfter") ?? "?")')"
+            )
+        }
+        r.check(
+            ax.string("voiceOverOff") == "ok" && ax.string("invertOff") == "ok" && ax.string("after") == ""
+                && restored > 0.6,
+            "\(d): both off again (on: '\(ax.string("after") ?? "?")', \(format(restored, 2)) of the frame as before)"
         )
     }
     if let file = args.readFile {

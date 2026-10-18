@@ -32,6 +32,9 @@ extension MainWindowController: NSMenuItemValidation {
         state.hasCellular = emulator.hasCellular
         state.compassHeading = emulator.compassHeading
         state.editingText = window?.firstResponder is NSTextView
+        state.version = emulator.iosVersion
+        state.accessibilityUnavailable = emulator.accessibilityUnavailable
+        state.accessibilityOn = emulator.accessibilityOn
         return state
     }
 
@@ -160,6 +163,12 @@ extension MainWindowController: NSMenuItemValidation {
             #selector(deviceVolumeUp(_:)), #selector(deviceVolumeDown(_:)):
             return apply(deviceMenu.validate(.input), to: menuItem)
         case #selector(toggleDevicePause(_:)): return apply(deviceMenu.validate(.pause), to: menuItem)
+        case #selector(accessibilityMenu(_:)): return apply(deviceMenu.validate(.accessibilityMenu), to: menuItem)
+        case #selector(toggleAccessibility(_:)):
+            guard let feature = AccessibilityFeature(rawValue: menuItem.tag) else { return false }
+            let validation = deviceMenu.validate(.accessibility(feature))
+            menuItem.toolTip = validation.toolTip
+            return apply(validation, to: menuItem)
         case #selector(configureWebProxy(_:)):
             return emulator.webProxyAvailable
         case #selector(toggleKeyboardInput(_:)):

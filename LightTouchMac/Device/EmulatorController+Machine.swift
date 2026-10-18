@@ -79,6 +79,7 @@ extension EmulatorController {
         agentStatus = 0
         agentStaleSince = nil
         tweaks.forgetBoot()
+        accessibilityOn = nil
         readSetupExpectation()
     }
     func endBoot(_ end: BootEnd) { bootWatch.endBoot(end) }

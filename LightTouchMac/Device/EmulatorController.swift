@@ -275,6 +275,9 @@ final class EmulatorController {
         cellular: profile.hasCellular
     )
 
+    /// Device ▸ Accessibility: what the guest last said is on (nil: not read this boot).
+    @ObservationIgnored var accessibilityOn: Set<AccessibilityFeature>?
+
     // MARK: - Options
     /// Attach to Local Network, the debug port and the boot arguments (DeviceOptions).
     @ObservationIgnored private(set) lazy var options = DeviceOptions(settings: settingsFile, board: instance.board) {
