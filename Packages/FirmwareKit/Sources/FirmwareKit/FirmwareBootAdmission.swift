@@ -76,12 +76,14 @@ public nonisolated enum FirmwareBootAdmission {
             return imaged || identity
         }
         guard record["board"] as? String == "n72ap" else { return false }
-        return try N72NAND.migrateLegacyGPT(
+        // the recipe 1 -> 2 GPT pages go into the format 1 overlay, which the image migration then carries
+        let gpt = try N72NAND.migrateLegacyGPT(
             base: paths.base,
             overlay: paths.overlay,
             storageKey: (record["storage"] as? [String: Any])?["key"] as? String,
             marker: owner.device.appendingPathComponent(FirmwareWire.migratedRecipeFile)
         )
+        return try K48NANDMigration.admit(owner, notice: notice) || gpt
     }
 
     /// n90/n88 recipe 1 -> 2: the identity gains the IMEI the modem reports, and the UDID it makes

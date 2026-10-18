@@ -355,7 +355,8 @@ struct K48NANDMigrationTests {
         }
     }
 
-    /// FK_MIGRATION_DEVICE: a copy of a real format 1 A4 or S5L8920 device (its Devices/<uuid>, never the original).
+    /// FK_MIGRATION_DEVICE: a copy of a real format 1 A4, S5L8920 or iPod touch 2G device (its Devices/<uuid>, never
+    /// the original).
     /// A byte flipped in the new base or live image after the build fails the proof and leaves the device as it was.
     @Test(
         .serialized,
@@ -373,8 +374,9 @@ struct K48NANDMigrationTests {
         let changed = try K48NANDMigration.admit(
             StoppedRecordOwner(device: device),
             checkpoint: { checkpoint in
-                let file = d.migrating.appendingPathComponent("\(image)/bus1-ce2.pages")
-                guard checkpoint == .built, FileManager.default.fileExists(atPath: file.path) else { return }
+                let file = ["bus1-ce2.pages", "cs1.pages"].map { d.migrating.appendingPathComponent("\(image)/\($0)") }
+                    .first { FileManager.default.fileExists(atPath: $0.path) }
+                guard checkpoint == .built, let file else { return }
                 let fd = open(file.path, O_RDWR)
                 defer { close(fd) }
                 let offset = off_t((K48NANDImage.dataBlocks(fd, blockBytes: 1 << 20).min() ?? 0) << 20) + 4100

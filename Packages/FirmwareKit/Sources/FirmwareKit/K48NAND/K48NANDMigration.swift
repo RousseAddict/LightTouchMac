@@ -1,11 +1,13 @@
-// The format 2 migration of an A4 or S5L8920 device (k48, n81, n90, n18, n88): its legacy NAND store and page
-// overlay become an image store (base/nand, read-only) and the device's live NAND, a clone of it with the overlay's
-// pages applied (overlay/nand, PreparedDeviceBoot.liveNAND), which the emulator writes in place. Lazy: a boot
-// admission step (FirmwareBootAdmission), under the stopped lease, before the first start that needs it.
+// The format 2 migration of an A4 or S5L8920 device (k48, n81, n90, n18, n88) or an iPod touch 2G (n72): its legacy
+// NAND store and page overlay become an image store (base/nand, read-only) and the device's live NAND, a clone of it
+// with the overlay's pages applied (overlay/nand, PreparedDeviceBoot.liveNAND), which the emulator writes in place.
+// Lazy: a boot admission step (FirmwareBootAdmission), under the stopped lease, before the first start that needs it.
+// The boards differ only in their stores (Store: K48NANDImage's chip files and .dirty bitmaps, N72NANDImage's page
+// directories); the steps are the same.
 //
 //   1. preflight: room for the new base, the live NAND's changes and the volume proof, plus 1 GiB;
-//   2. intent work/migration.json (phase building), then build both into migrating/ (K48NANDImage.convert);
-//   3. proof: every page of both images reads as before, byte for byte (K48NANDImage.verify), and the volumes rebuilt
+//   2. intent work/migration.json (phase building), then build both into migrating/ (Store.convert);
+//   3. proof: every page of both images reads as before, byte for byte (Store.verify), and the volumes rebuilt
 //      from the new store hash as the ones rebuilt from the old (when the old one rebuilds);
 //   4. intent phase committing; renames: base/nand and the overlay's chip files into legacy/, the new base and live
 //      NAND into place; then the record, format 2, by an atomic replace;
@@ -137,14 +139,55 @@ public enum K48NANDMigration {
         return true
     }
 
-    /// A kboot board's format 1 record over its own legacy store (not a development base outside the device).
+    /// A kboot board's or the iPod touch 2G's format 1 record over its own legacy store (not a development base
+    /// outside the device).
     static func eligible(_ record: [String: Any], base: URL, device: URL) -> Bool {
-        guard HostRuntime.Board(rawValue: record["board"] as? String ?? "")?.isKBoot == true,
-            (record["format"] as? Int ?? 1) < recordFormat,
-            StoragePathAuthority.canonicalPath(base).hasPrefix(StoragePathAuthority.canonicalPath(device) + "/"),
-            (try? K48NAND.storeFormat(base.appendingPathComponent("nand"))) == .legacy
+        let board = HostRuntime.Board(rawValue: record["board"] as? String ?? "")
+        let nand = base.appendingPathComponent("nand")
+        guard (record["format"] as? Int ?? 1) < recordFormat,
+            StoragePathAuthority.canonicalPath(base).hasPrefix(StoragePathAuthority.canonicalPath(device) + "/")
         else { return false }
-        return true
+        if board == .n72 { return !N72NANDImage.isImage(nand) && (try? VolumeRebuild.board(of: nand)) == .ipod }
+        return board?.isKBoot == true && (try? K48NAND.storeFormat(nand)) == .legacy
+    }
+
+    /// A board's legacy store and overlay, and its conversion and proof (both read the overlay as the emulator did).
+    struct Store {
+        let chips: Int
+        /// Whether the overlay holds pages, so the device gets a live NAND of its own.
+        let serves: Bool
+        /// The overlay's entries that go to legacy/overlay.
+        let overlayFiles: [String]
+        let convert: (_ baseOut: URL, _ liveOut: URL?, _ step: () -> Void) throws -> Void
+        let verify: (_ baseOut: URL, _ liveOut: URL?, _ step: () -> Void) throws -> Void
+
+        init(nand: URL, overlay: URL) throws {
+            let present = FileManager.default.fileExists(atPath: overlay.path)
+            if (try? VolumeRebuild.board(of: nand)) == .ipod {
+                let served = N72NANDImage.overlayServes(overlay)
+                let legacyOverlay = served ? overlay : nil
+                chips = N72NANDImage.chips
+                serves = served
+                overlayFiles = present ? N72NANDImage.overlayFiles(overlay) : []
+                convert = {
+                    try N72NANDImage.convert(base: nand, overlay: legacyOverlay, baseOut: $0, liveOut: $1, step: $2)
+                }
+                verify = {
+                    try N72NANDImage.verify(base: nand, overlay: legacyOverlay, baseOut: $0, liveOut: $1, step: $2)
+                }
+                return
+            }
+            let geo = try K48NAND.geometry(store: nand)
+            let served = K48NANDImage.overlayServes(overlay, geo)
+            let legacyOverlay = served ? overlay : nil
+            chips = geo.numCS
+            serves = served
+            overlayFiles = present ? K48NANDImage.overlayFiles(overlay) : []
+            convert = {
+                try K48NANDImage.convert(base: nand, overlay: legacyOverlay, baseOut: $0, liveOut: $1, step: $2)
+            }
+            verify = { try K48NANDImage.verify(base: nand, overlay: legacyOverlay, baseOut: $0, liveOut: $1, step: $2) }
+        }
     }
 
     static func relative(_ url: URL, to device: URL) throws -> String {
@@ -165,9 +208,9 @@ public enum K48NANDMigration {
     ) throws {
         let fm = FileManager.default
         let nand = base.appendingPathComponent("nand")
-        let geo = try K48NAND.geometry(store: nand)
-        let serves = K48NANDImage.overlayServes(overlay, geo)
-        let overlayFiles = fm.fileExists(atPath: overlay.path) ? K48NANDImage.overlayFiles(overlay) : []
+        let store = try Store(nand: nand, overlay: overlay)
+        let serves = store.serves
+        let overlayFiles = store.overlayFiles
         let needed =
             2 * allocated(nand) + overlayFiles.reduce(0) { $0 + allocated(overlay.appendingPathComponent($1)) }
             + (1 << 30)
@@ -185,7 +228,7 @@ public enum K48NANDMigration {
         try writeIntent(intent, layout)
         let started = Date()
         // a step for each chip select converted (base, then live) and checked, and each volume set rebuilt
-        let steps = Double(geo.numCS * (serves ? 3 : 2) + 2)
+        let steps = Double(store.chips * (serves ? 3 : 2) + 2)
         var done = 0.0
         func step() {
             done += 1
@@ -196,9 +239,9 @@ public enum K48NANDMigration {
         let baseOut = layout.migrating.appendingPathComponent("base-nand")
         let liveOut = serves ? layout.migrating.appendingPathComponent("nand") : nil
         let legacyOverlay = serves ? overlay : nil
-        try K48NANDImage.convert(base: nand, overlay: legacyOverlay, baseOut: baseOut, liveOut: liveOut, step: step)
+        try store.convert(baseOut, liveOut, step)
         try checkpoint(.built)
-        try K48NANDImage.verify(base: nand, overlay: legacyOverlay, baseOut: baseOut, liveOut: liveOut, step: step)
+        try store.verify(baseOut, liveOut, step)
         let volumes = try volumeProof(
             old: (nand, legacyOverlay),
             new: liveOut ?? baseOut,
