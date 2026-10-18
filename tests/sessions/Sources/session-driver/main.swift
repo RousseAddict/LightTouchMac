@@ -6,6 +6,7 @@ import HostRuntime
 import HostServiceClient
 import HostServiceWire
 import IOSurface
+import SessionKit
 
 @testable import LightTouchCore
 
@@ -151,6 +152,8 @@ extension String {
     private(set) var preparationError: String?
     private(set) var bootError: String?
     private(set) var helloPID: pid_t?
+    /// When this boot's admission ended (it may migrate the storage for minutes); the lit timer starts here.
+    private(set) var admitted: Date?
     /// The prepared base (firmwarekit create output) this device boots; read only.
     let base: URL
     /// DeviceWebProxy.forward's guestfwd, appended to the wifi netdev, and the proxy the helper serves (proxy.swift).
@@ -187,6 +190,7 @@ extension String {
         preparationError = nil
         bootError = nil
         helloPID = nil
+        admitted = nil
         mux = try Mux(name: name)
         serial = try SerialLogCapture(
             url: dir.appendingPathComponent("serial.log"),
@@ -269,7 +273,10 @@ extension String {
             preparation: {
                 // This explicit fixture tests a missing boot configuration after
                 // real hello/lease, independently of stopped-format admission.
-                if config.preparationFailure == true { return }
+                if config.preparationFailure == true {
+                    self.admitted = Date()
+                    return
+                }
                 let executable = URL(fileURLWithPath: config.firmwarekit ?? Self.helper)
                 let worker =
                     config.firmwarekit == nil
@@ -282,6 +289,7 @@ extension String {
                     managed: self.managedKey != nil,
                     executable: worker
                 )
+                self.admitted = Date()
                 emit("bootAdmission", ["device": self.name, "changed": changed.changed, "generation": generation])
             }
         ) { result in
@@ -452,15 +460,16 @@ extension String {
     }
 }
 
+/// Waits for the panel to light, `seconds` counted from the end of boot admission, as the app's boot budget is.
 @MainActor func waitLit(_ d: Device, _ threshold: Double, _ seconds: Double) async {
-    let start = Date()
     while true {
         if d.process.isDead { fail("\(d.name) died before it lit: \(d.deaths)") }
+        if let error = d.bootError { fail("\(d.name) did not boot: \(error)") }
         if let b = d.brightness(), b >= threshold {
-            emit("lit", ["device": d.name, "seconds": Date().timeIntervalSince(start), "brightness": b])
+            emit("lit", ["device": d.name, "seconds": litSeconds(admitted: d.admitted), "brightness": b])
             return
         }
-        if Date().timeIntervalSince(start) > seconds {
+        if litSeconds(admitted: d.admitted) > seconds {
             d.screenshot("never-lit")
             fail("\(d.name) never lit")
         }
