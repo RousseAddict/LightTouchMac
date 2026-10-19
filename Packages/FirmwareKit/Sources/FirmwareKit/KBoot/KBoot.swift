@@ -31,6 +31,10 @@ public enum KBoot {
     public static let fbWidth = 1024, fbHeight = 768, fbDepth = 32
     /// ipad1_kboot.DEFAULT_BOOT_ARGS. enable-hsic=1: 4.x's AppleS5L8930XUSBArbitrator::handleStart publishes the
     /// USB host nubs for the DT's hsic-enabled only when this boot-arg is 1 (no USB keyboard without it); 3.x ignores it.
+    /// serial=3 debug=0x8 stay, though a real unit boots without them: they are the whole serial log (no byte of it
+    /// without them), which prepare's one-shots read their markers from (FTL_Open, it_seal, it_keybag), the app's boot
+    /// stages and Device Console show, and diagnostics carry a panic in. Dropping them gains nothing measurable: an
+    /// n90ap-8C148 boot lit at the same time with and without them, three paired runs.
     public static let defaultBootArgs =
         "serial=3 debug=0x8 amfi_allow_any_signature=1 cs_enforcement_disable=1 enable-hsic=1"
     public static let defaultIBootVersion = "iBoot-817.29"
@@ -396,6 +400,8 @@ public enum KBoot {
         let board = Board.of(dt)
         let (root, chosen, macs) = try identityDT(identity, board: board)
         for (k, v) in [("platform-name", DeviceTree.Value.string(board.platformName))] + root { try dt.set("", k, v) }
+        // debug-enabled 1, where a real unit has 0: the kernel honors the AMFI boot-args (amfi_allow_any_signature,
+        // cs_enforcement_disable) only with it, and an n90ap-8C148 boot never lit with it 0.
         let flags: [(String, DeviceTree.Value)] = [
             "debug-enabled", "production-cert", "secure-boot", "gid-aes-key",
             "uid-aes-key", "system-trusted",
