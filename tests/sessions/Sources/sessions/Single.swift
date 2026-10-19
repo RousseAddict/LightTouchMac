@@ -421,6 +421,13 @@ func single(_ args: SingleCheck) -> Never {
                 "\(d): VoiceOver is heard (loud samples \(quiet) quiet, \(spoken) spoken; the guest's WAV "
                     + "\(ax.int("wavBytes") ?? -1) bytes)"
             )
+            // A sound played faster or slower than the guest made it is higher or lower by the same factor.
+            let scale = ax.double("lockSoundScale") ?? -1
+            r.check(
+                abs(scale - 1) < 0.05,
+                "\(d): the lock sound plays at the guest's own pitch and speed (\(format(scale, 3)) times the "
+                    + "guest's lock.caf)"
+            )
         }
         if let triple = ax.string("tripleClick") {
             r.check(

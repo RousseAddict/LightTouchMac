@@ -1,3 +1,4 @@
+import AVFoundation
 import DeviceRuntime
 import Foundation
 import HostRuntime
@@ -632,7 +633,50 @@ nonisolated enum WiFiProbe {
             try? await Task.sleep(for: .seconds(4))
             event["tripleClickAfter"] = await read()
         }
+        if let wav = s.audioWAV {
+            let lock = await lockSoundScale(guest: guest, wav: wav)
+            (event["lockSoundScale"], event["lockSoundMatch"]) = (lock?.factor ?? -1, lock?.match ?? -1)
+        }
         emit("accessibility", event)
+    }
+
+    /// The lock sound as the guest's WAV recorded it against the guest's own file (UISounds/lock.caf): how much
+    /// faster it came out and how closely it matches (SoundScale): 1 when the emulator plays the guest's samples at
+    /// the rate the guest clocks them. The power button locks the device; it is unlocked again after. nil: no file
+    /// or no sound.
+    func lockSoundScale(guest: GuestServices, wav: String) async -> (factor: Double, match: Double)? {
+        guard let caf = try? await guest.agent.get("/System/Library/Audio/UISounds/lock.caf") else { return nil }
+        let reference = d.dir.appendingPathComponent("lock.caf")
+        try? caf.write(to: reference)
+        // The WAV's samples are stereo S16 after its 44-byte header.
+        let size = max(44, FileManager.default.contents(atPath: wav)?.count ?? 0)
+        let start = size - (size - 44) % 4
+        d.process.link.send(.button(1, down: true))
+        try? await Task.sleep(for: .milliseconds(150))
+        d.process.link.send(.button(1, down: false))
+        try? await Task.sleep(for: .seconds(3))
+        let tail = FileManager.default.contents(atPath: wav)?.dropFirst(start) ?? Data()
+        try? tail.write(to: d.dir.appendingPathComponent("lock-sound.raw"))
+        await d.wakeForShot("lock-sound")
+        await d.slideToUnlock(1, agent: guest.agent)
+        let recording = tail.withUnsafeBytes { raw in
+            stride(from: 0, to: raw.count / 4 * 2, by: 2).map {
+                Float(raw.loadUnaligned(fromByteOffset: $0 * 2, as: Int16.self)) / 32768
+            }
+        }
+        guard let file = try? AVAudioFile(forReading: reference),
+            let buffer = AVAudioPCMBuffer(
+                pcmFormat: file.processingFormat,
+                frameCapacity: AVAudioFrameCount(file.length)
+            ),
+            (try? file.read(into: buffer)) != nil, let channel = buffer.floatChannelData?[0]
+        else { return nil }
+        return SoundScale.scale(
+            reference: Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength))),
+            referenceRate: file.processingFormat.sampleRate,
+            recording: recording,
+            recordingRate: 44100
+        )
     }
 
     /// Test-only clean shutdown: stock gesture or qualified agent halt, confirmed by PMU.
