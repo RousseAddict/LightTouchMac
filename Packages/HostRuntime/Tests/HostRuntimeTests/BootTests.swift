@@ -606,3 +606,46 @@ extension BootTests {
         #expect(throws: CocoaError.self) { _ = try f.prepare(.n72) }
     }
 }
+
+extension BootTests {
+    /// A 3GS or iPod touch 3G kboot.bin prepared with the IPSW's 0 ncoref-frequency boots an overlay copy with
+    /// PLL1's 162 MHz; the base stays as it was, a later boot uses the copy as it is, and a kboot.bin that has the
+    /// value, or an A4's, boots from the base.
+    @Test func zeroAudioClockBootsARepairedCopy() throws {
+        func image(_ hz: UInt32) -> Data {
+            Data("dt".utf8) + Data("ncoref-frequency".utf8) + Data(count: 16) + Data([4, 0, 0, 0])
+                + withUnsafeBytes(of: hz.littleEndian) { Data($0) } + Data("rest".utf8)
+        }
+        func boots(_ f: Fixture, _ board: Board, _ kboot: URL) throws -> Bool {
+            try f.prepare(board).configuration(
+                bootArgs: "",
+                usbAddress: nil,
+                wifi: false,
+                guestPackage: nil,
+                serial: "null",
+                audio: [],
+                netdev: nil
+            ).argv[2].contains(",kboot=" + BootRecipe.escape(kboot.path) + ",")
+        }
+        for board in [Board.n88, .n18] {
+            let f = try Fixture(board: board, strategy: "kboot")
+            let base = f.base.appendingPathComponent("kboot.bin")
+            try image(0).write(to: base)
+            let copy = f.overlay.appendingPathComponent("kboot.bin")
+            #expect(try boots(f, board, copy))
+            #expect(try Data(contentsOf: copy) == image(PreparedDeviceBoot.ncorefHz))
+            #expect(try Data(contentsOf: base) == image(0))
+            try Data("kept".utf8).write(to: copy)
+            #expect(try boots(f, board, copy))
+            #expect(try Data(contentsOf: copy) == Data("kept".utf8))
+        }
+        let fresh = try Fixture(board: .n88, strategy: "kboot")
+        try image(PreparedDeviceBoot.ncorefHz).write(to: fresh.base.appendingPathComponent("kboot.bin"))
+        #expect(try boots(fresh, .n88, fresh.base.appendingPathComponent("kboot.bin")))
+        #expect(!FileManager.default.fileExists(atPath: fresh.overlay.appendingPathComponent("kboot.bin").path))
+        let a4 = try Fixture(board: .n90, strategy: "kboot")
+        try image(0).write(to: a4.base.appendingPathComponent("kboot.bin"))
+        #expect(try boots(a4, .n90, a4.base.appendingPathComponent("kboot.bin")))
+        #expect(!FileManager.default.fileExists(atPath: a4.overlay.appendingPathComponent("kboot.bin").path))
+    }
+}
