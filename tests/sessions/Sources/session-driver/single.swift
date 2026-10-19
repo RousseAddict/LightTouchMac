@@ -604,6 +604,11 @@ nonisolated enum WiFiProbe {
         await d.wakeForShot("ax-after")
         event["after"] = await read()
         event["restored"] = share(normal, samples(), inverse: false)
+        // Before the Triple-click respring: after it, 3.x and 4.x locked without a sound (n88 7E18, n72 8C148).
+        if let wav = s.audioWAV {
+            let lock = await lockSoundScale(guest: guest, wav: wav)
+            (event["lockSoundScale"], event["lockSoundMatch"]) = (lock?.factor ?? -1, lock?.match ?? -1)
+        }
         // Triple-click Home set to VoiceOver (3.x to 5.x's TripleClickChoice, 1), then three presses as Device ▸ Home
         // Screen makes them (DeviceInput.tap's 100 ms hold), as a user's quick ⇧⌘H ⇧⌘H ⇧⌘H.
         if (lock?.productVersion ?? "").compare("6.0", options: .numeric) == .orderedAscending {
@@ -631,10 +636,6 @@ nonisolated enum WiFiProbe {
             await choice(nil)
             try? await Task.sleep(for: .seconds(4))
             event["tripleClickAfter"] = await read()
-        }
-        if let wav = s.audioWAV {
-            let lock = await lockSoundScale(guest: guest, wav: wav)
-            (event["lockSoundScale"], event["lockSoundMatch"]) = (lock?.factor ?? -1, lock?.match ?? -1)
         }
         emit("accessibility", event)
     }
