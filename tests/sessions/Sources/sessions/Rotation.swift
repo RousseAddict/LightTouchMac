@@ -94,10 +94,7 @@ private func loadImage(_ url: URL) -> CGImage? {
 /// any angle, so the clock's place, not its legibility, says which way up the picture is: upright, it is centered in
 /// the top band.
 private func clock(_ image: CGImage) -> (x: Double, y: Double)? {
-    let request = VNRecognizeTextRequest()
-    request.recognitionLevel = .accurate
-    guard (try? VNImageRequestHandler(cgImage: image).perform([request])) != nil else { return nil }
-    for o in request.results ?? [] {
+    for o in TextReader.read(VNImageRequestHandler(cgImage: image)) {
         guard let text = o.topCandidates(1).first?.string, text.contains(/\d{1,2}:\d{2}/) else { continue }
         return (o.boundingBox.midX, 1 - o.boundingBox.midY)
     }

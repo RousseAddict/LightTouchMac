@@ -51,6 +51,7 @@ let package = Package(
         .executableTarget(
             name: "helper-driver",
             dependencies: [
+                "SessionKit",
                 .product(name: "LightTouchCore", package: "LightTouchCore"),
                 .product(name: "HostRuntime", package: "HostRuntime"),
                 .product(name: "DeviceRuntime", package: "DeviceRuntime"),

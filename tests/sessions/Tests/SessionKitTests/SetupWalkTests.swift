@@ -138,4 +138,27 @@ struct SetupWalkTests {
         #expect(taps(SetupPlan.plan(["OK": (0.5, 0.6), "Location Services": (0.5, 0.4)], pages: [])) == ["(OK)"])
         #expect(SetupPlan.plan(["slide to set up": (0.5, 0.9)], pages: []) == [.slideIfLockScreen])
     }
+
+    /// The pages four walks stopped on with "Setup still up after 80 pages" (10-18), as Vision reads them: each has a
+    /// step, so a walk that took none there had read nothing (TextReader). "Light Touch = 9:11 PM" is the status bar
+    /// (carrier and clock) the language page's arrow tap is logged by.
+    @Test func thePagesWalksStoppedOnEachHaveAStep() {
+        let language: [String: (x: Double, y: Double)] = [
+            "•••• Light Touch = 9:11 PM": (0.29, 0.02), "English": (0.14, 0.27), ">": (0.94, 0.27),
+            "Français": (0.16, 0.4), "Deutsch": (0.16, 0.52),
+        ]
+        #expect(taps(SetupPlan.plan(language, pages: [])) == ["English", "Light Touch = 9:11 PM"])
+        let k: [String: (x: Double, y: Double)] = [
+            "•••• Light Touch F 9:12 PM": (0.29, 0.02), "stan": (0.29, 0.07), "< Back": (0.12, 0.09),
+            "Kenya": (0.13, 0.19), ">": (0.94, 0.19), "Kiribati": (0.14, 0.32), "Kuwait": (0.14, 0.44),
+            "Kyrgyzstan": (0.2, 0.57), "Laos": (0.11, 0.69), "Latvia": (0.13, 0.82), "Lebanon": (0.16, 0.94),
+        ]
+        #expect(SetupPlan.plan(k, pages: ["(scroll)"]) == [.scroll(0.85, 0.25, fast: true)])
+        let appleID: [String: (x: Double, y: Double)] = [
+            "•ll Light Touch & 7:56 PM": (0.3, 0.02), "Back": (0.1, 0.09), "Apple ID": (0.5, 0.09),
+            "Sign In with an Apple ID": (0.5, 0.71), "Create a Free Apple ID": (0.5, 0.85),
+            "Skip This Step": (0.82, 0.96),
+        ]
+        #expect(taps(SetupPlan.plan(appleID, pages: ["(Skip)"])) == ["Skip This Step"])
+    }
 }

@@ -7,6 +7,7 @@ import Foundation
 import HostRuntime
 import ImageIO
 import LightTouchCore
+import SessionKit
 import UniformTypeIdentifiers
 import Vision
 
@@ -83,10 +84,8 @@ final class MainQueueLink: HelperLink {
 
 /// Where Vision reads `word` on an image (top-left origin, 0...1): the first text equal to it, or nil.
 func findWord(_ word: String, in image: URL) -> (x: Double, y: Double)? {
-    let request = VNRecognizeTextRequest()
-    request.recognitionLevel = .accurate
-    guard (try? VNImageRequestHandler(url: image).perform([request])) != nil else { return nil }
-    for o in request.results ?? [] where o.topCandidates(1).first?.string.trimmingCharacters(in: .whitespaces) == word {
+    for o in TextReader.read(image) where o.topCandidates(1).first?.string.trimmingCharacters(in: .whitespaces) == word
+    {
         return (o.boundingBox.midX, 1 - o.boundingBox.midY)
     }
     return nil
@@ -94,11 +93,7 @@ func findWord(_ word: String, in image: URL) -> (x: Double, y: Double)? {
 
 /// Every line Vision reads on an image, top to bottom.
 func readText(in image: URL) -> [String] {
-    let request = VNRecognizeTextRequest()
-    request.recognitionLevel = .accurate
-    request.usesLanguageCorrection = false
-    guard (try? VNImageRequestHandler(url: image).perform([request])) != nil else { return [] }
-    return (request.results ?? []).sorted { $0.boundingBox.midY > $1.boundingBox.midY }
+    TextReader.read(image, languageCorrection: false).sorted { $0.boundingBox.midY > $1.boundingBox.midY }
         .compactMap { $0.topCandidates(1).first?.string }
 }
 

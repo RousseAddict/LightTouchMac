@@ -1351,10 +1351,7 @@ nonisolated enum CydiaSources {
 
     /// Every label Vision reads on the screenshot, each at its center as a touch point (top-left origin, 0...1).
     static func labels(_ path: String) -> [(text: String, x: Double, y: Double)] {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        guard (try? VNImageRequestHandler(url: URL(fileURLWithPath: path)).perform([request])) != nil else { return [] }
-        return (request.results ?? []).compactMap { o in
+        TextReader.read(URL(fileURLWithPath: path)).compactMap { o in
             o.topCandidates(1).first.map {
                 ($0.string.trimmingCharacters(in: .whitespaces), o.boundingBox.midX, 1 - o.boundingBox.midY)
             }
@@ -1604,13 +1601,8 @@ nonisolated enum CydiaSources {
 @MainActor enum SetupPhone {
     /// Each label Vision reads on the screenshot, at its center as a touch point (top-left origin, 0...1).
     static func labels(_ path: String) -> [String: (x: Double, y: Double)] {
-        let request = VNRecognizeTextRequest()
-        request.recognitionLevel = .accurate
-        guard (try? VNImageRequestHandler(url: URL(fileURLWithPath: path)).perform([request])) != nil else {
-            return [:]
-        }
         var found: [String: (x: Double, y: Double)] = [:]
-        for o in request.results ?? [] {
+        for o in TextReader.read(URL(fileURLWithPath: path)) {
             guard let text = o.topCandidates(1).first?.string.trimmingCharacters(in: .whitespaces) else { continue }
             found[text] = found[text] ?? (o.boundingBox.midX, 1 - o.boundingBox.midY)
         }
