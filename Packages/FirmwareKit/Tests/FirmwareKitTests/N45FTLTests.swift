@@ -101,6 +101,35 @@ import Testing
         try put(ovl, vpn: 31 * sb + 2, log, N45NAND.dataSpare(sb + 5))
     }
 
+    /// The same device in format 1: the base image as bank<N> page files, and the live clone's records that differ
+    /// from the base as page files in the overlay (the live clone removed). booted() erases no block, so no markers.
+    static func asFormat1(_ nand: URL, overlay: URL) throws {
+        let fm = FileManager.default
+        let image = try PageNANDImage.s5l8900(at: nand)
+        let base = try PageNANDImage.Store(nand)
+        let liveURL = PreparedDeviceBoot.liveNAND(overlay: overlay)
+        let live = fm.fileExists(atPath: liveURL.path) ? try PageNANDImage.Store(liveURL) : nil
+        let pages = nand.deletingLastPathComponent().appendingPathComponent("nand-pages")
+        func put(_ record: [UInt8], _ root: URL, _ chip: Int, _ page: Int) throws {
+            let dir = root.appendingPathComponent("bank\(chip)")
+            try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+            try Data(record).write(to: dir.appendingPathComponent("\(page).page"))
+        }
+        for chip in 0..<image.chips {
+            try fm.createDirectory(at: pages.appendingPathComponent("bank\(chip)"), withIntermediateDirectories: true)
+            var blocks = base.dataBlocks(chip)
+            if let live { blocks.formUnion(live.dataBlocks(chip)) }
+            for page in blocks.flatMap({ $0 * N45NAND.pagesPerBlock..<($0 + 1) * N45NAND.pagesPerBlock }) {
+                let b = try base.read(chip, page)
+                if b != image.blankRecord { try put(b, pages, chip, page) }
+                if let l = try live?.read(chip, page), l != b { try put(l, overlay, chip, page) }
+            }
+        }
+        try fm.removeItem(at: nand)
+        try fm.moveItem(at: pages, to: nand)
+        if live != nil { try fm.removeItem(at: liveURL) }
+    }
+
     /// A fresh store reads back as its volume, through the prepared context.
     @Test func preparedStore() throws {
         let dir = try Fixtures.tempDir("n45ftl-prepared")

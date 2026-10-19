@@ -8,8 +8,10 @@ import Testing
     /// A stopped 1.x device (N45FTLTests' booted-guest store) around a volume laid out as 1.0's (SpringBoard runs as
     /// root, no UserName in its job) or 1.1.3's on (mobile, 501): the keys go into that user's Preferences, the
     /// existing SpringBoard plist keeps its other keys, owner and mode, a new plist takes the folder's owner, the
-    /// same keys again change nothing, and a removal takes its key out.
-    @Test(arguments: [false, true]) func writesIntoTheUserSpringBoardRunsAs(mobile: Bool) async throws {
+    /// same keys again change nothing, and a removal takes its key out; on an image store (format 2, the edit writing
+    /// the device's live clone) and on page files (format 1, the edit writing overlay page files).
+    @Test(arguments: [false, true], [false, true])
+    func writesIntoTheUserSpringBoardRunsAs(mobile: Bool, formatOne: Bool) async throws {
         let fm = FileManager.default
         let root = try Fixtures.tempDir("prefs1x-edit")
         defer { try? fm.removeItem(at: root) }
@@ -49,6 +51,7 @@ import Testing
         )
         let overlay = device.appendingPathComponent("overlay")
         try N45FTLTests.booted(overlay, base.appendingPathComponent("nand"), changeData: false)
+        if formatOne { try N45FTLTests.asFormat1(base.appendingPathComponent("nand"), overlay: overlay) }
         try Data("{}".utf8).write(to: base.appendingPathComponent("device.lock.json"))
         let record: [String: Any] = [
             "id": UUID().uuidString, "board": mobile ? "n45ap" : "m68ap", "firmware": "test",
