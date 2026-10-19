@@ -36,6 +36,20 @@ struct CatalogTests {
         #expect(software.isEmpty, "\(software)")
     }
 
+    /// Every 3.0 and 3.1.x row with a data partition makes it unjournaled: those builds' mount_hfs refuses the
+    /// journaled one the Mac makes (EINVAL), and /private/var stays on the system volume, without the language,
+    /// region and keyboards preparation seeded (issue 97: n88ap 3.1 to 3.1.3).
+    @Test func iPhoneOS31DataVolumesAreUnjournaled() throws {
+        struct Catalog: Decodable { var entries: [FirmwareEntry] }
+        let entries = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: Oracle.catalog)).entries
+        let rows = entries.filter {
+            ($0.version.hasPrefix("3.0") || $0.version.hasPrefix("3.1")) && $0.recipe?.dataSize == "partition"
+        }
+        #expect(rows.count >= 12)
+        let journaled = rows.filter { $0.recipe?.options["data_journal"] != false }.map(\.id)
+        #expect(journaled.isEmpty, "\(journaled)")
+    }
+
     @Test func sharedWireKeepsMetadataAndFutureTags() throws {
         let original = try Oracle.entry("k48ap-7B500")
         var object = try JSONSerialization.jsonObject(with: JSONEncoder().encode(original)) as! [String: Any]

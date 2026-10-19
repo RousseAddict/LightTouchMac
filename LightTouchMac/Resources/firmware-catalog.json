@@ -6433,7 +6433,7 @@
    "rootfs": {"file": "018-5457-007.dmg", "key": "e0cb2ab440ca22c522b7e87a424877d3aefb0acb12dcebbab1d34b8f3f0eaadf7d2a9a11"},
    "UpdateRamDisk": {"file": "018-5432-007.dmg", "iv": "d081f39b133dd9adde18a6c6128c209e", "key": "1d7de63ebd09c17ee845f733ede2243847fd887c1c60f67d00d01b6c5d82df99"}
   },
-  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}},
+  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true, "data_journal": false}},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
@@ -6470,7 +6470,7 @@
    "rootfs": {"file": "018-5696-005.dmg", "key": "7a7261fb5a3c8f1e14b7e63a0392831db8dc71491a92008017ac6092d00d546aaaed1955"},
    "UpdateRamDisk": {"file": "018-5686-005.dmg", "iv": "ca29e61a8145670f658bb30e66d22041", "key": "751e2bccf1a9cd33c4a77248c5522fe2d0c6320f08e8f83590fee3d29829fbe4"}
   },
-  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}},
+  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true, "data_journal": false}},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
@@ -6507,7 +6507,7 @@
    "rootfs": {"file": "018-5754-004.dmg", "key": "8a9b9dfba58cce6766d160f90ccd0a6492477c17f9e4af3c36f1408b2a26aac8f884e423"},
    "UpdateRamDisk": {"file": "018-5729-004.dmg", "iv": "02923002a7561bd1b9b827f6d5f18ff3", "key": "42916962a921e64afc4cef9871078e6f85cb4490b057a384ff0982f9f7db8903"}
   },
-  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}},
+  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true, "data_journal": false}},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
@@ -6542,7 +6542,7 @@
    "rootfs": {"file": "018-5344-086.dmg", "key": "b9cd10dd88ab615c1963e8aa04950b12dd64e0e5b11ea63c79a02af6db62334c710d21da"},
    "UpdateRamDisk": {"file": "018-5349-086.dmg", "iv": "05fbba6bfd7bca47827b866e80b1bd9e", "key": "1e23357267715aaffdb0dfbaebd5ea6bea928414cce593a15ac3b27a4c629e7c"}
   },
-  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}},
+  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true, "data_journal": false}},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
@@ -6577,7 +6577,7 @@
    "rootfs": {"file": "018-6029-014.dmg", "key": "47d76295817f74953f8e557b4917fe2201e9778a9900e43fbf311a83f176fe521b996a4b"},
    "UpdateRamDisk": {"file": "018-6049-015.dmg", "iv": "6f44e621edcba2a4e7d4f20320712480", "key": "8cd89776f98c3de1d5ae1c936764e0c51eb1db7cd277d4261f6cde813cba970d"}
   },
-  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}},
+  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true, "data_journal": false}},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
@@ -6612,7 +6612,7 @@
    "rootfs": {"file": "018-6483-022.dmg", "key": "9b3fd35bad7d5307d85ce4b38b8e56bd680ef5a72a8f3b615f8d4f16c14bdcf3c3b24c6c"},
    "UpdateRamDisk": {"file": "018-6489-023.dmg", "iv": "171054df8054d2030abda42faa2b5173", "key": "d7afe6b6b586d15261a8c28fdc9735a2bd2696e8a02861690ae47352008065cd"}
   },
-  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}},
+  "recipe": {"name": "n88", "version": 2, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true, "data_journal": false}},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
