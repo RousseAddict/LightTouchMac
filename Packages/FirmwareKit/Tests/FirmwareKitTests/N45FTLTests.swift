@@ -29,24 +29,22 @@ import Testing
         return (base, Array(vol[0..<Int(blocks) * 4096]))
     }
 
-    static func put(_ root: URL, vpn: Int, _ data: [UInt8], _ spare: [UInt8]) throws {
-        let p = N45NAND.location(vpn: vpn, banks: banks)
-        let d = root.appendingPathComponent("bank\(p.bank)")
-        try FileManager.default.createDirectory(at: d, withIntermediateDirectories: true)
-        try Data(data + spare).write(to: d.appendingPathComponent("\(p.page).page"))
-    }
-
     static func le(_ b: inout [UInt8], _ o: Int, _ v: Int, _ n: Int) {
         for k in 0..<n { b[o + k] = UInt8(v >> (8 * k) & 0xFF) }
     }
 
-    /// What a booted guest leaves in the overlay, built by hand: the context moved to virtual block 3 (lower usnDec
+    /// What a booted guest leaves in the device's live NAND (the overlay's clone of the base's image), built by hand:
+    /// the context moved to virtual block 3 (lower usnDec
     /// than the prepared one), logical block 0 remapped to virtual block 30 with page 10 changed, and a log block
     /// (virtual block 31) holding a newer copy of logical block 1's page 5. `clean: false` ends the context block
     /// on a map page instead of the context.
     static func booted(_ ovl: URL, _ base: URL, clean: Bool = true, changeData: Bool = true) throws {
-        let fm = FileManager.default
-        try fm.createDirectory(at: ovl, withIntermediateDirectories: true)
+        try FileManager.default.createDirectory(at: ovl, withIntermediateDirectories: true)
+        let live = try PageNANDImage.Store(PreparedDeviceBoot.liveNAND(base: base, overlay: ovl), writable: true)
+        func put(_: URL, vpn: Int, _ data: [UInt8], _ spare: [UInt8]) throws {
+            try live.write(N45NAND.location(vpn: vpn, banks: banks), data + spare)
+        }
+        let read = try N45FTL.reader(PageNANDImage.s5l8900(at: base), base: base, overlay: nil)
         let ctxVB = 3
         let start = ctxVB * sb
         try put(
@@ -93,13 +91,13 @@ import Testing
         }
         // logical block 0 copied to virtual block 30 with page 10 changed; the log page for lbn 1 offset 5
         for off in 0..<sb {
-            guard let (d, s) = N45FTL.page(base, nil, N45NAND.location(lpn: off, banks: banks)) else { continue }
+            guard let (d, s) = read(N45NAND.location(lpn: off, banks: banks)) else { continue }
             try put(ovl, vpn: 30 * sb + off, off == 10 && changeData ? [UInt8](repeating: 0xA1, count: pp) : d, s)
         }
         let log =
             changeData
             ? [UInt8](repeating: 0xB2, count: pp)
-            : N45FTL.page(base, nil, N45NAND.location(lpn: sb + 5, banks: banks))!.data
+            : read(N45NAND.location(lpn: sb + 5, banks: banks))!.data
         try put(ovl, vpn: 31 * sb + 2, log, N45NAND.dataSpare(sb + 5))
     }
 

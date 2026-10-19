@@ -605,6 +605,36 @@ extension BootTests {
         )
         #expect(throws: CocoaError.self) { _ = try f.prepare(.n72) }
     }
+
+    /// The 1.x boards' image store (nand-xor-blank-v2, blank ff) boots its live clone: nand= names it and no
+    /// nand-overlay is passed; a format 1 bank directory left in the overlay over it is refused.
+    @Test func m68ImageStoreBootsItsLiveCloneWithoutAnOverlay() throws {
+        let f = try Fixture(board: .m68, strategy: "iboot")
+        let nand = f.base.appendingPathComponent("nand")
+        try Data(#"{"storage_format": "nand-xor-blank-v2", "blank": "ff", "board": "s5l8900"}"#.utf8)
+            .write(to: nand.appendingPathComponent("geometry.json"))
+        try Data([1, 2, 3]).write(to: nand.appendingPathComponent("cs0.pages"))
+        func machine() throws -> String {
+            try f.prepare(.m68).configuration(
+                bootArgs: "",
+                usbAddress: nil,
+                wifi: false,
+                guestPackage: nil,
+                serial: "null",
+                audio: [],
+                netdev: nil
+            ).argv[2]
+        }
+        let live = PreparedDeviceBoot.liveNAND(overlay: f.overlay)
+        let argv = try machine()
+        #expect(argv.contains(",nand=\(BootRecipe.escape(live.path))") && !argv.contains("nand-overlay"), "\(argv)")
+        #expect(try Data(contentsOf: live.appendingPathComponent("cs0.pages")) == Data([1, 2, 3]))
+        try FileManager.default.createDirectory(
+            at: f.overlay.appendingPathComponent("bank0"),
+            withIntermediateDirectories: true
+        )
+        #expect(throws: CocoaError.self) { _ = try machine() }
+    }
 }
 
 extension BootTests {
