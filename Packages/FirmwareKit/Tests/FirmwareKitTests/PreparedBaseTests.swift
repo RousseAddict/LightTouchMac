@@ -228,3 +228,55 @@ struct PreparedBaseTests {
         }
     }
 }
+
+/// The packed base was prepared in en-US whatever the building Mac's: unpacked, it takes the language and region create
+/// would seed (issue 97), in its store and its lock.
+@Suite(.detachesItsImages) struct PreparedBaseLanguageTests {
+    @Test func unpackedBaseTakesTheLanguage() async throws {
+        let fm = FileManager.default
+        let root = try Fixtures.tempDir("prepared-base-language")
+        defer { try? fm.removeItem(at: root) }
+        let base = root.appendingPathComponent("base")
+        try fm.createDirectory(at: base, withIntermediateDirectories: true)
+        let image = root.appendingPathComponent("volume.img")
+        let prefs = "private/var/mobile/Library/Preferences/.GlobalPreferences.plist"
+        try await VolumeMount.makeHFS(image, size: 16 << 20, name: "System")
+        try await VolumeMount.withMounted(image, at: root.appendingPathComponent("initial")) { m in
+            let url = m.appendingPathComponent(prefs)
+            try fm.createDirectory(at: url.deletingLastPathComponent(), withIntermediateDirectories: true)
+            let global: [String: Any] = ["AppleLanguages": ["en", "fr", "uk"], "AppleLocale": "en_US"]
+            try PropertyListSerialization.data(fromPropertyList: global, format: .binary, options: 0).write(to: url)
+        }
+        let hfs = try HFSPlusVolume(image)
+        let nand = base.appendingPathComponent("nand")
+        try N72NAND.write(volume: image, blocks: hfs.totalBlocks * hfs.blockSize / N72NAND.page, epoch: 1, out: nand)
+        try Preparer.readOnly(nand)
+        try JSONSerialization.data(withJSONObject: ["derived": ["nand_epoch": 1]]).write(
+            to: base.appendingPathComponent("device.lock.json")
+        )
+
+        try await PreparedBase.seedLanguage(base, tag: "uk-UA", keyboards: [])
+
+        let volume = try #require(
+            VolumeRebuild.rebuild(base: nand, overlay: nil, into: root.appendingPathComponent("out")).first?.image
+        )
+        let global = try await VolumeMount.withMounted(volume, at: root.appendingPathComponent("check")) { m in
+            try PropertyListSerialization.propertyList(
+                from: Data(contentsOf: m.appendingPathComponent(prefs)),
+                format: nil
+            )
+                as? [String: Any]
+        }
+        #expect(global?["AppleLanguages"] as? [String] == ["uk", "en", "fr"])
+        #expect(global?["AppleLocale"] as? String == "uk_UA")
+        let lock =
+            try JSONSerialization.jsonObject(with: Data(contentsOf: base.appendingPathComponent("device.lock.json")))
+            as? [String: Any]
+        #expect((lock?["derived"] as? [String: Any])?["language"] as? String == "uk, region uk_UA, keyboards []")
+        let nandRecord = (lock?["outputs"] as? [String: Any])?["nand"] as? [String: Any]
+        #expect(
+            nandRecord?["listing_sha256"] as? String
+                == (try Preparer.nandListing(nand, files: Recipe.nandFiles(nand)).sha256)
+        )
+    }
+}

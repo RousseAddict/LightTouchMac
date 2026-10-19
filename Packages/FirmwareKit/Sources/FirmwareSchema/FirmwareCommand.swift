@@ -111,15 +111,27 @@ public enum FirmwareCommand {
         @Option public var blob: String
         @Option public var out: String
         @Option public var seed: String
+        @Option(help: "The device's language and region, as a BCP 47 tag (fr-FR) (default: the Mac's).")
+        public var language: String? = nil
+        @Option(
+            help:
+                "The device's keyboards besides its language's, as Mac input source IDs (default: the Mac's enabled ones)."
+        )
+        public var keyboards: String? = nil
 
         public init() {}
         public init(blob: URL, out: URL, seed: String) {
             self.blob = blob.path
             self.out = out.path
             self.seed = seed
+            language = nil
+            keyboards = nil
         }
 
-        public var arguments: [String] { ["unpack-base"] + options(["blob": blob, "out": out, "seed": seed]) }
+        public var arguments: [String] {
+            ["unpack-base"]
+                + options(["blob": blob, "out": out, "seed": seed, "language": language, "keyboards": keyboards])
+        }
     }
 
     /// `pack-base`: a create output as one blob (the release build).

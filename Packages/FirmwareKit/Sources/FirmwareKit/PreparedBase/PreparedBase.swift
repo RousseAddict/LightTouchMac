@@ -4,6 +4,7 @@
 //   try PreparedBase.pack(base: dir, to: itbase, reuse: previous)          // the release build (vendor)
 //   try PreparedBase.unpack(itbase, into: staging) { fraction in ... }    // the app's first launch, via firmwarekit
 //   try PreparedBase.reseed(staging, seed: uuid)                          // then a unit identity of its own
+//   try await PreparedBase.seedLanguage(staging, tag: nil, keyboards: nil) // and the Mac's language
 //
 // The packed base is a directory, so a rebuild changes only the files whose content changed and Sparkle's per-file
 // delta stays small:
@@ -21,7 +22,8 @@
 //
 // reseed gives the base the identity `create --seed` would have: only identity.json, the NOR's SysCfg and nvram, and
 // the lock's identity, machine and nor hash depend on the seed (the n72 volume and store don't), so the result is that
-// create's output.
+// create's output. seedLanguage then gives its volume the language, region and keyboards create seeds from the Mac: the
+// release packs a base prepared in en-US whatever the building Mac's.
 
 import CryptoKit
 import Darwin
@@ -333,6 +335,60 @@ public enum PreparedBase {
             outputs["nor"] = record
             lock["outputs"] = outputs
         }
+        try DeviceLock(json: lock).data().write(to: lockURL, options: .atomic)
+    }
+
+    /// Seeds the language, region and keyboards (SystemEdits.seedLanguage: `tag`, else the Mac's; `keyboards`, else
+    /// the Mac's enabled ones) into the n72 base's system volume, which keeps /private/var, as create does: the volume
+    /// rebuilt from the store, edited, and laid out again as a fresh store (N72NAND.write), the lock's NAND record and
+    /// derived language with it.
+    nonisolated(nonsending) public static func seedLanguage(_ base: URL, tag: String?, keyboards: [String]?)
+        async throws
+    {
+        let fm = FileManager.default
+        let lockURL = base.appendingPathComponent("device.lock.json")
+        let nand = base.appendingPathComponent("nand")
+        guard var lock = try JSONSerialization.jsonObject(with: Data(contentsOf: lockURL)) as? [String: Any] else {
+            throw FirmwareError(.unsupported, "device.lock.json is not an object")
+        }
+        // a store N72Recipe did not lay out (the app's test fixtures) has no volume to seed
+        guard var derived = lock["derived"] as? [String: Any], let epoch = derived["nand_epoch"] as? Int else { return }
+        let work = base.appendingPathComponent("language-work")
+        try? fm.removeItem(at: work)
+        defer { try? fm.removeItem(at: work) }
+        guard let image = try VolumeRebuild.rebuild(base: nand, overlay: nil, into: work, only: ["system"]).first?.image
+        else { throw FirmwareError(.unsupported, "the base has no system volume") }
+        let seeded = try await VolumeMount.withMounted(image, at: work.appendingPathComponent("mnt")) { m in
+            try SystemEdits.seedLanguage(
+                m.appendingPathComponent("private/var"),
+                tag: tag,
+                keyboards: keyboards,
+                catalog: SystemEdits.KeyboardCatalog(m.appendingPathComponent("System/Library/TextInput")),
+                formats: SystemEdits.regionFormats(m)
+            )
+        }
+        guard let seeded else { return }
+        let hfs = try HFSPlusVolume(image)
+        chmod(nand.path, 0o755)  // unpacked read-only, as create leaves it
+        try fm.removeItem(at: nand)
+        try N72NAND.write(
+            volume: image,
+            blocks: hfs.totalBlocks * hfs.blockSize / N72NAND.page,
+            epoch: epoch,
+            out: nand
+        )
+        try Preparer.readOnly(nand)
+        let files = try Recipe.nandFiles(nand)
+        let listing = try Preparer.nandListing(nand, files: files)
+        var outputs = lock["outputs"] as? [String: Any] ?? [:]
+        var record = outputs["nand"] as? [String: Any] ?? ["path": "nand"]
+        record["pages"] = files.count
+        record["listing_sha256"] = listing.sha256
+        record["built_listing_sha256"] = listing.sha256
+        outputs["nand"] = record
+        lock["outputs"] = outputs
+        derived["language"] = "\(seeded.language), region \(seeded.locale), keyboards \(seeded.keyboards)"
+        lock["derived"] = derived
         try DeviceLock(json: lock).data().write(to: lockURL, options: .atomic)
     }
 }

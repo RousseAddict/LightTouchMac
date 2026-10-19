@@ -1,6 +1,7 @@
 // firmwarekit pack-base --base DIR --out ITBASE [--reuse PREVIOUS]   a create output packed (the release build)
-// firmwarekit unpack-base --blob ITBASE --out DIR --seed S            that as a device of its own (the app, like create:
-//                                                                     JSON Lines on stdout, done names the lock)
+// firmwarekit unpack-base --blob ITBASE --out DIR --seed S            that as a device of its own, in the Mac's language
+//   [--language TAG] [--keyboards IDS]                                (or TAG's, as create) (the app, like create: JSON
+//                                                                     Lines on stdout, done names the lock)
 
 import FirmwareKit
 import FirmwareSchema
@@ -23,7 +24,7 @@ func packBaseCommand(_ command: FirmwareCommand.PackBase) -> Never {
 func unpackBaseCommand(_ command: FirmwareCommand.UnpackBase) async -> Int32 {
     let staging = URL(fileURLWithPath: command.out)
     do {
-        emit(.begin(steps: 2))
+        emit(.begin(steps: 3))
         emit(.step(index: 1, name: "Unpacking"))
         try PreparedBase.unpack(URL(fileURLWithPath: command.blob), into: staging) { fraction in
             try Task.checkCancellation()
@@ -31,6 +32,12 @@ func unpackBaseCommand(_ command: FirmwareCommand.UnpackBase) async -> Int32 {
         }
         emit(.step(index: 2, name: "Writing the identity"))
         try PreparedBase.reseed(staging, seed: command.seed)
+        emit(.step(index: 3, name: "Setting the language"))
+        try await PreparedBase.seedLanguage(
+            staging,
+            tag: command.language,
+            keyboards: command.keyboards.map { $0.split(separator: ",").map(String.init) }
+        )
         emit(.done(lock: "device.lock.json"))
         return 0
     } catch {
