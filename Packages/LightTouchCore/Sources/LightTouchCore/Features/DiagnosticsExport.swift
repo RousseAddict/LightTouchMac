@@ -1,5 +1,7 @@
-// Help > Export Diagnostics: the logs, device records and a summary, scrubbed of identity (scrub), zipped atomically
-// into a scratch directory.
+// Help > Export Diagnostics: the app's logs, the selected device's (Device/: serial, usbmuxd, the helper's and QEMU's
+// native.log, firmwarekit's boot admission and storage migration log, its preparation log), the app's crash reports
+// and a summary with the Copy Bug Report Info block, each scrubbed of identity (scrub) and cut to its newest
+// `logLimit` bytes, zipped atomically into a scratch directory.
 
 import Foundation
 import Subprocess
@@ -59,10 +61,25 @@ public nonisolated enum DiagnosticsExport {
         }.sorted { $0.1 > $1.1 }.prefix(limit).map(\.0)
     }
 
+    /// The most of one log the archive keeps: its newest bytes.
+    public static let logLimit = 2_000_000
+
+    /// The last `limit` bytes of `url` as text, and whether earlier ones were left out; empty when it can't be read.
+    public static func tail(of url: URL, limit: Int) -> (text: String, cut: Bool) {
+        guard let handle = try? FileHandle(forReadingFrom: url) else { return ("", false) }
+        defer { try? handle.close() }
+        let size = (try? handle.seekToEnd()) ?? 0
+        let cut = size > UInt64(limit)
+        try? handle.seek(toOffset: cut ? size - UInt64(limit) : 0)
+        return (String(decoding: (try? handle.readToEnd()) ?? Data(), as: UTF8.self), cut)
+    }
+
+    /// `logs` go at the archive's top, `deviceLogs` (the selected device's) in Device/.
     @concurrent
     public static func write(
         to destination: URL,
         logs: [URL],
+        deviceLogs: [URL] = [],
         info: String,
         crashReports: [URL] = [],
         secrets: [String] = [],
@@ -84,11 +101,15 @@ public nonisolated enum DiagnosticsExport {
         defer { try? fm.removeItem(at: scratch) }
         let staging = scratch.appendingPathComponent("LightTouchMac-diagnostics", isDirectory: true)
         try fm.createDirectory(at: staging, withIntermediateDirectories: false)
-        for source in logs where fm.fileExists(atPath: source.path) {
-            try Task.checkCancellation()
-            let log = String(decoding: try Data(contentsOf: source), as: UTF8.self)
-            try scrub(log, secrets: secrets, identity: identity)
-                .write(to: staging.appendingPathComponent(source.lastPathComponent), atomically: false, encoding: .utf8)
+        let device = staging.appendingPathComponent("Device", isDirectory: true)
+        for (folder, sources) in [(staging, logs), (device, deviceLogs)] {
+            for source in sources where fm.fileExists(atPath: source.path) {
+                try Task.checkCancellation()
+                let log = tail(of: source, limit: logLimit)
+                try fm.createDirectory(at: folder, withIntermediateDirectories: true)
+                try scrub((log.cut ? "(earlier lines cut)\n" : "") + log.text, secrets: secrets, identity: identity)
+                    .write(to: folder.appendingPathComponent(source.lastPathComponent), atomically: false, encoding: .utf8)
+            }
         }
         try scrub(info, secrets: secrets, identity: identity)
             .write(to: staging.appendingPathComponent("info.txt"), atomically: true, encoding: .utf8)

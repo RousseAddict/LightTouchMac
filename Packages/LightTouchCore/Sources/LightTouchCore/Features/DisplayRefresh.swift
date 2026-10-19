@@ -4,9 +4,9 @@
 
 import Foundation
 
-enum DisplayRefresh {
+public nonisolated enum DisplayRefresh {
     /// UserDefaults key for the toggle (off unless turned on).
-    static let key = "ExperimentalRefresh120"
+    public static let key = "ExperimentalRefresh120"
     /// The refresh the next device start gets.
-    static var hz: Int { UserDefaults.standard.bool(forKey: key) ? 120 : 60 }
+    public static var hz: Int { UserDefaults.standard.bool(forKey: key) ? 120 : 60 }
 }

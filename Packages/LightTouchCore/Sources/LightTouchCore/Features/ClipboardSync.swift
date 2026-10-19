@@ -12,6 +12,8 @@ public struct ClipboardSync: Sendable, Equatable {
     /// it would paste something nobody copied).
     public static let maxBytes = 65_535
     public static let key = "ShareClipboard"
+    /// On unless turned off.
+    public static var enabled: Bool { UserDefaults.standard.object(forKey: key) as? Bool ?? true }
 
     /// The text both sides last held: what every device should have, and what's no news from any of them.
     public private(set) var shared: String?

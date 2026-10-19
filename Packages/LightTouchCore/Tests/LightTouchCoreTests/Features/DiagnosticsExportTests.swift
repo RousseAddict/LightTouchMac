@@ -166,6 +166,55 @@ struct DiagnosticsExportTests {
         }
     }
 
+    /// What firmwarekit says on stderr while it admits a boot (a storage migration's steps and failures) is kept in
+    /// the device's firmwarekit.log, appended, for the export and Copy Bug Report Info to read.
+    @Test func bootAdmissionKeepsTheWorkersLog() async throws {
+        try await LibraryFixtures.withScratch { root in
+            let worker = try LibraryFixtures.script(
+                root.appendingPathComponent("firmwarekit"),
+                """
+                echo "NAND image migration: needs 9000 bytes free; the device stays in format 1" >&2
+                echo '{"event":"admitted","changed":false}'
+
+                """
+            )
+            let log = root.appendingPathComponent("logs/firmwarekit.log")
+            for _ in 0..<2 {
+                _ = try await FirmwareTool.admitBoot(device: root, managed: true, executable: worker, log: log)
+            }
+            #expect(
+                try text(log) == String(
+                    repeating: "NAND image migration: needs 9000 bytes free; the device stays in format 1\n",
+                    count: 2
+                )
+            )
+        }
+    }
+
+    /// A log over the cap keeps its newest bytes, after a line saying earlier ones were cut; one under it is whole.
+    @Test func longLogsKeepTheirNewestContent() async throws {
+        try await LibraryFixtures.withScratch { root in
+            let long = root.appendingPathComponent("native.log")
+            let old = String(repeating: "oldest line\n", count: 100_000)
+            let new = String(repeating: "newest line\n", count: DiagnosticsExport.logLimit / 12)
+            try (old + new).write(to: long, atomically: true, encoding: .utf8)
+            let short = root.appendingPathComponent("serial.log")
+            try "boot\n".write(to: short, atomically: true, encoding: .utf8)
+            let archive = root.appendingPathComponent("capped.zip")
+            try await DiagnosticsExport.write(to: archive, logs: [short], deviceLogs: [long], info: "")
+            let kept = try LibraryFixtures.run(
+                "/usr/bin/unzip",
+                ["-p", archive.path, "LightTouchMac-diagnostics/Device/native.log"]
+            )
+            #expect(kept.hasPrefix("(earlier lines cut)\n") && kept.hasSuffix(new) && !kept.contains("oldest"))
+            #expect(kept.utf8.count <= DiagnosticsExport.logLimit + "(earlier lines cut)\n".utf8.count)
+            #expect(
+                try LibraryFixtures.run("/usr/bin/unzip", ["-p", archive.path, "LightTouchMac-diagnostics/serial.log"])
+                    == "boot\n"
+            )
+        }
+    }
+
     /// The archive's logs, info and crash reports carry no identity: the home folder, the user's and the Mac's
     /// names, the device's own identifiers and anything shaped like one are gone from the text, and a crash report
     /// loses its identifying members while its stacks and binary images stay byte for byte.
@@ -213,10 +262,30 @@ struct DiagnosticsExportTests {
                 \(stacks)
                 }
                 """.write(to: report, atomically: true, encoding: .utf8)
+            // the device's own logs: a storage migration's failure in firmwarekit's, the helper's and the preparation's
+            let device = root.appendingPathComponent("Devices/8874EC96-6945-4F6F-AD3D-96DDEBB6F52B")
+            try fm.createDirectory(at: device, withIntermediateDirectories: true)
+            let firmwareLog = device.appendingPathComponent("firmwarekit.log")
+            try """
+                NAND image migration: couldn't read /Users/jappleseed/Library/Devices/8874EC96-6945-4F6F-AD3D-96DDEBB6F52B/overlay (UDID 6f1ed002ab5595859014ebf0951522d9a1b2c3d4, serial C02XK1ZQJGH5); the device stays in format 1
+                """.write(to: firmwareLog, atomically: true, encoding: .utf8)
+            let native = device.appendingPathComponent("native.log")
+            try "helper: lease /Users/jappleseed/x on Johnnys-MacBook-Pro, wifi 00:1e:c2:aa:bb:cc".write(
+                to: native,
+                atomically: true,
+                encoding: .utf8
+            )
+            let preparing = root.appendingPathComponent("n90ap-11D257.log")
+            try "[1/8] Verifying /Users/jappleseed/Downloads/x.ipsw\nout: UDID 00008020-001A2B3C4D5E6F70".write(
+                to: preparing,
+                atomically: true,
+                encoding: .utf8
+            )
             let archive = root.appendingPathComponent("scrubbed.zip")
             try await DiagnosticsExport.write(
                 to: archive,
-                logs: [log, rotated],
+                logs: [log, rotated, root.appendingPathComponent("absent.log")],
+                deviceLogs: [firmwareLog, native, preparing, device.appendingPathComponent("serial.log")],
                 info: "device: Johnny Appleseed’s iPhone 8874EC96-6945-4F6F-AD3D-96DDEBB6F52B base /Users/jappleseed/x",
                 crashReports: [report],
                 secrets: ["seed-4f8a2c"],
@@ -225,10 +294,26 @@ struct DiagnosticsExportTests {
             func member(_ name: String) throws -> String {
                 try LibraryFixtures.run("/usr/bin/unzip", ["-p", archive.path, "LightTouchMac-diagnostics/" + name])
             }
-            let texts = try ["serial.log", "serial.log.1", "info.txt"].map(member)
-            for (name, text) in zip(["serial.log", "serial.log.1", "info.txt"], texts) {
+            let names = [
+                "serial.log", "serial.log.1", "info.txt", "Device/firmwarekit.log", "Device/native.log",
+                "Device/n90ap-11D257.log",
+            ]
+            let texts = try names.map(member)
+            for (name, text) in zip(names, texts) {
                 for leak in leaks { #expect(!text.localizedCaseInsensitiveContains(leak), "\(name): \(leak)") }
             }
+            #expect(
+                texts[3] == "NAND image migration: couldn't read ~/Library/Devices/<uuid>/overlay (UDID <udid>, serial "
+                    + "<serial>); the device stays in format 1"
+            )
+            // what's there, under names that say nothing of the device
+            let listing = try LibraryFixtures.run("/usr/bin/unzip", ["-Z1", archive.path]).split(separator: "\n")
+                .map(String.init).filter { !$0.hasSuffix("/") && !$0.hasPrefix("__MACOSX/") }.sorted()
+            #expect(
+                listing
+                    == (names + ["CrashReports/LightTouch-2026-10-08-101010.ips"]).map { "LightTouchMac-diagnostics/" + $0 }
+                    .sorted()
+            )
             #expect(texts[0].contains("emulator build 1538771e7dcf3b9c933d599ef98c04ce"))
             #expect(texts[1] == "older: <redacted>’s iPhone at ~")
             #expect(texts[2] == "device: <redacted>’s iPhone <uuid> base ~/x")

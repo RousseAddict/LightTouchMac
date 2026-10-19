@@ -40,6 +40,14 @@ extension MainWindowController {
     /// Help ▸ Copy Bug Report Info (AppDelegate's, so it works with the window closed): the selected device, then
     /// every other one with a session.
     func copyBugReportInfo() {
+        let (devices, secrets) = bugReportDevices()
+        BugReportCopy.copy(devices: devices, bezel: bugReportBezel, secrets: secrets)
+    }
+
+    private var bugReportBezel: String? { DisplayView.bezel == .model ? nil : "\(DisplayView.bezel)" }
+
+    /// The selected device, then every other one with a session, and the identities to scrub from them.
+    private func bugReportDevices() -> ([BugReportInfo.Device], [String]) {
         var instances = [selectedInstance].compactMap { $0 }
         instances += host.sessions.map(\.instance).filter { s in !instances.contains { $0.id == s.id } }
         var secrets: [String] = []
@@ -60,9 +68,21 @@ extension MainWindowController {
             )
             device.panel = instance.panel
             device.internet = emulator?.network
-            device.recipeVersion = lock?.recipeVersion
-            device.skipSetup = lock?.skippedSetup
-            device.jailbreak = lock?.jailbroken
+            if let lock { device.readPreparation(lock) }
+            device.prepared = instance.created
+            let paths = instance.paths
+            device.readStorage(
+                directory: paths.directory,
+                format: instance.format,
+                migrates: paths.base.path.hasPrefix(paths.directory.path + "/"),
+                overlay: paths.overlay,
+                firmwareLog: paths.logs.appendingPathComponent("firmwarekit.log")
+            )
+            device.readSettings(
+                settings,
+                proxy: WebProxyConfiguration.load(from: WebProxyConfiguration.directory(for: instance)),
+                accessibilityOn: emulator?.accessibilityOn
+            )
             if instance.profile?.hasCellular == true {
                 device.carrier = emulator?.carrierSettings ?? settings.carrier ?? CarrierSettings()
             }
@@ -81,11 +101,7 @@ extension MainWindowController {
             }
             return device
         }
-        BugReportCopy.copy(
-            devices: devices,
-            bezel: DisplayView.bezel == .model ? nil : "\(DisplayView.bezel)",
-            secrets: secrets
-        )
+        return (devices, secrets)
     }
 
     @objc func exportDiagnostics(_ sender: Any?) {
@@ -102,7 +118,15 @@ extension MainWindowController {
     private func writeDiagnostics(to dest: URL) async {
         await AppEventLog.shared.flush()
         NativeLogging.flush()
-        let logs = diagnosticLogs
+        let logs = ["app.log", "native.log"].map { Bundled.logsDirectory.appendingPathComponent($0) }
+        // the device's own, and the preparation log of its catalog entry
+        var deviceLogs: [URL] = []
+        if let instance = diagnosticInstance {
+            deviceLogs =
+                ["serial.log", "usbmuxd.log", "native.log", "firmwarekit.log"].map {
+                    instance.paths.logs.appendingPathComponent($0)
+                } + [Bundled.logsDirectory.appendingPathComponent("Preparing/\(instance.firmware).log")]
+        }
         let device =
             emulator.map { emulator in
                 """
@@ -119,23 +143,27 @@ extension MainWindowController {
                 try? FileManager.default.contentsOfDirectory(atPath: $0.deletingLastPathComponent().path)
             } ?? []
         let reports = DiagnosticsExport.crashReports(executables: executables)
+        let (devices, secrets) = bugReportDevices()
         let info = """
             LightTouchMac diagnostics
-            \(DiagnosticsExport.systemSummary())
             crash reports: \(reports.isEmpty ? "none in the last 30 days" : reports.map(\.lastPathComponent).joined(separator: ", "))
             device: \(diagnosticInstance.map { "\($0.name) \($0.firmware) \($0.id)" } ?? "none")
             \(device)
+
+            Copy Bug Report Info:
+            \(BugReportCopy.text(devices: devices, bezel: bugReportBezel, secrets: secrets))
             """
         do {
-            let secrets = diagnosticInstance.map {
+            let deviceSecrets = diagnosticInstance.map {
                 Self.identitySecrets($0, lock: try? DeviceLock.read(base: $0.paths.base))
             }
             try await DiagnosticsExport.write(
                 to: dest,
-                logs: logs,
+                logs: logs.flatMap { [$0, $0.appendingPathExtension("1")] },
+                deviceLogs: deviceLogs.flatMap { [$0, $0.appendingPathExtension("1")] },
                 info: info,
                 crashReports: reports,
-                secrets: secrets ?? []
+                secrets: secrets + (deviceSecrets ?? [])
             )
             NSWorkspace.shared.activateFileViewerSelecting([dest])
         } catch is CancellationError {

@@ -15,7 +15,7 @@ import LightTouchCore
     private var delivered: [ObjectIdentifier: String] = [:]
     private var timer: Timer?
 
-    static var enabled: Bool { UserDefaults.standard.object(forKey: ClipboardSync.key) as? Bool ?? true }
+    static var enabled: Bool { ClipboardSync.enabled }
 
     func start() {
         guard timer == nil else { return }

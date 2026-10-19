@@ -8,8 +8,9 @@ import System
 public nonisolated enum FirmwareTool {
     /// FirmwareKit validates/migrates stopped storage and releases ownership
     /// before DeviceRuntime spawns the helper. No live NOR writer is hosted here.
-    /// The worker's report: whether the storage changed, and a quiet notice for the window, if any.
-    public static func admitBoot(device: URL, managed: Bool, executable: URL) async throws
+    /// The worker's report: whether the storage changed, and a quiet notice for the window, if any. What it says on
+    /// stderr (a storage migration's steps and failures) goes to `log`.
+    public static func admitBoot(device: URL, managed: Bool, executable: URL, log: URL? = nil) async throws
         -> FirmwareWire.BootAdmission
     {
         let data = try await run(
@@ -18,7 +19,8 @@ public nonisolated enum FirmwareTool {
                 recordPolicy: managed ? .managed : .standalone,
                 allowRaw: !managed
             ),
-            executable: executable
+            executable: executable,
+            log: log
         )
         let report = try JSONDecoder().decode(FirmwareWire.BootAdmission.self, from: data)
         guard report.event == "admitted" else {
@@ -57,7 +59,8 @@ public nonisolated enum FirmwareTool {
         return try JSONDecoder().decode(Report.self, from: data).changed
     }
 
-    public static func run(_ command: some FirmwareCommandLine, executable: URL) async throws -> Data {
+    /// `log`: where the worker's stderr is kept (appended, rotated), whether it succeeds or not.
+    public static func run(_ command: some FirmwareCommandLine, executable: URL, log: URL? = nil) async throws -> Data {
         let child = try await Subprocess.run(
             .path(FilePath(executable.path)),
             arguments: Arguments(command.arguments),
@@ -65,6 +68,7 @@ public nonisolated enum FirmwareTool {
             output: .string(limit: 65536),
             error: .string(limit: 65536)
         )
+        if let log, !child.standardError.isEmpty { RotatingLog(url: log).append(Data(child.standardError.utf8)) }
         guard child.terminationStatus == .exited(0) else {
             throw DeviceToolsError.failed(child.standardError.trimmingCharacters(in: .whitespacesAndNewlines))
         }

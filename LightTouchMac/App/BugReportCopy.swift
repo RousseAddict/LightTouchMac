@@ -6,6 +6,21 @@ import LightTouchCore
 enum BugReportCopy {
     static let title = "Copy Bug Report Info"
 
+    /// The block, with the app-wide facts read here (free space on the library's volume, 120 Hz, clipboard sharing).
+    static func text(devices: [BugReportInfo.Device], bezel: String? = nil, secrets: [String] = []) -> String {
+        BugReportInfo.text(
+            system: DiagnosticsExport.systemSummary(),
+            freeSpace: try? Bundled.stateDirectory.resourceValues(forKeys: [.volumeAvailableCapacityForImportantUsageKey])
+                .volumeAvailableCapacityForImportantUsage,
+            bezel: bezel,
+            refresh120: DisplayRefresh.hz == 120,
+            shareClipboard: ClipboardSync.enabled,
+            devices: devices,
+            recentErrors: BugReportInfo.recentErrors(log: Bundled.logsDirectory.appendingPathComponent("app.log")),
+            secrets: secrets
+        )
+    }
+
     @discardableResult
     static func copy(
         devices: [BugReportInfo.Device],
@@ -13,13 +28,7 @@ enum BugReportCopy {
         secrets: [String] = [],
         to pasteboard: NSPasteboard = .general
     ) -> String {
-        let text = BugReportInfo.text(
-            system: DiagnosticsExport.systemSummary(),
-            bezel: bezel,
-            devices: devices,
-            recentErrors: BugReportInfo.recentErrors(log: Bundled.logsDirectory.appendingPathComponent("app.log")),
-            secrets: secrets
-        )
+        let text = text(devices: devices, bezel: bezel, secrets: secrets)
         pasteboard.clearContents()
         pasteboard.setString(text, forType: .string)
         if let app = NSApp {

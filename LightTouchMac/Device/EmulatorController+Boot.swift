@@ -88,7 +88,8 @@ extension EmulatorController {
                 let admitted = try await FirmwareTool.admitBoot(
                     device: self.instance.paths.directory,
                     managed: true,
-                    executable: executable
+                    executable: executable,
+                    log: self.instance.paths.logs.appendingPathComponent("firmwarekit.log")
                 )
                 // a storage update that couldn't run (no room, or it failed): the device starts as before
                 if let notice = admitted.notice { self.reportDeviceNotice(notice, for: .storageUpdate) }
