@@ -127,11 +127,28 @@ struct KBootTests {
         #expect(dt.value("", "model-number")?.prefix(5) == Data("MC540".utf8))
     }
 
+    /// The IPSW's device-clocks entries for BASE1, SPI2-CLK and DP (candidate parent lists, its flags), and one KBoot
+    /// doesn't know.
+    static func deviceClocks() -> Data {
+        func entry(_ head: String, _ name: String) -> Data {
+            Data(hex: head)! + Data(count: 8) + Data(name.utf8) + Data(count: 16 - name.utf8.count)
+        }
+        return entry("000080090000000001020304", "BASE1") + entry("00008020000000000c0d0000", "SPI2-CLK")
+            + entry("00010176000000001a190000", "DP") + entry("000000590000000016000000", "ETHERNET")
+    }
+    static func pmgr() -> Data {
+        node([("name", Data("pmgr\0".utf8)), ("device-clocks", deviceClocks())])
+    }
+    static func entries(_ d: Data?) -> [String] {
+        guard let d else { return [] }
+        return stride(from: 0, to: d.count, by: 36).map { d[d.startIndex + $0..<d.startIndex + $0 + 12].hexString }
+    }
+
     /// N90: 512 MiB (memSize, vram, pram at its top) and the baseband node kept matchable for the machine.
     @Test func n90Board() throws {
         let n = { (s: String) in Data((s + "\0").utf8) }
         let bb = Self.node([("name", n("baseband")), ("compatible", n("baseband,n90")), ("device_type", n("baseband"))])
-        var tree = try DeviceTree(Self.deviceTree(armIO: [Self.node([("name", n("spi0"))])], top: [bb]))
+        var tree = try DeviceTree(Self.deviceTree(armIO: [Self.node([("name", n("spi0"))]), Self.pmgr()], top: [bb]))
         try tree.add("", "compatible", Data("N90AP\0iPhone3,1\0AppleARM\0".utf8))
         #expect(KBoot.Board.of(tree) == .n90)
         let img = try KBoot.build(
@@ -157,7 +174,15 @@ struct KBootTests {
                     68_400_000, 0, 48_857_142, 1_000_000, 0,
                 ]
         )
-        let k48 = try DeviceTree(Self.dtBlob)
+        // Each clock on the parent iBoot picks (BASE1 PREDIV1, SPI2 its first candidate), DP's flag as iBoot leaves it.
+        #expect(
+            Self.entries(out.value("arm-io/pmgr", "device-clocks"))
+                == [
+                    "000080090000000002000000", "00008020000000000c000000", "00010076000000001a190000",
+                    "000000590000000016000000",
+                ]
+        )
+        let k48 = try DeviceTree(Self.deviceTree(armIO: [Self.pmgr()]))
         let k48Image = try KBoot.build(
             kernel: Self.kernel(at: 0x8000_0000),
             deviceTree: k48.data,
@@ -171,6 +196,13 @@ struct KBootTests {
         #expect(
             [1, 2, 13, 14, 33, 44, 49].map { k48Clocks[$0] }
                 == [1_000_000_000, 0, 166_666_666, 68_400_000, 102_600_000, 24_000_000, 24_000_000]
+        )
+        #expect(
+            Self.entries(kdt.value("arm-io/pmgr", "device-clocks"))
+                == [
+                    "000080090000000002000000", "000080200000000000000000", "00000076000000001a190000",
+                    "000000590000000016000000",
+                ]
         )
     }
 

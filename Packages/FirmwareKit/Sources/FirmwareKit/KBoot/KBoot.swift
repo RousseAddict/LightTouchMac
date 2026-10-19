@@ -70,6 +70,39 @@ public enum KBoot {
         ] as [Int: UInt32] { c[i] = hz }
         return c
     }()
+    /// arm-io/pmgr/device-clocks as iBoot leaves it (36-byte entries: word0 the id and flags, bytes 8-11 the parents,
+    /// the name at 20): each muxed clock on the one parent iBoot picked where the IPSW lists its candidates, and the
+    /// word0 flags it changes for TURBO, RGBOUT, DP and MIE. The real iPad's on 3.2.2, byte for byte; iBoot on the
+    /// emulated PMGR picks the same but for VID0-CLK. Entries absent from a DT are skipped.
+    static let k48DeviceClocks: [String: String] = [
+        "BASE0": "000080060000000001000000", "BASE1": "000080090000000002000000",
+        "VID0-CLK": "0000810f0000000005000000", "AUDIO-CLK": "000080110000000003000000",
+        "LPERF0": "000080120000000007000000", "LPERF1": "000080130000000009000000",
+        "LPERF2": "000080140000000007000000", "LPERF3": "000080150000000007000000",
+        "MPERF": "000080160000000003000000", "HPERF0": "000080170200000006000000",
+        "HPERF1": "000080180201000004000000", "SDIO-CLKs": "0000801c000000000a000000",
+        "CLK50-CLK": "0000801d000000000a000000", "SPI0-CLK": "0000801e0000000000000000",
+        "SPI1-CLK": "0000801f0000000000000000", "SPI2-CLK": "000080200000000000000000",
+        "SPI3-CLK": "000080210000000000000000", "SPI4-CLK": "000080220000000000000000",
+        "MIPI-CLKs": "000081240000000003000000", "CDMA": "000083520000000006000000",
+        "TURBO": "0000282f", "RGBOUT": "0000006a", "DP": "00000076", "MIE": "0000057d",
+    ]
+    /// A real iPhone 4's on 4.3: the iPad's but for SPI2-CLK on its second candidate and DP's flag.
+    static let n90DeviceClocks = k48DeviceClocks.merging([
+        "SPI2-CLK": "00008020000000000c000000", "DP": "00010076",
+    ]) { $1 }
+
+    /// Each named device-clocks entry's leading bytes replaced by the board's.
+    static func settleDeviceClocks(_ dt: inout DeviceTree, _ entries: [String: String]) throws {
+        guard !entries.isEmpty, var d = dt.value("arm-io/pmgr", "device-clocks") else { return }
+        for at in stride(from: d.startIndex, to: d.endIndex - 35, by: 36) {
+            let name = String(decoding: d[at + 20..<at + 36].prefix { $0 != 0 }, as: UTF8.self)
+            guard let hex = entries[name], let bytes = Data(hex: hex) else { continue }
+            d.replaceSubrange(at..<at + bytes.count, with: bytes)
+        }
+        try dt.set("arm-io/pmgr", "device-clocks", .bytes(d))
+    }
+
     /// NAND geometry iBoot would have probed (16 GB, eight Hynix dies); only the keys the DT has are written.
     static let nand: [(String, UInt32)] = [
         ("#ce", 8), ("#die-ce", 1), ("#ce-blocks", 0x1000), ("#block-pages", 128), ("#page-bytes", 4096),
@@ -106,6 +139,8 @@ public enum KBoot {
         /// arm-io/clock-frequencies (cut to the DT's slots): the iPad's measured cpu0 rates in every slot, unless the
         /// board's own were read off a real unit.
         public var clocks: [UInt32] = KBoot.clocks
+        /// arm-io/pmgr/device-clocks entries as iBoot settles them (settleDeviceClocks); empty: the IPSW's.
+        public var deviceClocks: [String: String] = [:]
 
         public static let k48 = Board(
             fbWidth: 1024,
@@ -114,7 +149,8 @@ public enum KBoot {
             scale: 1,
             boardID: 0x02,
             modelNumber: "MB292",
-            clocks: KBoot.k48Clocks
+            clocks: KBoot.k48Clocks,
+            deviceClocks: KBoot.k48DeviceClocks
         )
         public static let n81 = Board(
             fbWidth: 640,
@@ -133,7 +169,8 @@ public enum KBoot {
             modelNumber: "MC603",
             dram: 0x2000_0000,
             radio: true,
-            clocks: KBoot.n90Clocks
+            clocks: KBoot.n90Clocks,
+            deviceClocks: KBoot.n90DeviceClocks
         )
         /// iPhone 3GS (S5L8920): -M n88, model MB715. Its baseband node is unmatched (no modem model yet).
         public static let n88 = Board(
@@ -395,6 +432,7 @@ public enum KBoot {
         let slots = (dt.props["arm-io"]?["clock-frequencies"]?.length ?? board.clocks.count * 4) / 4
         try dt.set("arm-io", "clock-frequencies", .words(Array(board.clocks.prefix(slots))))
         try dt.set("arm-io", "usbphy-frequency", .u32(usbphyHz))
+        try settleDeviceClocks(&dt, board.deviceClocks)
         if dt.props["arm-io/audio-complex"]?["ncoref-frequency"] != nil {
             try dt.set("arm-io/audio-complex", "ncoref-frequency", .u32(ncorefHz))
         }
