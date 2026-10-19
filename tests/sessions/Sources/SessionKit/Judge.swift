@@ -153,13 +153,19 @@ public enum SessionJudge {
             guard let kboot = try? Data(contentsOf: base.appendingPathComponent("kboot.bin")) else {
                 return major < 6 ? 0x7ff : nil
             }
-            var name = Data("backlight-table".utf8)
-            name.append(Data(count: 32 - name.count))
-            guard let at = kboot.range(of: name)?.lowerBound else { return 0x7ff }
             func le(_ offset: Int, _ count: Int) -> Int {
                 (0..<count).reduce(0) { $0 | Int(kboot[kboot.startIndex + offset + $1]) << (8 * $1) }
             }
-            let start = at - kboot.startIndex
+            func property(_ key: String) -> Int? {
+                var name = Data(key.utf8)
+                name.append(Data(count: 32 - name.count))
+                return kboot.range(of: name).map { $0.lowerBound - kboot.startIndex }
+            }
+            guard let start = property("backlight-table") else {
+                // backlight-id 5 (the iPhone 4's panel, as iBoot fills it) picks AppleARMBacklight's backlight-5
+                // table, which tops out at 0x7b3 as the 6.x+ device tree's does; any other runs the full 11 bits.
+                return property("backlight-id").map { le($0 + 36, 4) } == 5 ? 0x7b3 : 0x7ff
+            }
             let size = le(start + 32, 4) & 0x7fff_ffff
             return le(start + 36 + size - 2, 2)
         default: return nil

@@ -145,6 +145,13 @@ public enum KBoot {
         public var clocks: [UInt32] = KBoot.clocks
         /// arm-io/pmgr/device-clocks entries as iBoot settles them (settleDeviceClocks); empty: the IPSW's.
         public var deviceClocks: [String: String] = [:]
+        /// arm-io/chip-revision (the A4 stepping: 0x11, B1, on the iPad; 0x20 on the iPhone 4).
+        public var chipRevision: UInt32 = 0x11
+        /// The panel as iBoot's pinot_init reads it: lcd-panel-id, raw-panel-id's bytes, and the backlight-id that
+        /// picks AppleARMBacklight's device-specific brightness table (nil: the IPSW's 0xffffffff, the default table).
+        public var panelID: UInt32 = 0x00A1_D13C
+        public var rawPanelID: [UInt8]? = nil
+        public var backlightID: UInt32? = nil
 
         public static let k48 = Board(
             fbWidth: 1024,
@@ -154,7 +161,10 @@ public enum KBoot {
             boardID: 0x02,
             modelNumber: "MB292",
             clocks: KBoot.k48Clocks,
-            deviceClocks: KBoot.k48DeviceClocks
+            deviceClocks: KBoot.k48DeviceClocks,
+            panelID: 0xA1E5_06C9,
+            rawPanelID: [0xA1, 0xE5, 0x69, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0x64],
+            backlightID: 6
         )
         public static let n81 = Board(
             fbWidth: 640,
@@ -174,7 +184,11 @@ public enum KBoot {
             dram: 0x2000_0000,
             radio: true,
             clocks: KBoot.n90Clocks,
-            deviceClocks: KBoot.n90DeviceClocks
+            deviceClocks: KBoot.n90DeviceClocks,
+            chipRevision: 0x20,
+            panelID: 0xA18A_05C8,
+            rawPanelID: [0xA1, 0x8A, 0x58, 0x09, 0x07],
+            backlightID: 5
         )
         /// iPhone 3GS (S5L8920): -M n88, model MB715. Its baseband node is unmatched (no modem model yet).
         public static let n88 = Board(
@@ -449,9 +463,14 @@ public enum KBoot {
         }
         if dt.contains("arm-io/mipi-dsim/lcd") {  // the panel id iBoot's pinot_init writes; the DSI model's reply
             // 3.0's DTs (N88 7A341) have no raw-panel-id slot
-            for k in ["lcd-panel-id", "raw-panel-id"] where dt.props["arm-io/mipi-dsim/lcd"]?[k] != nil {
-                try dt.set("arm-io/mipi-dsim/lcd", k, .u32(0x00A1_D13C))
+            let lcd = "arm-io/mipi-dsim/lcd"
+            if dt.props[lcd]?["lcd-panel-id"] != nil { try dt.set(lcd, "lcd-panel-id", .u32(board.panelID)) }
+            if dt.props[lcd]?["raw-panel-id"] != nil {
+                try dt.set(lcd, "raw-panel-id", board.rawPanelID.map { .bytes(Data($0)) } ?? .u32(board.panelID))
             }
+        }
+        if let id = board.backlightID, dt.props["backlight"]?["backlight-id"] != nil {
+            try dt.set("backlight", "backlight-id", .u32(id))
         }
         if dt.contains("baseband"), !board.radio {  // Wi-Fi iPad: no radio, so unmatch and unname the N82 baseband node
             for (k, v) in [("compatible", "none"), ("device_type", "none"), ("name", "nobb")] {
@@ -466,7 +485,9 @@ public enum KBoot {
                 }
             }
         }
-        if dt.props["arm-io"]?["chip-revision"] != nil { try dt.set("arm-io", "chip-revision", .u32(0x11)) }
+        if dt.props["arm-io"]?["chip-revision"] != nil {
+            try dt.set("arm-io", "chip-revision", .u32(board.chipRevision))
+        }
         for node in nandNodes {
             guard let props = dt.props[node] else { continue }
             for (k, v) in nand where props[k] != nil { try dt.set(node, k, .u32(v)) }
