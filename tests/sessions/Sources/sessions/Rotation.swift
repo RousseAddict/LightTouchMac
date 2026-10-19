@@ -2,7 +2,6 @@ import CoreGraphics
 import Foundation
 import ImageIO
 import SessionKit
-import Vision
 
 /// `sessions rotation BASE [--overlay DIR]`: the app's Rotate Right and Rotate Left (DeviceRotation, the control this
 /// board takes) with Safari in front, and the picture as the window shows it (PanelCapture): upright in portrait, a
@@ -94,11 +93,7 @@ private func loadImage(_ url: URL) -> CGImage? {
 /// any angle, so the clock's place, not its legibility, says which way up the picture is: upright, it is centered in
 /// the top band.
 private func clock(_ image: CGImage) -> (x: Double, y: Double)? {
-    for o in TextReader.read(VNImageRequestHandler(cgImage: image)) {
-        guard let text = o.topCandidates(1).first?.string, text.contains(/\d{1,2}:\d{2}/) else { continue }
-        return (o.boundingBox.midX, 1 - o.boundingBox.midY)
-    }
-    return nil
+    TextReader.read(image).first { $0.text.contains(/\d{1,2}:\d{2}/) }.map { ($0.x, $0.y) }
 }
 
 private func upright(_ image: CGImage) -> (ok: Bool, at: String) {

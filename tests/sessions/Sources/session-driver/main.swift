@@ -42,6 +42,7 @@ nonisolated struct Config: Decodable {
     var killBeforeBoot: Bool?
 }
 
+TextReader.serveChild()  // a screen read's child process (TextReader): reads, prints and exits
 let t0 = Date()
 nonisolated func emit(_ event: String, _ fields: [String: Any] = [:]) {
     var object = fields

@@ -1,6 +1,7 @@
 // swift run --package-path tests/sessions sessions <check> [BASE …] [options]   (sessions --help)
 import ArgumentParser
 import Foundation
+import SessionKit
 
 /// The options every check takes: where the executables and the run's files come from.
 struct Inputs: ParsableArguments {
@@ -301,4 +302,5 @@ struct ClipboardCheck: ParsableCommand {
 
 // App code in the drivers logs and keeps state under the run's own directories, never the user's library.
 setenv("LTM_STATE_DIR", FileManager.default.temporaryDirectory.appendingPathComponent("ltm-sessions-state").path, 1)
+TextReader.serveChild()  // a screen read's child process (TextReader): reads, prints and exits
 Sessions.main()

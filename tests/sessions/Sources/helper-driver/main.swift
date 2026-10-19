@@ -4,6 +4,7 @@ import Foundation
 import HostRuntime
 import IOSurface
 import LightTouchCore
+import SessionKit
 
 // Stands in for the app in `sessions helper`, `helper-boot` and `phone` (Sources/sessions/Helper.swift): spawns LightTouchDevice
 // through DeviceLink (rendezvous, validation, status block, frame ring, link)
@@ -32,6 +33,7 @@ struct Options: ParsableArguments {
     @Option(help: "The start must fail with this text.") var expectFailure: String?
     @Flag(help: "The start must be rejected (an impostor).") var expectReject = false
 }
+TextReader.serveChild()  // a screen read's child process (TextReader): reads, prints and exits
 let opts = Options.parseOrExit()
 
 struct Scenario: Decodable {

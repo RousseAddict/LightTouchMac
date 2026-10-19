@@ -6,7 +6,6 @@ import HostServiceClient
 import HostServiceWire
 import ImageIO
 import SessionKit
-import Vision
 
 @testable import LightTouchCore
 
@@ -1395,11 +1394,7 @@ nonisolated enum CydiaSources {
 
     /// Every label Vision reads on the screenshot, each at its center as a touch point (top-left origin, 0...1).
     static func labels(_ path: String) -> [(text: String, x: Double, y: Double)] {
-        TextReader.read(URL(fileURLWithPath: path)).compactMap { o in
-            o.topCandidates(1).first.map {
-                ($0.string.trimmingCharacters(in: .whitespaces), o.boundingBox.midX, 1 - o.boundingBox.midY)
-            }
-        }
+        TextReader.read(URL(fileURLWithPath: path)).map { ($0.text.trimmingCharacters(in: .whitespaces), $0.x, $0.y) }
     }
 }
 
@@ -1646,9 +1641,9 @@ nonisolated enum CydiaSources {
     /// Each label Vision reads on the screenshot, at its center as a touch point (top-left origin, 0...1).
     static func labels(_ path: String) -> [String: (x: Double, y: Double)] {
         var found: [String: (x: Double, y: Double)] = [:]
-        for o in TextReader.read(URL(fileURLWithPath: path)) {
-            guard let text = o.topCandidates(1).first?.string.trimmingCharacters(in: .whitespaces) else { continue }
-            found[text] = found[text] ?? (o.boundingBox.midX, 1 - o.boundingBox.midY)
+        for line in TextReader.read(URL(fileURLWithPath: path)) {
+            let text = line.text.trimmingCharacters(in: .whitespaces)
+            found[text] = found[text] ?? (line.x, line.y)
         }
         return found
     }

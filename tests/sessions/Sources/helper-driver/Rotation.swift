@@ -9,7 +9,6 @@ import ImageIO
 import LightTouchCore
 import SessionKit
 import UniformTypeIdentifiers
-import Vision
 
 /// The driver's link with replies on the main queue, where the app's link delivers them (BootSessionScope.control).
 final class MainQueueLink: HelperLink {
@@ -84,17 +83,12 @@ final class MainQueueLink: HelperLink {
 
 /// Where Vision reads `word` on an image (top-left origin, 0...1): the first text equal to it, or nil.
 func findWord(_ word: String, in image: URL) -> (x: Double, y: Double)? {
-    for o in TextReader.read(image) where o.topCandidates(1).first?.string.trimmingCharacters(in: .whitespaces) == word
-    {
-        return (o.boundingBox.midX, 1 - o.boundingBox.midY)
-    }
-    return nil
+    TextReader.read(image).first { $0.text.trimmingCharacters(in: .whitespaces) == word }.map { ($0.x, $0.y) }
 }
 
 /// Every line Vision reads on an image, top to bottom.
 func readText(in image: URL) -> [String] {
-    TextReader.read(image, languageCorrection: false).sorted { $0.boundingBox.midY > $1.boundingBox.midY }
-        .compactMap { $0.topCandidates(1).first?.string }
+    TextReader.read(image, languageCorrection: false).sorted { $0.y < $1.y }.map(\.text)
 }
 
 /// How much redder than green an image is on average (0...255): Core Animation's blended-layers tint.
