@@ -2,6 +2,7 @@ import Cocoa
 import DeviceRuntime
 import HostRuntime
 import LightTouchCore
+import Metal
 
 // Device shell and LCD share a transform, whose scale is the zoom's points per guest pixel (DisplayView+Zoom).
 
@@ -161,6 +162,15 @@ final class DisplayView: NSView {
             UserDefaults.standard.set(newValue.rawValue, forKey: bezelKey)
             NotificationCenter.default.post(name: bezelDidChange, object: nil)
         }
+    }
+    /// 3D on Apple's own Metal drivers only. RealityKit starts its engine by uploading textures through the driver,
+    /// and a third-party one (issue 99: a Hackintosh's NVIDIA driver) crashed the app there, with no error to catch;
+    /// such a Mac shows 2D for 3D, as a device without a model does.
+    static var rendersModel = isAppleMetalDriver(
+        MTLCreateSystemDefaultDevice().flatMap { Bundle(for: type(of: $0)).bundleIdentifier }
+    )
+    nonisolated static func isAppleMetalDriver(_ bundleIdentifier: String?) -> Bool {
+        bundleIdentifier?.hasPrefix("com.apple.") == true
     }
     var bare = false
     var appliedBezel: Bezel?

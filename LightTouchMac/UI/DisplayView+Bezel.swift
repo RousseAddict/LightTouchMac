@@ -34,7 +34,7 @@ extension DisplayView {
         CATransaction.commit()
         modelPresentationFinished = true
         // macOS 14 keeps the photo shell; RealityKit texture rotation requires 15.
-        if bezel == .model, #available(macOS 15, *), let name = profile.deviceModelName,
+        if bezel == .model, Self.rendersModel, #available(macOS 15, *), let name = profile.deviceModelName,
             let url = Bundle.main.url(forResource: name, withExtension: "usdz", subdirectory: "Models")
         {
             modelPresentationFinished = false

@@ -146,5 +146,29 @@ extension SharedState {
                 #expect(released == nil, "A stalled renderer callback must not retain the closed display")
             }
         }
+
+        /// 3D on Apple's Metal drivers only (issue 99: RealityKit's engine start crashed inside a Hackintosh's
+        /// third-party NVIDIA driver): elsewhere the 3D setting shows the flat device and never starts RealityKit.
+        @Test func modelOnlyOnAppleMetalDrivers() async throws {
+            #expect(DisplayView.rendersModel, "this Mac's Metal driver is Apple's")
+            #expect(DisplayView.isAppleMetalDriver("com.apple.AGXMetalG16X"))
+            #expect(DisplayView.isAppleMetalDriver("com.apple.AMDMTLBronzeDriver"))
+            #expect(!DisplayView.isAppleMetalDriver("com.nullmoth.NVMTLDriver"))
+            #expect(!DisplayView.isAppleMetalDriver(nil))
+            try await MainBundle.with(Self.n72Model) {
+                DisplayView.bezel = .model
+                defer {
+                    UserDefaults.standard.removeObject(forKey: DisplayView.bezelKey)
+                    DisplayView.rendersModel = true
+                }
+                for renders in [true, false] {
+                    DisplayView.rendersModel = renders
+                    let display = DisplayView(frame: NSRect(x: 0, y: 0, width: 500, height: 800), profile: .n72)
+                    #expect((display.modelLoadTask != nil) == renders, "renders \(renders): a model load started")
+                    #expect(display.shellLayer.isHidden == renders, "renders \(renders): the flat device shows")
+                    display.applyBezel(.off)
+                }
+            }
+        }
     }
 }
