@@ -44,6 +44,7 @@ private struct Pixels {
         let i = (y * width + x) * 4
         return (0..<3).map { Int(bytes[i + $0]) }
     }
+    func alpha(_ x: Int, _ y: Int) -> Int { Int(bytes[(y * width + x) * 4 + 3]) }
     /// The brightest luma (ITU-R 601) in a top-left-origin rect.
     func maxLuma(_ rect: CGRect) -> Double {
         var best = 0.0
@@ -58,7 +59,7 @@ private struct Pixels {
 }
 
 /// The flat pictures: every catalog board has its own (except the pairs Sam chose to share, 10-06), each the size of its
-/// profile's shellPixels; the iPad frame's cutout and Home circle; the iPods drawn as siblings.
+/// profile's shellPixels; the iPad frame's cutout and Home circle; the model-rendered art's cutout and glass.
 struct BoardArtTests {
     static let assets = repository.appendingPathComponent("LightTouchMac/Assets.xcassets")
     /// The boards that show another's picture, and whose.
@@ -108,17 +109,57 @@ struct BoardArtTests {
         #expect(seen.count >= 8)
     }
 
-    /// The 1G art uses the 2G photo's LCD and glass tones (not a render's pure black).
-    @Test func theIPodsShareOnePalette() throws {
-        func tones(_ board: Board) throws -> [[Int]] {
-            let pixels = try Pixels(Self.png(board.shellImageName))
+    /// The iPods' screen-off LCD is one tone: the 2G photo's, which the art rendered from the 1G and 4G models paints.
+    @Test func theIPodsShareOneScreenOffTone() throws {
+        func lcd(_ board: Board) throws -> [Int] {
             let c = board.screenCutout
-            // the screen-off LCD, the glass above it
-            return [pixels.rgb(Int(c.midX), Int(c.midY)), pixels.rgb(Int(c.midX), Int(c.minY / 2))]
+            return try Pixels(Self.png(board.shellImageName)).rgb(Int(c.midX), Int(c.midY))
         }
-        for (a, b) in zip(try tones(.n45), try tones(.n72)) {
-            #expect(zip(a, b).map { abs($0 - $1) }.max()! <= 6, "n45 \(a) vs n72 \(b)")
+        let reference = try lcd(.n72)
+        for board in [Board.n45, .n81] {
+            let tone = try lcd(board)
+            #expect(zip(tone, reference).map { abs($0 - $1) }.max()! <= 6, "\(board) \(tone) vs n72 \(reference)")
         }
+    }
+
+    /// The art rendered from our own models (N45, N81): transparent outside the chassis, the screen-off LCD filling
+    /// exactly the profile's screenCutout, opaque glass right
+    /// around it, and that glass one even tone (the 3D view's glass face-on, with no sheen or streak across it).
+    @Test(arguments: [Board.n45, .n81]) func modelArtFillsItsCutoutAndNothingElse(_ board: Board) throws {
+        let art = try Pixels(Self.png(board.shellImageName))
+        let c = board.screenCutout
+        for (x, y) in [(0, 0), (art.width - 1, 0), (0, art.height - 1), (art.width - 1, art.height - 1)] {
+            #expect(art.alpha(x, y) == 0, "\(board): corner \(x),\(y) not transparent")
+        }
+        let lcd = art.rgb(Int(c.midX), Int(c.midY))
+        func near(_ a: [Int], _ b: [Int], _ tolerance: Int) -> Bool {
+            zip(a, b).map { abs($0 - $1) }.max()! <= tolerance
+        }
+        // Inside, less its edge rows and columns (the render's LCD edges fall up to a fifth of a pixel off the
+        // profile's whole-pixel cutout, so they blend with the glass).
+        var inside = 0
+        for y in Int(c.minY) + 1..<Int(c.maxY) - 1 {
+            for x in Int(c.minX) + 1..<Int(c.maxX) - 1
+            where art.alpha(x, y) != 255 || !near(art.rgb(x, y), lcd, 2) {
+                inside += 1
+            }
+        }
+        #expect(inside == 0, "\(board): \(inside) cutout pixels aren't the screen-off LCD \(lcd)")
+        // Around: a band of glass 2 to 20 pixels outside each edge (clear of the camera and Home button).
+        var glass: [[Int]] = []
+        let (x0, x1) = (Int(c.minX), Int(c.maxX))
+        let (y0, y1) = (Int(c.minY), Int(c.maxY))
+        for d in 2...20 {
+            for x in x0..<x1 { glass += [art.rgb(x, y0 - d), art.rgb(x, y1 + d)] }
+            for y in y0..<y1 { glass += [art.rgb(x0 - d, y), art.rgb(x1 - 1 + d, y)] }
+            for x in x0..<x1 {
+                #expect(art.alpha(x, y0 - d) == 255 && art.alpha(x, y1 + d) == 255, "\(board): glass not opaque")
+            }
+        }
+        let tone = glass[0]
+        #expect(!near(tone, lcd, 4), "\(board): glass \(tone) reads as the LCD \(lcd): the cutout is off")
+        let off = glass.filter { !near($0, tone, 3) }
+        #expect(off.isEmpty, "\(board): \(off.count) glass pixels off its tone \(tone), e.g. \(off.prefix(3))")
     }
 
     @Test func iPadFrameMatchesItsCutoutAndHomeButton() throws {
