@@ -144,6 +144,27 @@ import Testing
         )
     }
 
+    /// Two records 14 MiB apart: APFS fills the gap with allocated zeros, and compaction punches them, the records
+    /// reading back as written and the gap blank.
+    @Test func compactionGivesBackTheZerosAroundScatteredRecords() throws {
+        let dir = try Fixtures.tempDir("n45-compact").appendingPathComponent("nand")
+        let store = try PageNANDImage.Store(create: dir, Self.image)
+        let far = 14 * (1 << 20) / Self.stride
+        try store.write(1, 0, Self.record(0x12))
+        try store.write(1, far, Self.record(0x34))
+        try store.sync()
+        func allocated() -> Int {
+            var st = stat()
+            stat(dir.appendingPathComponent("cs1.pages").path, &st)
+            return Int(st.st_blocks) * 512
+        }
+        let filled = allocated()
+        try store.compact(1)
+        #expect(filled > 12 << 20 && allocated() < 1 << 20, "\(filled) -> \(allocated())")
+        #expect(try store.read(1, 0) == Self.record(0x12) && store.read(1, far) == Self.record(0x34))
+        #expect(try store.read(1, far / 2) == Self.image.blankRecord)
+    }
+
     @Test func migratesPageExactAndKeepsTheFormat1StoreUntilACleanStop() async throws {
         try await withDevice { d in
             let pages = pages(d)

@@ -158,10 +158,15 @@ public enum K48NANDMigration {
     /// A board's legacy store and overlay, and its conversion and proof (both read the overlay as the emulator did).
     struct Store {
         let chips: Int
+        /// One chip file's size: the most zeros APFS can fill in before the chip is compacted.
+        let chipBytes: Int
         /// Whether the overlay holds pages, so the device gets a live NAND of its own.
         let serves: Bool
         /// The overlay's entries that go to legacy/overlay.
         let overlayFiles: [String]
+        /// The most the compacted live NAND holds of its own: copy-on-write moves 16 KiB for each record written over
+        /// the base (an overlay page file, or a 4 KiB unit of an overlay chip file).
+        let liveBytes: Int64
         let convert: (_ baseOut: URL, _ liveOut: URL?, _ step: () -> Void) throws -> Void
         let verify: (_ baseOut: URL, _ liveOut: URL?, _ step: () -> Void) throws -> Void
 
@@ -173,8 +178,14 @@ public enum K48NANDMigration {
                 let served = image.overlayServes(overlay)
                 let legacyOverlay = served ? overlay : nil
                 chips = image.chips
+                chipBytes = image.chipBytes
                 serves = served
                 overlayFiles = present ? image.overlayFiles(overlay) : []
+                let overlayPages =
+                    served
+                    ? PageNANDImage.LegacyReader(image, base: overlay, overlay: overlay)
+                        .overlayNames.reduce(0) { $0 + $1.count } : 0
+                liveBytes = Int64(overlayPages) * 16384
                 convert = { try image.convert(base: nand, overlay: legacyOverlay, baseOut: $0, liveOut: $1, step: $2) }
                 verify = { try image.verify(base: nand, overlay: legacyOverlay, baseOut: $0, liveOut: $1, step: $2) }
                 return
@@ -183,8 +194,10 @@ public enum K48NANDMigration {
             let served = K48NANDImage.overlayServes(overlay, geo)
             let legacyOverlay = served ? overlay : nil
             chips = geo.numCS
+            chipBytes = geo.pagesPerCE * (geo.pageSize + geo.spareBytes)
             serves = served
             overlayFiles = present ? K48NANDImage.overlayFiles(overlay) : []
+            liveBytes = served ? 4 * overlayFiles.reduce(0) { $0 + allocated(overlay.appendingPathComponent($1)) } : 0
             convert = {
                 try K48NANDImage.convert(base: nand, overlay: legacyOverlay, baseOut: $0, liveOut: $1, step: $2)
             }
@@ -213,9 +226,10 @@ public enum K48NANDMigration {
         let store = try Store(nand: nand, overlay: overlay)
         let serves = store.serves
         let overlayFiles = store.overlayFiles
-        let needed =
-            2 * allocated(nand) + overlayFiles.reduce(0) { $0 + allocated(overlay.appendingPathComponent($1)) }
-            + (1 << 30)
+        // The new base (no larger than the format 1 store's records), the volume proof (one volume set at a time, no
+        // more than the store holds), the live NAND's own records, the zeros APFS fills in around one chip's writes
+        // before it is compacted, and 1 GiB to spare.
+        let needed = 2 * allocated(nand) + store.liveBytes + Int64(store.chipBytes) + (1 << 30)
         guard try available(layout.device) >= needed else { throw NeedsSpace(bytes: needed) }
 
         let baseRel = try relative(base, to: layout.device)

@@ -201,6 +201,11 @@ public struct PageNANDImage: Sendable, Equatable {
             }
         }
 
+        /// Gives back the zeros APFS filled in around `chip`'s writes (K48NANDImage.compact).
+        func compact(_ chip: Int) throws {
+            try K48NANDImage.compact(fds[chip], path: url.appendingPathComponent(PageNANDImage.name(chip)).path)
+        }
+
         /// Erase blocks of `chip` holding data (SEEK_DATA; APFS zero-fills holes under 16 MiB, which read blank).
         func dataBlocks(_ chip: Int) -> Set<Int> { K48NANDImage.dataBlocks(fds[chip], blockBytes: image.blockBytes) }
     }
@@ -331,8 +336,8 @@ public struct PageNANDImage: Sendable, Equatable {
                     let record = try legacy.read(a)
                     if record != blankRecord { try store.write(chip, page, record) }  // a blank page stays a hole
                 }
+                try store.compact(chip)
             }
-            try store.sync()
         }
         guard let liveOut, let overlay, overlayServes(overlay) else { return }
         let fm = FileManager.default
@@ -359,8 +364,8 @@ public struct PageNANDImage: Sendable, Equatable {
                 }
                 try live.write(chip, page, try guest.read(Address(chip: chip, page: page)))
             }
+            try live.compact(chip)  // a chip at a time, so the zeros APFS fills in never span the whole image
         }
-        try live.sync()
     }
 
     /// Every page of `baseOut` reads as `base` alone did and of `liveOut` as `base` under `overlay` did, byte for byte,
