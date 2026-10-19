@@ -148,6 +148,30 @@ struct KBootTests {
         #expect(out.value("baseband", "compatible") == n("baseband,n90"))
         #expect(out.value("vram", "reg") == DeviceTree.Value.le([0x5F70_0000, 0x8F_C000]))
         #expect(out.value("chosen", "board-id") == DeviceTree.Value.le([0]))
+        // The real iPhone 4's clock table (4.3): APLL, EPLL, FMI, the pixel clock, SPI and I2C, not 100 MHz everywhere.
+        let clocks = out.value("arm-io", "clock-frequencies").map { d in (0..<64).map { Self.u32(d, $0 * 4) } } ?? []
+        #expect(
+            [1, 2, 3, 13, 14, 27, 33, 39, 44, 49, 52, 55].map { clocks[$0] }
+                == [
+                    800_000_000, 500_000_000, 1_026_000_000, 160_000_000, 51_300_000, 100_000_000, 102_600_000,
+                    68_400_000, 0, 48_857_142, 1_000_000, 0,
+                ]
+        )
+        let k48 = try DeviceTree(Self.dtBlob)
+        let k48Image = try KBoot.build(
+            kernel: Self.kernel(at: 0x8000_0000),
+            deviceTree: k48.data,
+            identity: Self.placeholder
+        )
+        let k0 = Int(k48Image.bootArgsPA - k48Image.loadPA)
+        let kp = Int(Self.u32(k48Image.image, k0 + 0x30)) - 0x8000_0000
+        let kdt = try DeviceTree(k48Image.image[kp..<kp + Int(Self.u32(k48Image.image, k0 + 0x34))])
+        // The real iPad's (3.2.2): a 1 GHz APLL, PLL1 off, 166.67 and 68.4 MHz where the iPhone 4 has 160 and 51.3.
+        let k48Clocks = kdt.value("arm-io", "clock-frequencies").map { d in (0..<64).map { Self.u32(d, $0 * 4) } } ?? []
+        #expect(
+            [1, 2, 13, 14, 33, 44, 49].map { k48Clocks[$0] }
+                == [1_000_000_000, 0, 166_666_666, 68_400_000, 102_600_000, 24_000_000, 24_000_000]
+        )
     }
 
     /// N88 (S5L8920): its own platform-name/chip-id, a 320x480 panel, its own NOR kept (nothing grafted) with

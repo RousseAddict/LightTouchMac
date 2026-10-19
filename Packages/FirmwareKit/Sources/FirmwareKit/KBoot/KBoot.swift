@@ -48,6 +48,28 @@ public enum KBoot {
         for (i, hz) in [0: timebaseHz, 5: cpuHz, 6: periphHz, 27: memHz, 32: busHz, 33: fixedHz] { c[i] = hz }
         return c
     }()
+    /// A real iPad's clock-frequencies on 3.2.2 (iBoot-817), slot for slot: the PLLs (1 APLL 1 GHz, 3 EPLL 1026 MHz),
+    /// the performance clocks, FMI's 102.6 MHz (33), the panel's 68.4 MHz pixel clock (39), the SPI (47-51) and I2C
+    /// (52-54) references. iBoot on the emulated PMGR fills the same table but for slot 2 (400 MHz, PLL1, off on the
+    /// unit). The slots are the same in every A4 DeviceTree (the nodes' clock-ids), so one table serves all releases.
+    static let k48Clocks: [UInt32] = [
+        24_000_000, 1_000_000_000, 0, 1_026_000_000, 0, 0, 0, 1_000_000_000, 0, 1_000_000_000,
+        200_000_000, 102_600_000, 1_026_000_000, 166_666_666, 68_400_000, 200_000_000, 100_000_000, 0, 102_600_000,
+        51_300_000, 200_000_000, 48_857_142, 0, 2_000_000, 342_000_000, 0, 200_000_000, 100_000_000, 200_000_000,
+        166_666_666, 200_000_000, 171_000_000, 100_000_000, 102_600_000, 100_000_000, 100_000_000, 68_400_000,
+        54_000_000, 0, 68_400_000, 342_000_000, 51_300_000, 0, 51_300_000, 24_000_000, 0, 12_000_000, 24_000_000,
+        24_000_000, 24_000_000, 24_000_000, 24_000_000, 1_000_000, 1_000_000, 1_000_000,
+    ]
+    /// A real iPhone 4's on 4.3 (iBoot-1072.58): the iPad's but for its 800 MHz APLL (1, 7, 9), MPLL at 500 MHz (2),
+    /// 160 MHz for 166.67 (13, 29), 51.3 MHz for 68.4 (14, 36), 0 in 44 and 48.86 MHz in 49.
+    static let n90Clocks: [UInt32] = {
+        var c = k48Clocks
+        for (i, hz) in [
+            1: 800_000_000, 2: 500_000_000, 7: 800_000_000, 9: 800_000_000, 13: 160_000_000, 14: 51_300_000,
+            29: 160_000_000, 36: 51_300_000, 44: 0, 49: 48_857_142,
+        ] as [Int: UInt32] { c[i] = hz }
+        return c
+    }()
     /// NAND geometry iBoot would have probed (16 GB, eight Hynix dies); only the keys the DT has are written.
     static let nand: [(String, UInt32)] = [
         ("#ce", 8), ("#die-ce", 1), ("#ce-blocks", 0x1000), ("#block-pages", 128), ("#page-bytes", 4096),
@@ -81,6 +103,9 @@ public enum KBoot {
         /// CGFontCacheUR.plist, the only set its rootfs ships fonts for; zeroed, the default plist names fonts the 3GS
         /// IPSW lacks and every UIFont and bitmap context comes back nil. nil: leave the slot alone.
         public var productID: [UInt8]? = nil
+        /// arm-io/clock-frequencies (cut to the DT's slots): the iPad's measured cpu0 rates in every slot, unless the
+        /// board's own were read off a real unit.
+        public var clocks: [UInt32] = KBoot.clocks
 
         public static let k48 = Board(
             fbWidth: 1024,
@@ -88,7 +113,8 @@ public enum KBoot {
             rotation: 270,
             scale: 1,
             boardID: 0x02,
-            modelNumber: "MB292"
+            modelNumber: "MB292",
+            clocks: KBoot.k48Clocks
         )
         public static let n81 = Board(
             fbWidth: 640,
@@ -106,7 +132,8 @@ public enum KBoot {
             boardID: 0x00,
             modelNumber: "MC603",
             dram: 0x2000_0000,
-            radio: true
+            radio: true,
+            clocks: KBoot.n90Clocks
         )
         /// iPhone 3GS (S5L8920): -M n88, model MB715. Its baseband node is unmatched (no modem model yet).
         public static let n88 = Board(
@@ -365,8 +392,8 @@ public enum KBoot {
         ] {
             try dt.set("cpus/cpu0", k, .u32(hz))
         }
-        let slots = (dt.props["arm-io"]?["clock-frequencies"]?.length ?? clocks.count * 4) / 4
-        try dt.set("arm-io", "clock-frequencies", .words(Array(clocks.prefix(slots))))
+        let slots = (dt.props["arm-io"]?["clock-frequencies"]?.length ?? board.clocks.count * 4) / 4
+        try dt.set("arm-io", "clock-frequencies", .words(Array(board.clocks.prefix(slots))))
         try dt.set("arm-io", "usbphy-frequency", .u32(usbphyHz))
         if dt.props["arm-io/audio-complex"]?["ncoref-frequency"] != nil {
             try dt.set("arm-io/audio-complex", "ncoref-frequency", .u32(ncorefHz))
