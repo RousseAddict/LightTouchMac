@@ -40,7 +40,8 @@ final class MainQueueLink: HelperLink {
         rotation = DeviceRotation(
             host: self,
             settings: DeviceSettingsFile(directory: settings),
-            setsAccelerometer: board.orientationSource == .springBoard  // as EmulatorController
+            setsAccelerometer: board.orientationSource == .springBoard,  // as EmulatorController
+            pictureFollowsAccelerometer: board.surfaceFollowsRotation
         )
     }
 

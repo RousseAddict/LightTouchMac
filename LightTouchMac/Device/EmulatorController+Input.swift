@@ -48,6 +48,7 @@ extension EmulatorController {
     // MARK: - Rotation
     var rotationDegrees: Int { rotation.degrees }
     var isLandscape: Bool { rotation.isLandscape }
+    var heldDegrees: Int { rotation.heldDegrees }
     func toggleRotation() { rotation.toggle() }
     func rotate(clockwise: Bool) { rotation.rotate(clockwise: clockwise) }
     var autoRotateEnabled: Bool { rotation.autoRotateEnabled }

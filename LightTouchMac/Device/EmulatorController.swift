@@ -257,7 +257,8 @@ final class EmulatorController {
     @ObservationIgnored private(set) lazy var rotation = DeviceRotation(
         host: self,
         settings: settingsFile,
-        setsAccelerometer: profile.orientationSource == .springBoard
+        setsAccelerometer: profile.orientationSource == .springBoard,
+        pictureFollowsAccelerometer: profile.surfaceFollowsRotation
     )
     /// The fake network's settings and the running modem (CarrierModem).
     @ObservationIgnored private(set) lazy var carrier = CarrierModem(

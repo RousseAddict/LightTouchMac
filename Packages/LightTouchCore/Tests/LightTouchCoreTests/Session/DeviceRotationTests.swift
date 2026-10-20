@@ -22,10 +22,17 @@ struct DeviceRotationTests {
         }
     }
 
-    func rotation(_ directory: URL, iPad: Bool = false) -> (DeviceRotation, Host) {
+    /// The iPod 2G steps its machine; the iPad sets its accelerometer and its picture stays put; `clcd` sets the
+    /// accelerometer and the LCD turns its picture with it (the iPhone 3GS, the iPod touch 3G).
+    func rotation(_ directory: URL, iPad: Bool = false, clcd: Bool = false) -> (DeviceRotation, Host) {
         let host = Host()
         return (
-            DeviceRotation(host: host, settings: DeviceSettingsFile(directory: directory), setsAccelerometer: iPad),
+            DeviceRotation(
+                host: host,
+                settings: DeviceSettingsFile(directory: directory),
+                setsAccelerometer: iPad || clcd,
+                pictureFollowsAccelerometer: !iPad
+            ),
             host
         )
     }
@@ -139,6 +146,56 @@ struct DeviceRotationTests {
             last = rotation.interfaceRead(1, last: last)
             #expect(rotation.degrees == 0 && last == 1)
             #expect(rotation.interfaceRead(9, last: last) == 1, "an unknown value keeps the last reading")
+        }
+    }
+
+    /// Issue 103: an iPad held landscape opens a portrait-only app. The shell turns to portrait with the interface,
+    /// the accelerometer stays landscape, so SpringBoard turns back when the app quits and the shell follows it.
+    @Test func anAppsTurnOnTheIPadLeavesTheDeviceAsItIsHeld() throws {
+        try withTemporaryDirectory { directory in
+            let (rotation, host) = rotation(directory, iPad: true)
+            defer { withExtendedLifetime(host) {} }
+            var last = rotation.interfaceRead(1, last: nil)
+            rotation.rotate(clockwise: true)
+            #expect(rotation.degrees == 90 && rotation.heldDegrees == 90 && host.link.requests == [.orientation(4)])
+            last = rotation.interfaceRead(4, last: last)
+            last = rotation.interfaceRead(1, last: last)
+            #expect(rotation.degrees == 0, "the portrait-only app turns the shell")
+            #expect(rotation.heldDegrees == 90 && host.link.requests == [.orientation(4)], "not the accelerometer")
+            last = rotation.interfaceRead(4, last: last)
+            #expect(rotation.degrees == 90 && rotation.heldDegrees == 90, "the app quit: back to landscape")
+
+            last = rotation.interfaceRead(1, last: last)
+            rotation.rotate(clockwise: false)
+            #expect(
+                rotation.degrees == 270 && rotation.heldDegrees == 270 && host.link.requests.last == .orientation(3),
+                "a turn while the app holds portrait turns the shell as shown, and the device with it"
+            )
+            last = rotation.interfaceRead(3, last: last)
+            rotation.toggleAutoRotate()
+            last = rotation.interfaceRead(1, last: last)
+            #expect(rotation.degrees == 270 && rotation.heldDegrees == 270, "auto-rotation off: neither moves")
+            rotation.toggleAutoRotate()
+            last = rotation.interfaceRead(2, last: last)
+            #expect(rotation.degrees == 180 && rotation.heldDegrees == 270 && host.link.requests.count == 2)
+            rotation.reset()
+            #expect(rotation.degrees == 0 && rotation.heldDegrees == 0, "a boot starts upright")
+            #expect(rotation.interfaceRead(4, last: nil) == 4 && rotation.heldDegrees == 90, "and adopts what iOS kept")
+        }
+    }
+
+    /// Where the LCD turns its picture with the accelerometer, the shell can't stand apart from it: an app's turn
+    /// still moves both.
+    @Test func anAppsTurnMovesTheAccelerometerWhereThePictureFollowsIt() throws {
+        try withTemporaryDirectory { directory in
+            let (rotation, host) = rotation(directory, clcd: true)
+            defer { withExtendedLifetime(host) {} }
+            let last = rotation.interfaceRead(1, last: nil)
+            _ = rotation.interfaceRead(4, last: last)
+            #expect(rotation.degrees == 90 && rotation.heldDegrees == 90 && host.link.requests == [.orientation(4)])
+            rotation.guestOrientationChanged(to: 0)
+            rotation.guestOrientationChanged(to: 90)
+            #expect(rotation.degrees == 270 && rotation.heldDegrees == 270)
         }
     }
 

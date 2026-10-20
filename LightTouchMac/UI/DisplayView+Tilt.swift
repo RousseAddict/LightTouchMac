@@ -92,7 +92,8 @@ extension DisplayView {
         attitudeIndicator.update(pitch: pitchAngle, roll: tiltAngle)
         attitudeIndicator.isHidden = !touchInteractionEnabled || (abs(pitchAngle) < 0.001 && abs(tiltAngle) < 0.001)
         // Flat, gravity points into the display: its screen-relative X/Y go into the sensor axes (ChassisTilt).
-        let attitude = tilt.attitude(rotation: emulator?.rotationDegrees ?? 0, flat: emulator?.motionPose == .flat)
+        // Gravity rests on how the device is held, not on a turn a front app made: this runs at every focus change.
+        let attitude = tilt.attitude(rotation: emulator?.heldDegrees ?? 0, flat: emulator?.motionPose == .flat)
         emulator?.setTilt(angle: attitude.angle, pitch: attitude.pitch)
     }
 

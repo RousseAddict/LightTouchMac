@@ -25,6 +25,16 @@
 // the orientation we already moved to, so it lands on a no-op. The user only
 // loses their manual angle when the front app actually changes what it wants,
 // which is the moment they asked us to follow.
+//
+// TWO ANGLES, as on hardware: how the device is held (`heldDegrees`, the
+// accelerometer, set by the user's turns) and how its interface stands
+// (`degrees`, the shell, which follows the front app). A portrait-only app on
+// an iPad held landscape turns the shell to portrait and leaves the
+// accelerometer landscape, so when the app quits SpringBoard turns back to
+// landscape and the shell follows it (issue 103). Where the machine turns its
+// picture with the accelerometer (the CLCD boards' LCD, ipod_touch_lcd.c),
+// the shell has to stand where the accelerometer does, so there an app's turn
+// still moves both.
 
 import DeviceRuntime
 import Foundation
@@ -51,23 +61,36 @@ public protocol RotationHost: AnyObject {
     @ObservationIgnored private let settings: DeviceSettingsFile
     /// The iPad sets its accelerometer outright (Board.orientationSource == .springBoard).
     @ObservationIgnored private let setsAccelerometer: Bool
+    /// The machine turns its picture with the accelerometer (Board.surfaceFollowsRotation): the shell can't turn alone.
+    @ObservationIgnored private let pictureFollowsAccelerometer: Bool
 
-    public init(host: RotationHost, settings: DeviceSettingsFile, setsAccelerometer: Bool) {
+    public init(
+        host: RotationHost,
+        settings: DeviceSettingsFile,
+        setsAccelerometer: Bool,
+        pictureFollowsAccelerometer: Bool
+    ) {
         self.host = host
         self.settings = settings
         self.setsAccelerometer = setsAccelerometer
+        self.pictureFollowsAccelerometer = pictureFollowsAccelerometer
     }
 
-    /// The device's orientation as degrees turned clockwise from portrait —
-    /// the same value the LCD model calls its rotation, stepped in lockstep
-    /// with the guest's own quarter-turn cycle (ipod_touch_kbd_rotate:
-    /// portrait → landscape-right(90) → upside-down(180) → landscape-left(270)).
-    /// DisplayView poses the shell from this, so all rotation must go through
-    /// rotate(clockwise:) or the shell drifts out of step with the guest.
+    /// The shell's angle as degrees turned clockwise from portrait: the way the
+    /// interface stands, which a front app may turn away from how the device is
+    /// held (heldDegrees). Where the picture follows the accelerometer it is the
+    /// same value the LCD model calls its rotation, stepped in lockstep with the
+    /// guest's own quarter-turn cycle (ipod_touch_kbd_rotate: portrait →
+    /// landscape-right(90) → upside-down(180) → landscape-left(270)), so there
+    /// all rotation must go through rotate(clockwise:) or the shell drifts out
+    /// of step with the guest. DisplayView poses the shell from this.
     /// Observed: the toolbar's rotate glyph shows which way the NEXT turn goes, so it follows an automatic
     /// rotation too, not just the three manual actions.
     public private(set) var degrees = 0
     public var isLandscape: Bool { degrees == 90 || degrees == 270 }
+    /// How the device is held, in the same degrees: the accelerometer's angle. Only the user's turns (and a boot's
+    /// adoption of the orientation iOS came back up in) move it, never a front app; a tilt rests on it.
+    public private(set) var heldDegrees = 0
 
     public func rotateLeft() { host.helperLink?.send(.rotate(clockwise: false)) }
     public func rotateRight() { host.helperLink?.send(.rotate(clockwise: true)) }
@@ -83,12 +106,14 @@ public protocol RotationHost: AnyObject {
         let next = (degrees + (clockwise ? 90 : 270)) % 360
         if !setAccelerometer(for: next) { clockwise ? rotateRight() : rotateLeft() }
         degrees = next
+        heldDegrees = next
     }
 
     /// A fresh boot starts portrait. A helper still coming up can't take the accelerometer yet, and its machine
     /// starts portrait anyway, so that refusal isn't logged (it read as an error at every iPad and 3GS start).
     public func reset() {
         degrees = 0
+        heldDegrees = 0
         setAccelerometer(for: 0, logRefusal: false)
     }
 
@@ -117,6 +142,12 @@ public protocol RotationHost: AnyObject {
             guard delta != 0 else { return }
             rotate(clockwise: delta != 270)  // 90 and 180 go clockwise, 270 back
         }
+    }
+
+    /// The front app turned the interface to `target`: the shell follows it, and the accelerometer stays as the
+    /// device is held, unless the picture turns with the accelerometer.
+    func follow(_ target: Int) {
+        if pictureFollowsAccelerometer { rotate(toward: target) } else { degrees = target }
     }
 
     // MARK: Auto-rotation
@@ -164,15 +195,14 @@ public protocol RotationHost: AnyObject {
         // First reading seeds only: see lastGuestOrientation.
         guard let previous = lastGuestOrientation, previous != degrees else { return }
         guard autoRotateEnabled, host.state == .running else { return }
-        rotate(toward: target)
+        follow(target)
     }
 
     /// The iPad: 3.2's springboardservicesrelay answers getInterfaceOrientation,
     /// so no guest tools are needed. iOS comes back up in the orientation it
     /// last had while the app starts every process portrait, so the first
-    /// reading after boot is adopted; after that only changes are followed
-    /// (the edges rule above). rotate(toward:) moves the shell and the
-    /// accelerometer together.
+    /// reading after boot is adopted, shell and accelerometer; after that only
+    /// changes are followed, by the shell alone (the edges rule above).
     public func startInterfaceWatch() {
         task?.cancel()
         task = Task { [weak self] in
@@ -193,8 +223,11 @@ public protocol RotationHost: AnyObject {
     /// One reading of the iPad's interface orientation; returns it as the next `last`.
     func interfaceRead(_ reading: Int, last: Int?) -> Int? {
         guard let target = Self.iPadDegrees(forInterface: reading) else { return last }
-        if last == nil || (last != reading && autoRotateEnabled), target != degrees {
+        guard target != degrees else { return reading }
+        if last == nil {
             rotate(toward: target)
+        } else if last != reading && autoRotateEnabled {
+            follow(target)
         }
         return reading
     }
