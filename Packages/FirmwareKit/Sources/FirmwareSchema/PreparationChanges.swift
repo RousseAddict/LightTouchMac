@@ -237,5 +237,13 @@ nonisolated public enum PreparationChanges {
             versions: ["4", "5", "6"],
             what: "BTServer is disabled, though the machine answers the Bluetooth HCI"
         ),
+        Change(
+            serial: 13,
+            commit: "92e707b4",
+            landed: "2026-10-20T14:49:16Z",
+            boards: ["n90ap"],
+            versions: ["7"],
+            what: "DeviceOMatic's job doesn't load it_msmquiet, so nothing hides its USB \"not supported\" notice"
+        ),
     ]
 }

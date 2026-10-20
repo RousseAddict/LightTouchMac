@@ -49,6 +49,10 @@ struct PreparationChangesTests {
         let fourX = Self.stale(try Self.lock("n88ap-8C148", serial: 8))
         #expect(fourX.count == 1 && fourX.first?.hasPrefix("f3e5c8d8") == true, "4.x isn't a 3.1 row")
         #expect(Self.stale(try Self.lock("n18ap-7C146", serial: 8)) == [], "another board")
+        // 92e707b4 (serial 13): it_msmquiet in the iPhone 4's 7.x DeviceOMatic job, not its 6.x arbitrator's
+        let sevenX = Self.stale(try Self.lock("n90ap-11D257", serial: 12))
+        #expect(sevenX.count == 1 && sevenX.first?.hasPrefix("92e707b4") == true, "\(sevenX)")
+        #expect(Self.stale(try Self.lock("n90ap-10B329", serial: 12)) == [], "6.x isn't a 7 row")
     }
 
     /// The 4.1 SpringBoard crash's base: prepared 2026-10-05 08:15, before the seal boots carried the modem.
