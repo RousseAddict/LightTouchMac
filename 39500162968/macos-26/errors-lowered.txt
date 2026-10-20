@@ -1,0 +1,133 @@
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Configuration.swift:1084:54: error: 'duplicate(as:retryOnInterrupt:)' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Configuration.swift:1294:43: error: 'pipe()' is only available in macOS 12.3 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Configuration.swift:203:60: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Configuration.swift:216:60: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Configuration.swift:427:36: error: 'isAbsolute' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Configuration.swift:438:29: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Configuration.swift:448:37: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/IO/AsyncIO+KQueue.swift:36:28: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/IO/AsyncIO+KQueue.swift:418:11: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/IO/AsyncIO+KQueue.swift:420:14: error: 'init(initialState:)' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/IO/AsyncIO+KQueue.swift:63:31: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/IO/AsyncIO+KQueue.swift:63:61: error: 'init(initialState:)' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/IO/AsyncIO+KQueue.swift:63:61: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/IO/AsyncIO+KQueue.swift:84:47: error: 'pipe()' is only available in macOS 12.3 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+BSD.swift:33:28: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+BSD.swift:347:43: error: 'pipe()' is only available in macOS 12.3 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+BSD.swift:412:11: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+BSD.swift:414:14: error: 'init(initialState:)' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Darwin.swift:392:68: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Darwin.swift:393:53: error: 'withPlatformString' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Darwin.swift:416:52: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Darwin.swift:504:62: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Unix.swift:382:36: error: 'isAbsolute' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Unix.swift:426:35: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Unix.swift:445:36: error: 'appending' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Unix.swift:445:62: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Unix.swift:450:48: error: 'string' is only available in macOS 12.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Platforms/Subprocess+Unix.swift:535:24: error: 'pipe()' is only available in macOS 12.3 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/SubprocessOutputSequence.swift:186:28: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/SubprocessOutputSequence.swift:193:26: error: 'init(initialState:)' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/SubprocessOutputSequence.swift:193:26: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Teardown.swift:145:45: error: 'Duration' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Teardown.swift:215:44: error: 'sleep(for:tolerance:clock:)' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Teardown.swift:234:44: error: 'sleep(for:tolerance:clock:)' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Teardown.swift:34:72: error: 'Duration' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Teardown.swift:36:70: error: 'Duration' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Teardown.swift:56:36: error: 'Duration' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Teardown.swift:87:36: error: 'Duration' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Thread.swift:255:26: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/_temp/dd-lowered/SourcePackages/checkouts/swift-subprocess/Sources/Subprocess/Thread.swift:258:25: error: 'init(initialState:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/main.swift:1:8: error: unable to resolve module dependency: 'DeviceRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/main.swift:1:8: error: Unable to resolve module dependency: 'DeviceRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/main.swift:3:8: error: unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/main.swift:3:8: error: Unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/AppDelegate.swift:2:8: error: unable to resolve module dependency: 'DeviceRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/AppDelegate.swift:2:8: error: Unable to resolve module dependency: 'DeviceRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/AppDelegate.swift:3:8: error: unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/AppDelegate.swift:3:8: error: Unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/main.swift:2:8: error: unable to resolve module dependency: 'LightTouchCore'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/main.swift:2:8: error: Unable to resolve module dependency: 'LightTouchCore'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Device/EmulatorController.swift:5:8: error: unable to resolve module dependency: 'HostServiceClient'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Device/EmulatorController.swift:5:8: error: Unable to resolve module dependency: 'HostServiceClient'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Engine/DeviceExecution.swift:40:29: error: 'sleep(for:tolerance:clock:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Engine/DeviceExecution.swift:40:41: error: 'seconds' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Engine/DeviceServices+Engine.swift:18:27: error: 'ContinuousClock' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Engine/DeviceServices+Engine.swift:18:43: error: 'now' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Engine/DeviceServices+Engine.swift:32:75: error: 'duration(to:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Engine/DeviceServices+Engine.swift:32:89: error: 'now' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Engine/InstallationProxy.swift:337:33: error: 'sleep(for:tolerance:clock:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Engine/InstallationProxy.swift:337:45: error: 'seconds' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/DeviceRuntime/Sources/DeviceRuntime/DeviceLink.swift:2:8: error: unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/DeviceRuntime/Sources/DeviceRuntime/DeviceLink.swift:2:8: error: Unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/DeviceServices/Sources/HostServiceClient/HostServiceWorkers.swift:3:8: error: unable to resolve module dependency: 'Subprocess'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/DeviceServices/Sources/HostServiceClient/HostServiceWorkers.swift:3:8: error: Unable to resolve module dependency: 'Subprocess'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/DeviceServices/Sources/HostServiceWire/SoftDeadline.swift:17:29: error: 'sleep(for:tolerance:clock:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/DeviceServices/Sources/HostServiceWire/SoftDeadline.swift:17:41: error: 'seconds' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/DiskImage/DiskImage.swift:19:8: error: unable to resolve module dependency: 'Subprocess'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/DiskImage/DiskImage.swift:19:8: error: Unable to resolve module dependency: 'Subprocess'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/DiskImage/FirmwareDiagnostics.swift:3:8: error: unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/DiskImage/FirmwareDiagnostics.swift:3:8: error: Unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKitCLI/main.swift:17:8: error: unable to resolve module dependency: 'FirmwareKit'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKitCLI/main.swift:17:8: error: Unable to resolve module dependency: 'FirmwareKit'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKitCLI/main.swift:20:8: error: unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKitCLI/main.swift:20:8: error: Unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/PipeOutput.swift:14:25: error: 'init(initialState:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/PipeOutput.swift:14:25: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/Storage/HeldLease.swift:8:24: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/Storage/HeldLease.swift:8:59: error: 'init(initialState:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/Storage/StorageLease.swift:13:29: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/Storage/StorageLease.swift:35:26: error: 'init(initialState:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/Storage/StorageLease.swift:35:26: error: 'OSAllocatedUnfairLock' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Device/Board+App.swift:6:8: error: unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Device/Board+App.swift:6:8: error: Unable to resolve module dependency: 'HostRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceProcess.swift:2:8: error: unable to resolve module dependency: 'DeviceRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceProcess.swift:2:8: error: Unable to resolve module dependency: 'DeviceRuntime'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Features/AppInstallPipeline.swift:11:8: error: unable to resolve module dependency: 'Subprocess'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Features/AppInstallPipeline.swift:11:8: error: Unable to resolve module dependency: 'Subprocess'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Features/AppInstallPipeline.swift:9:8: error: unable to resolve module dependency: 'HostServiceClient'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Features/AppInstallPipeline.swift:9:8: error: Unable to resolve module dependency: 'HostServiceClient'
+error: Exception while running actool: *** -[__NSPlaceholderArray initWithObjects:count:]: attempt to insert nil object from objects[0]
+error: The file “DeviceRuntime.abi.json” couldn’t be opened because there is no such file. (in target 'DeviceRuntime' from project 'DeviceRuntime')
+error: The file “DeviceRuntime.swiftdoc” couldn’t be opened because there is no such file. (in target 'DeviceRuntime' from project 'DeviceRuntime')
+error: The file “DeviceRuntime.swiftmodule” couldn’t be opened because there is no such file. (in target 'DeviceRuntime' from project 'DeviceRuntime')
+error: The file “DeviceRuntime.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'DeviceRuntime' from project 'DeviceRuntime')
+error: The file “firmwarekit” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “FirmwareKit.abi.json” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftdoc” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftmodule” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKitCLI.abi.json” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftdoc” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftmodule” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “HostRuntime.abi.json” couldn’t be opened because there is no such file. (in target 'HostRuntime' from project 'HostRuntime')
+error: The file “HostRuntime.swiftdoc” couldn’t be opened because there is no such file. (in target 'HostRuntime' from project 'HostRuntime')
+error: The file “HostRuntime.swiftmodule” couldn’t be opened because there is no such file. (in target 'HostRuntime' from project 'HostRuntime')
+error: The file “HostRuntime.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'HostRuntime' from project 'HostRuntime')
+error: The file “HostServiceClient.abi.json” couldn’t be opened because there is no such file. (in target 'HostServiceClient' from project 'DeviceServices')
+error: The file “HostServiceClient.swiftdoc” couldn’t be opened because there is no such file. (in target 'HostServiceClient' from project 'DeviceServices')
+error: The file “HostServiceClient.swiftmodule” couldn’t be opened because there is no such file. (in target 'HostServiceClient' from project 'DeviceServices')
+error: The file “HostServiceClient.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'HostServiceClient' from project 'DeviceServices')
+error: The file “Light_Touch.abi.json” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftdoc” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftmodule” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “LightTouchCore.abi.json” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftdoc” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftmodule” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchDevice” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “LightTouchDevice.abi.json” couldn’t be opened because there is no such file. (in target 'LightTouchDevice' from project 'LightTouchMac')
+error: The file “LightTouchDevice.swiftdoc” couldn’t be opened because there is no such file. (in target 'LightTouchDevice' from project 'LightTouchMac')
+error: The file “LightTouchDevice.swiftmodule” couldn’t be opened because there is no such file. (in target 'LightTouchDevice' from project 'LightTouchMac')
+error: The file “LightTouchDevice.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'LightTouchDevice' from project 'LightTouchMac')
+error: The file “LightTouchServices” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “LightTouchServices.abi.json” couldn’t be opened because there is no such file. (in target 'LightTouchServices' from project 'LightTouchMac')
+error: The file “LightTouchServices.swiftdoc” couldn’t be opened because there is no such file. (in target 'LightTouchServices' from project 'LightTouchMac')
+error: The file “LightTouchServices.swiftmodule” couldn’t be opened because there is no such file. (in target 'LightTouchServices' from project 'LightTouchMac')
+error: The file “LightTouchServices.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'LightTouchServices' from project 'LightTouchMac')
+error: The file “Subprocess.abi.json” couldn’t be opened because there is no such file. (in target 'Subprocess' from project 'swift-subprocess')
+error: The file “Subprocess.swiftdoc” couldn’t be opened because there is no such file. (in target 'Subprocess' from project 'swift-subprocess')
+error: The file “Subprocess.swiftmodule” couldn’t be opened because there is no such file. (in target 'Subprocess' from project 'swift-subprocess')
+error: The file “Subprocess.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'Subprocess' from project 'swift-subprocess')

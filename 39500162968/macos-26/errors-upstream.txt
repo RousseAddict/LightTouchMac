@@ -1,0 +1,5 @@
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/DeviceRuntime/Sources/DeviceRuntime/DeviceLink.swift:268:106: error: closure captures 'channel' before it is declared
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/K48/K48Recipe.swift:205:90: error: ambiguous use of 'init'
+error: Exception while running actool: *** -[__NSPlaceholderArray initWithObjects:count:]: attempt to insert nil object from objects[0]
+error: The file “firmwarekit” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “LightTouchDevice” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
