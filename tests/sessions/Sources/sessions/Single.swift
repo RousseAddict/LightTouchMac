@@ -44,7 +44,8 @@ func single(_ args: SingleCheck) -> Never {
     if let panel = args.panel { single["panel"] = panel }
     if args.killPersist { single["killPersist"] = true }
     if let upgrade = args.upgradeIPA { single["upgradeIPA"] = upgrade.path }
-    if let wav = args.audioWAV { single["audioWAV"] = wav.path }
+    // Every run records the guest's sound (never to the Mac's speakers): the lock sound is judged at every run.
+    single["audioWAV"] = (args.audioWAV ?? work.appendingPathComponent("guest.wav")).path
     let race = args.afcRace
     if let race {
         single["raceBoots"] = race
@@ -414,21 +415,12 @@ func single(_ args: SingleCheck) -> Never {
             ax.string("voiceOverSet") == "ok" && ax.string("voiceOverOn")?.contains("voiceOver") == true,
             "\(d): VoiceOver turns on and the guest says so (on: \(ax.string("voiceOverOn") ?? "?"))"
         )
-        if args.audioWAV != nil {
-            let (quiet, spoken) = (ax.int("loudQuiet") ?? -1, ax.int("loudSpoken") ?? -1)
-            r.check(
-                spoken > max(quiet, 0) * 4 + 2000,
-                "\(d): VoiceOver is heard (loud samples \(quiet) quiet, \(spoken) spoken; the guest's WAV "
-                    + "\(ax.int("wavBytes") ?? -1) bytes)"
-            )
-            // A sound played faster or slower than the guest made it is higher or lower by the same factor.
-            let scale = ax.double("lockSoundScale") ?? -1
-            r.check(
-                abs(scale - 1) < 0.05,
-                "\(d): the lock sound plays at the guest's own pitch and speed (\(format(scale, 3)) times the "
-                    + "guest's lock.caf)"
-            )
-        }
+        let (quiet, spoken) = (ax.int("loudQuiet") ?? -1, ax.int("loudSpoken") ?? -1)
+        r.check(
+            spoken > max(quiet, 0) * 4 + 2000,
+            "\(d): VoiceOver is heard (loud samples \(quiet) quiet, \(spoken) spoken; the guest's WAV "
+                + "\(ax.int("wavBytes") ?? -1) bytes)"
+        )
         if let triple = ax.string("tripleClick") {
             r.check(
                 triple.contains("voiceOver") && ax.string("tripleClickAfter") == "",
@@ -442,6 +434,7 @@ func single(_ args: SingleCheck) -> Never {
             "\(d): both off again (on: '\(ax.string("after") ?? "?")', \(format(restored, 2)) of the frame as before)"
         )
     }
+    judgeSystemSound(r, d, events: events, board: base.board)
     if !args.media.isEmpty { judgeMedia(r, d, events: events, reboot: args.reboot, major: base.major) }
     if let file = args.readFile {
         let reads = events.find("fileRead", ["device": d])
@@ -506,6 +499,47 @@ func resized(_ r: Report, _ d: String, panel: String, events: Events) {
     )
     for e in events.find("screenshot") {
         print("   \(e.string("path") ?? "")  (\(e.int("width") ?? 0)x\(e.int("height") ?? 0))")
+    }
+}
+
+/// Every run's lock sound (session-driver systemSound): the guest's own file played at its own speed, 1.000 within
+/// 2% (a port at the wrong clock is off by its ratio: 22.05 kHz samples at 44.1 kHz come out 2.0, the iPod touch
+/// 3G's 46875 Hz 1.063), and again with VoiceOver on where it turns on (its speech runs the hardware at 22.05 kHz):
+/// the lock sound or VoiceOver's screen-change sound. The N45 has no speaker: the file's samples go only to the
+/// headphone jack, and the Mac hears the piezo's click (hw/arm/ipod_touch_piezo.c), nothing like the file.
+func judgeSystemSound(_ r: Report, _ d: String, events: Events, board: String) {
+    let e = events.one("systemSound", ["device": d])
+    if board == "n45ap" {
+        let (loud, match) = (e.int("loud") ?? -1, e.double("match") ?? -1)
+        r.check(
+            loud >= 0 && match < 0.5,
+            "\(d): the lock sound's samples do not reach the Mac on a device without a speaker (\(loud) loud samples, "
+                + "the piezo's click; match to \(e.string("reference") ?? "?") \(format(match, 2)))"
+        )
+        return
+    }
+    let (plain, match, support) = (e.double("scale") ?? -1, e.double("match") ?? -1, e.int("support") ?? 0)
+    r.check(
+        abs(plain - 1) < 0.02 && match > 0.5 && support >= 2,
+        "\(d): the lock sound plays at the guest's own pitch and speed (\(format(plain, 3)) times the guest's "
+            + "\(e.string("reference") ?? "?"), match \(format(match, 2)) in \(support) stretches)"
+    )
+    if let on = e.string("voiceOverOn"), on.contains("voiceOver"), e.int("voiceOverLoud") == 0 {
+        // 3.1.1 on the iPod touch 3G locks without a sound with VoiceOver on (as with the pinned emulator); silence has
+        // no speed, and VoiceOver's own speech is --accessibility's check.
+        r.note("\(d): with VoiceOver on, locking plays nothing to measure")
+    } else if let on = e.string("voiceOverOn"), on.contains("voiceOver") {
+        let (vo, voMatch) = (e.double("voiceOverScale") ?? -1, e.double("voiceOverMatch") ?? -1)
+        let voSupport = e.int("voiceOverSupport") ?? 0
+        r.check(
+            abs(vo - 1) < 0.02 && voMatch > 0.5 && voSupport >= 2,
+            "\(d): with VoiceOver on (22.05 kHz) locking's sound plays at its own speed too (\(format(vo, 3)) times the "
+                + "guest's \(e.string("voiceOverReference") ?? "?"), match \(format(voMatch, 2)) in \(voSupport) "
+                + "stretches; VoiceOver off after: "
+                + "'\(e.string("voiceOverAfter") ?? "?")')"
+        )
+    } else {
+        r.note("\(d): no VoiceOver to run the lock sound under (\(e.string("voiceOverOn") ?? "no agent"))")
     }
 }
 

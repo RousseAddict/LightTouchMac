@@ -47,7 +47,7 @@ struct Sessions: ParsableCommand {
         commandName: "sessions",
         abstract: "Emulator sessions on prepared bases, headless and silent; exit 1 on any FAIL.",
         discussion: """
-            Every boot is headless and silent (-audio driver=none); nothing goes on screen. A BASE is a prepared device \
+            Every boot is headless and silent (-audio driver=none, or a WAV: single records one); nothing goes on screen. A BASE is a prepared device \
             (firmwarekit create output); it is read only. Without --app the Debug helper, services worker and \
             firmwarekit are built (cached in .build/sessions-xcode) and scripts/vendor's directory supplies the rest.
             """,
@@ -121,7 +121,8 @@ struct SingleCheck: ParsableCommand {
     @Flag var noOffer = false
     @Option(transform: path) var ipa: URL?
     @Option(transform: path) var itpack: URL?
-    @Option(transform: path) var audioWAV: URL?
+    @Option(help: "Where the guest's WAV goes (default: the work directory's guest.wav).", transform: path)
+    var audioWAV: URL?
     @OptionGroup var inputs: Inputs
 
     func run() { single(self) }

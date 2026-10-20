@@ -59,6 +59,22 @@ struct SoundScaleTests {
         #expect(abs(slow.factor - 16000 / 22050) < 0.01)
     }
 
+    /// The click at its own rate, then after a pause a louder unrelated tone (VoiceOver speaking as the device locks):
+    /// the click is still the sound measured.
+    @Test func aLouderSoundAfterDoesNotStandIn() throws {
+        let tone = (0..<44100).map { Float(0.9 * sin(2 * Double.pi * 180 * Double($0) / 44100)) }
+        let scale = try #require(
+            SoundScale.scale(
+                reference: Self.click(rate: 22050),
+                referenceRate: 22050,
+                recording: Self.late(Self.click(rate: 44100), rate: 44100) + Self.late(tone, rate: 44100, seconds: 0.5),
+                recordingRate: 44100
+            )
+        )
+        #expect(abs(scale.factor - 1) < 0.01)
+        #expect(scale.match > 0.9)
+    }
+
     @Test func silenceHasNoScale() {
         #expect(
             SoundScale.scale(

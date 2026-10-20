@@ -68,7 +68,8 @@ struct SingleConfig: Decodable {
     /// keeping a file written into the app's data before it (judged through the agent). installd may move the data
     /// to a fresh container UUID; the data is what an upgrade keeps.
     var upgradeIPA: String?
-    /// The guest's audio to this WAV instead of none (a playback check); never the Mac's speakers.
+    /// The guest's audio to this WAV (`sessions single` always records one): the lock sound is measured against the
+    /// guest's own file at every run (systemSound); never the Mac's speakers.
     var audioWAV: String?
     /// A file the guest agent reads back at home (fileRead), e.g. a marker a stopped edit wrote into the root FS.
     var readFile: String?
@@ -504,6 +505,8 @@ nonisolated enum WiFiProbe {
                 ["device": d.name, "agent": asks, "before": before, "after": after, "mounted": mounted]
             )
         }
+        // Before Accessibility's Triple-click respring: after it, 3.x and 4.x locked without a sound (n88 7E18, n72 8C148).
+        if generation == 1 { await systemSound(agent: asks ? guestAgent : nil) }
         if s.accessibility == true, generation == 1 {
             await accessibility(guest: GuestServices(agent: guestAgent))
         }
@@ -604,11 +607,6 @@ nonisolated enum WiFiProbe {
         await d.wakeForShot("ax-after")
         event["after"] = await read()
         event["restored"] = share(normal, samples(), inverse: false)
-        // Before the Triple-click respring: after it, 3.x and 4.x locked without a sound (n88 7E18, n72 8C148).
-        if let wav = s.audioWAV {
-            let lock = await lockSoundScale(guest: guest, wav: wav)
-            (event["lockSoundScale"], event["lockSoundMatch"]) = (lock?.factor ?? -1, lock?.match ?? -1)
-        }
         // Triple-click Home set to VoiceOver (3.x to 5.x's TripleClickChoice, 1), then three presses as Device ▸ Home
         // Screen makes them (DeviceInput.tap's 100 ms hold), as a user's quick ⇧⌘H ⇧⌘H ⇧⌘H.
         if (lock?.productVersion ?? "").compare("6.0", options: .numeric) == .orderedAscending {
@@ -640,15 +638,94 @@ nonisolated enum WiFiProbe {
         emit("accessibility", event)
     }
 
-    /// The lock sound as the guest's WAV recorded it against the guest's own file (UISounds/lock.caf): how much
-    /// faster it came out and how closely it matches (SoundScale): 1 when the emulator plays the guest's samples at
-    /// the rate the guest clocks them. The power button locks the device; it is unlocked again after. nil: no file
-    /// or no sound.
-    func lockSoundScale(guest: GuestServices, wav: String) async -> (factor: Double, match: Double)? {
-        guard let caf = try? await guest.agent.get("/System/Library/Audio/UISounds/lock.caf") else { return nil }
-        let reference = d.dir.appendingPathComponent("lock.caf")
-        try? caf.write(to: reference)
-        // The WAV's samples are stereo S16 after its 44-byte header.
+    /// The standing audio check, at every run's first Home (`sessions single` always records the guest's WAV): the lock
+    /// sound as the WAV recorded it against the guest's own file, how much faster it came out (SoundScale, 1 when the
+    /// emulator plays the guest's samples at the rate the guest clocks them). The file comes through the agent, or
+    /// where there is none (1.x) offline from the base's system volume. Where VoiceOver turns on, the same again with
+    /// it on: its speech runs the hardware at 22.05 kHz, and locking plays the lock sound (the iPad, the iPhone 4) or
+    /// VoiceOver's screen-change sound (the iPod touch 3G and 4, the 3GS), whichever the recording matches. Hold locks the
+    /// device; it is unlocked again after each. Emits `systemSound`: `scale`/`match`/`reference` (-1: no sound or no
+    /// file), `loud` (S16 samples over 1000 after the press), and `voiceOver*` for VoiceOver.
+    func systemSound(agent: GuestAgent?) async {
+        guard let wav = s.audioWAV else { return }
+        var event: [String: Any] = ["device": d.name]
+        let lockFile = await systemFile(
+            ["System/Library/Audio/UISounds/lock.caf", "System/Library/CoreServices/SpringBoard.app/lock.aiff"],
+            agent: agent
+        )
+        let plain = await lockSound(references: [lockFile].compactMap { $0 }, wav: wav, label: "lock-sound")
+        (event["scale"], event["match"], event["reference"], event["support"], event["loud"]) =
+            (plain.scale, plain.match, plain.reference, plain.support, plain.loud)
+        await d.wakeForShot("lock-sound")
+        await d.slideToUnlock(1, agent: agent)
+        if let agent, s.lockdownTZ != nil {
+            let guest = GuestServices(agent: agent)
+            func on() async -> String {
+                guard
+                    let on = try? await d.services.accessibility(
+                        guest: guest,
+                        version: lock?.productVersion ?? "",
+                        tool: s.lockdownTZ
+                    )
+                else { return "unreadable" }
+                return on.map { "\($0)" }.sorted().joined(separator: ",")
+            }
+            try? await d.services.setAccessibility(.voiceOver, on: true, tool: s.lockdownTZ)
+            try? await Task.sleep(for: .seconds(6))
+            event["voiceOverOn"] = await on()
+            if (event["voiceOverOn"] as? String)?.contains("voiceOver") == true {
+                let screenChange = await systemFile(
+                    ["System/Library/CoreServices/VoiceOverTouch.app/Sounds/ScreenChange.aiff"],
+                    agent: agent
+                )
+                try? await Task.sleep(for: .seconds(8))  // past the speech VoiceOver starts with
+                let vo = await lockSound(
+                    references: [lockFile, screenChange].compactMap { $0 },
+                    wav: wav,
+                    label: "lock-sound-voiceover"
+                )
+                (
+                    event["voiceOverScale"], event["voiceOverMatch"], event["voiceOverReference"],
+                    event["voiceOverSupport"], event["voiceOverLoud"]
+                ) =
+                    (vo.scale, vo.match, vo.reference, vo.support, vo.loud)
+            }
+            // Off while locked: VoiceOver's slide to unlock is a double tap.
+            try? await d.services.setAccessibility(.voiceOver, on: false, tool: s.lockdownTZ)
+            try? await Task.sleep(for: .seconds(3))
+            event["voiceOverAfter"] = await on()
+            if event["voiceOverScale"] != nil {
+                await d.wakeForShot("lock-sound-voiceover")
+                await d.slideToUnlock(1, agent: agent)
+            }
+        }
+        emit("systemSound", event)
+    }
+
+    /// The first of `paths` (volume-relative) the guest has, copied into `d.dir`: through the agent, or read from the
+    /// base's system volume, rebuilt from its NAND store (VolumeRebuild), where there is no agent.
+    func systemFile(_ paths: [String], agent: GuestAgent?) async -> URL? {
+        var found: (path: String, data: Data)?
+        if let agent {
+            for path in paths where found == nil {
+                if let data = try? await agent.get("/" + path) { found = (path, data) }
+            }
+        } else {
+            found = baseSystemFile(base: b, paths: paths, work: d.dir.appendingPathComponent("system-volume"))
+        }
+        guard let found else { return nil }
+        let url = d.dir.appendingPathComponent((found.path as NSString).lastPathComponent)
+        try? found.data.write(to: url)
+        return url
+    }
+
+    /// Hold pressed and the WAV's next 3 s against each of `references` in turn: the scale, match and support
+    /// (SoundScale) and which file (-1 and "" without a sound or a file), and the loud samples. The device is left
+    /// locked.
+    func lockSound(references: [URL], wav: String, label: String) async -> (
+        scale: Double, match: Double, reference: String, support: Int, loud: Int
+    ) {
+        // The WAV's samples are stereo S16 after its 44-byte header (unwritten until QEMU closes it).
         let size = max(44, FileManager.default.contents(atPath: wav)?.count ?? 0)
         let start = size - (size - 44) % 4
         d.process.link.send(.button(1, down: true))
@@ -656,27 +733,32 @@ nonisolated enum WiFiProbe {
         d.process.link.send(.button(1, down: false))
         try? await Task.sleep(for: .seconds(3))
         let tail = FileManager.default.contents(atPath: wav)?.dropFirst(start) ?? Data()
-        try? tail.write(to: d.dir.appendingPathComponent("lock-sound.raw"))
-        await d.wakeForShot("lock-sound")
-        await d.slideToUnlock(1, agent: guest.agent)
+        try? tail.write(to: d.dir.appendingPathComponent("\(label).raw"))
         let recording = tail.withUnsafeBytes { raw in
             stride(from: 0, to: raw.count / 4 * 2, by: 2).map {
                 Float(raw.loadUnaligned(fromByteOffset: $0 * 2, as: Int16.self)) / 32768
             }
         }
-        guard let file = try? AVAudioFile(forReading: reference),
-            let buffer = AVAudioPCMBuffer(
-                pcmFormat: file.processingFormat,
-                frameCapacity: AVAudioFrameCount(file.length)
-            ),
-            (try? file.read(into: buffer)) != nil, let channel = buffer.floatChannelData?[0]
-        else { return nil }
-        return SoundScale.scale(
-            reference: Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength))),
-            referenceRate: file.processingFormat.sampleRate,
-            recording: recording,
-            recordingRate: 44100
-        )
+        // The first file at least two stretches of the recording agree on (SoundScale), else the best match.
+        var best: (scale: Double, match: Double, reference: String, support: Int) = (-1, -1, "", 0)
+        for reference in references where best.support < 2 {
+            guard let file = try? AVAudioFile(forReading: reference),
+                let buffer = AVAudioPCMBuffer(
+                    pcmFormat: file.processingFormat,
+                    frameCapacity: AVAudioFrameCount(file.length)
+                ),
+                (try? file.read(into: buffer)) != nil, let channel = buffer.floatChannelData?[0],
+                let found = SoundScale.scale(
+                    reference: Array(UnsafeBufferPointer(start: channel, count: Int(buffer.frameLength))),
+                    referenceRate: file.processingFormat.sampleRate,
+                    recording: recording,
+                    recordingRate: 44100
+                ), found.support >= 2 || found.match > best.match
+            else { continue }
+            best = (found.factor, found.match, reference.lastPathComponent, found.support)
+        }
+        let loud = recording.reduce(0) { $0 + (abs($1) > 1000.0 / 32768 ? 1 : 0) }
+        return (best.scale, best.match, best.reference, best.support, loud)
     }
 
     /// Test-only clean shutdown: stock gesture or qualified agent halt, confirmed by PMU.

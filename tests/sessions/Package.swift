@@ -44,6 +44,7 @@ let package = Package(
                 .product(name: "HostServiceClient", package: "DeviceServices"),
                 .product(name: "HostServiceWire", package: "DeviceServices"),
                 .product(name: "FirmwareSchema", package: "FirmwareKit"),
+                .product(name: "FirmwareKit", package: "FirmwareKit"),
                 parser,
             ],
             swiftSettings: driver
