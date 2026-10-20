@@ -54,66 +54,51 @@ public enum KBoot {
     }()
     /// A real iPad's clock-frequencies on 3.2.2 (iBoot-817), slot for slot: the PLLs (1 APLL 1 GHz, 3 EPLL 1026 MHz),
     /// the performance clocks, FMI's 102.6 MHz (33), the panel's 68.4 MHz pixel clock (39), the SPI (47-51) and I2C
-    /// (52-54) references. iBoot on the emulated PMGR fills the same table but for slot 2 (400 MHz, PLL1, off on the
-    /// unit). The slots are the same in every A4 DeviceTree (the nodes' clock-ids), so one table serves all releases.
+    /// (52-54) references; but slot 44, which 3.x's iBoot-817 sets to 24 MHz and 4.x's iBoots leave 0 (the iPad's
+    /// 931, the iPhone 4's 1072). iBoot on the emulated PMGR fills the same table but for slot 2 (400 MHz, PLL1, off on
+    /// the unit). The slots are the same in every A4 DeviceTree (the nodes' clock-ids), so one table serves all
+    /// releases.
     static let k48Clocks: [UInt32] = [
         24_000_000, 1_000_000_000, 0, 1_026_000_000, 0, 0, 0, 1_000_000_000, 0, 1_000_000_000,
         200_000_000, 102_600_000, 1_026_000_000, 166_666_666, 68_400_000, 200_000_000, 100_000_000, 0, 102_600_000,
         51_300_000, 200_000_000, 48_857_142, 0, 2_000_000, 342_000_000, 0, 200_000_000, 100_000_000, 200_000_000,
         166_666_666, 200_000_000, 171_000_000, 100_000_000, 102_600_000, 100_000_000, 100_000_000, 68_400_000,
-        54_000_000, 0, 68_400_000, 342_000_000, 51_300_000, 0, 51_300_000, 24_000_000, 0, 12_000_000, 24_000_000,
+        54_000_000, 0, 68_400_000, 342_000_000, 51_300_000, 0, 51_300_000, 0, 0, 12_000_000, 24_000_000,
         24_000_000, 24_000_000, 24_000_000, 24_000_000, 1_000_000, 1_000_000, 1_000_000,
     ]
     /// A real iPhone 4's on 4.3 (iBoot-1072.58): the iPad's but for its 800 MHz APLL (1, 7, 9), MPLL at 500 MHz (2),
-    /// 160 MHz for 166.67 (13, 29), 51.3 MHz for 68.4 (14, 36), 0 in 44 and 48.86 MHz in 49.
+    /// 160 MHz for 166.67 (13, 29), 51.3 MHz for 68.4 (14, 36) and 48.86 MHz in 49.
     static let n90Clocks: [UInt32] = {
         var c = k48Clocks
         for (i, hz) in [
             1: 800_000_000, 2: 500_000_000, 7: 800_000_000, 9: 800_000_000, 13: 160_000_000, 14: 51_300_000,
-            29: 160_000_000, 36: 51_300_000, 44: 0, 49: 48_857_142,
+            29: 160_000_000, 36: 51_300_000, 49: 48_857_142,
         ] as [Int: UInt32] { c[i] = hz }
         return c
     }()
-    /// arm-io/pmgr/device-clocks as iBoot leaves it (36-byte entries: word0 the id and flags, bytes 8-11 the parents,
-    /// the name at 20): each muxed clock on the one parent iBoot picked where the IPSW lists its candidates, and the
-    /// word0 flags it changes for TURBO, RGBOUT, DP and MIE. The real iPad's on 3.2.2, byte for byte; iBoot on the
-    /// emulated PMGR picks the same but for VID0-CLK. Entries absent from a DT are skipped.
-    static let k48DeviceClocks: [String: String] = [
-        "BASE0": "000080060000000001000000", "BASE1": "000080090000000002000000",
-        "VID0-CLK": "0000810f0000000005000000", "AUDIO-CLK": "000080110000000003000000",
-        "LPERF0": "000080120000000007000000", "LPERF1": "000080130000000009000000",
-        "LPERF2": "000080140000000007000000", "LPERF3": "000080150000000007000000",
-        "MPERF": "000080160000000003000000", "HPERF0": "000080170200000006000000",
-        "HPERF1": "000080180201000004000000", "SDIO-CLKs": "0000801c000000000a000000",
-        "CLK50-CLK": "0000801d000000000a000000", "SPI0-CLK": "0000801e0000000000000000",
-        "SPI1-CLK": "0000801f0000000000000000", "SPI2-CLK": "000080200000000000000000",
-        "SPI3-CLK": "000080210000000000000000", "SPI4-CLK": "000080220000000000000000",
-        "MIPI-CLKs": "000081240000000003000000", "CDMA": "000083520000000006000000",
-        "TURBO": "0000282f", "RGBOUT": "0000006a", "DP": "00000076", "MIE": "0000057d",
-    ]
-    /// A real iPhone 4's on 4.3: the iPad's but for SPI2-CLK on its second candidate and DP's flag.
-    static let n90DeviceClocks = k48DeviceClocks.merging([
-        "SPI2-CLK": "00008020000000000c000000", "DP": "00010076",
-    ]) { $1 }
+    /// What iBoot fills the same on every A4 board: the iPad's 3.2.2 and 4.2.1 iBoots (817, 931) under the emulator,
+    /// and the real iPad (3.2.2) and iPhone 4 (4.3): arm-io/pmgr's bridge-settings (the fabric bridges' settings, the
+    /// first 168 of its 256 bytes) and otgphyctrl's phy-tuning-val. arm-io/pmgr/device-clocks is not one of them:
+    /// iBoot hands the IPSW's candidate parents over and the kernel settles them (KBootIBootTests).
+    static let a4BridgeSettings =
+        Data(hexLiteral: "000000000c0f0000040000000c0f00000c0401000101000100000000000000000000020008020000")
+        + Data(hexLiteral: "040002000206000008000200020600000c000200020600000c040300000100000c04030001010001")
+        + Data(hexLiteral: "0c040300020100020c040300040100040c040300050100050c040300060100060c04030007010007")
+        + Data(hexLiteral: "0804030003010003000000000000000000000400000c000004000400001000000800040004040000")
+        + Data(hexLiteral: "0804050002010002")
+    static let a4PHYTuning: UInt32 = 0x733
 
-    /// Each named device-clocks entry's leading bytes replaced by the board's.
-    static func settleDeviceClocks(_ dt: inout DeviceTree, _ entries: [String: String]) throws {
-        guard !entries.isEmpty, var d = dt.value("arm-io/pmgr", "device-clocks") else { return }
-        for at in stride(from: d.startIndex, to: d.endIndex - 35, by: 36) {
-            let name = String(decoding: d[at + 20..<at + 36].prefix { $0 != 0 }, as: UTF8.self)
-            guard let hex = entries[name], let bytes = Data(hex: hex) else { continue }
-            d.replaceSubrange(at..<at + bytes.count, with: bytes)
-        }
-        try dt.set("arm-io/pmgr", "device-clocks", .bytes(d))
-    }
-
-    /// NAND geometry iBoot would have probed (16 GB, eight Hynix dies); only the keys the DT has are written.
+    /// NAND geometry and timings as iBoot probes the emulated flash (16 GB, eight Hynix dies; iBoot-817's and
+    /// iBoot-931's values for its read ID, KBootIBootTests); only the keys the DT has are written.
     static let nand: [(String, UInt32)] = [
         ("#ce", 8), ("#die-ce", 1), ("#ce-blocks", 0x1000), ("#block-pages", 128), ("#page-bytes", 4096),
         ("#spare-bytes", 0x80), ("device-readid", 0xB614_D5AD), ("vendor-type", 0x10_0014), ("#databus", 2),
-        ("ecc-correctable", 8), ("ecc-threshold", 8), ("bbt-format", 3),
-        ("read-cycle-ns", 25), ("read-setup-ns", 10), ("read-hold-ns", 10), ("read-delay-ns", 20),
-        ("read-valid-ns", 20), ("write-cycle-ns", 25), ("write-hold-ns", 10),
+        ("ecc-correctable", 16), ("ecc-threshold", 12), ("bbt-format", 3),
+        ("read-cycle-ns", 25), ("read-setup-ns", 12), ("read-hold-ns", 10), ("read-delay-ns", 20),
+        ("read-valid-ns", 15), ("write-cycle-ns", 25), ("write-setup-ns", 12), ("write-hold-ns", 10),
+        // 4.x DTs time the bus in clocks.
+        ("read-setup-clks", 1), ("read-hold-clks", 1), ("read-dccycle-clks", 1), ("write-setup-clks", 1),
+        ("write-hold-clks", 1),
         ("meta-per-logical-page", 12), ("valid-meta-per-logical-page", 10), ("logical-page-size", 4096),
         ("ppn-device", 0),
         // iBoot-1219 (5.x): the populated CEs numbered across the buses (bus b's at 8b + n); AppleIOPFMI-49's
@@ -143,8 +128,11 @@ public enum KBoot {
         /// arm-io/clock-frequencies (cut to the DT's slots): the iPad's measured cpu0 rates in every slot, unless the
         /// board's own were read off a real unit.
         public var clocks: [UInt32] = KBoot.clocks
-        /// arm-io/pmgr/device-clocks entries as iBoot settles them (settleDeviceClocks); empty: the IPSW's.
-        public var deviceClocks: [String: String] = [:]
+        /// arm-io/i2c0/pmu swi-vcores, the CPU's two core voltages in mV, and arm-io/clcd dot-pitch, the panel's pixels
+        /// per inch, as iBoot fills them: the iPad's from its iBoot (on the emulator and the real unit), the iPhone 4's
+        /// from the real unit (nil: the IPSW's zeros).
+        public var swiVcores: [UInt32]? = nil
+        public var dotPitch: UInt32? = nil
         /// arm-io/chip-revision (the A4 stepping: 0x11, B1, on the iPad; 0x20 on the iPhone 4).
         public var chipRevision: UInt32 = 0x11
         /// The panel as iBoot's pinot_init reads it: lcd-panel-id, raw-panel-id's bytes, and the backlight-id that
@@ -161,7 +149,8 @@ public enum KBoot {
             boardID: 0x02,
             modelNumber: "MB292",
             clocks: KBoot.k48Clocks,
-            deviceClocks: KBoot.k48DeviceClocks,
+            swiVcores: [950, 1150],
+            dotPitch: 132,
             panelID: 0xA1E5_06C9,
             rawPanelID: [0xA1, 0xE5, 0x69, 0x09, 0, 0, 0, 0, 0, 0, 0, 0, 0x64],
             backlightID: 6
@@ -184,7 +173,8 @@ public enum KBoot {
             dram: 0x2000_0000,
             radio: true,
             clocks: KBoot.n90Clocks,
-            deviceClocks: KBoot.n90DeviceClocks,
+            swiVcores: [950, 1050],
+            dotPitch: 326,
             chipRevision: 0x20,
             panelID: 0xA18A_05C8,
             rawPanelID: [0xA1, 0x8A, 0x58, 0x09, 0x07],
@@ -227,7 +217,9 @@ public enum KBoot {
 
         var memSize: UInt32 { dram - KBoot.pramSize - KBoot.vramSize }
         var vramPA: UInt32 { KBoot.physBase + memSize }
-        var pramPA: UInt32 { KBoot.physBase + dram - KBoot.pramSize }
+        /// iBoot puts the A4's PRAM at the top of its 512 MiB DRAM window whatever the DRAM (0x5fffc000 on the
+        /// 256 MiB iPad too, where the window mirrors DRAM); the S5L8920's at the top of its DRAM.
+        var pramPA: UInt32 { KBoot.physBase + (isS5L8920 ? dram : 0x2000_0000) - KBoot.pramSize }
     }
 
     /// K48's 4.x (8C148) spi0/nor-flash subtree: diagnostics, nvram, the image area and effaceable storage
@@ -435,6 +427,10 @@ public enum KBoot {
         if let slot = dt.props["chosen"]?["nvram-proxy-data"] {
             try dt.set("chosen", "nvram-proxy-data", .bytes(nvramImage(size: slot.length)))
         }
+        // Every iBoot read so far (817, 931, the iPhone 4's 1072) leaves a BOOTREPLY header there, the rest zero.
+        if dt.props["chosen"]?["bootp-response"]?.length ?? 0 > 0 {
+            try dt.set("chosen", "bootp-response", .bytes(Data([2])))
+        }
         if let id = board.productID, dt.props["product"]?["product-id"]?.length == id.count {
             try dt.set("product", "product-id", .bytes(Data(id)))
         }
@@ -452,7 +448,20 @@ public enum KBoot {
         let slots = (dt.props["arm-io"]?["clock-frequencies"]?.length ?? board.clocks.count * 4) / 4
         try dt.set("arm-io", "clock-frequencies", .words(Array(board.clocks.prefix(slots))))
         try dt.set("arm-io", "usbphy-frequency", .u32(usbphyHz))
-        try settleDeviceClocks(&dt, board.deviceClocks)
+        if !board.isS5L8920 {
+            if dt.props["arm-io/pmgr"]?["bridge-settings"]?.length ?? 0 >= a4BridgeSettings.count {
+                try dt.set("arm-io/pmgr", "bridge-settings", .bytes(a4BridgeSettings))
+            }
+            if dt.props["arm-io/otgphyctrl"]?["phy-tuning-val"] != nil {
+                try dt.set("arm-io/otgphyctrl", "phy-tuning-val", .u32(a4PHYTuning))
+            }
+        }
+        if let mv = board.swiVcores, dt.props["arm-io/i2c0/pmu"]?["swi-vcores"] != nil {
+            try dt.set("arm-io/i2c0/pmu", "swi-vcores", .words(mv))
+        }
+        if let ppi = board.dotPitch, dt.props["arm-io/clcd"]?["dot-pitch"] != nil {
+            try dt.set("arm-io/clcd", "dot-pitch", .u32(ppi))
+        }
         if dt.props["arm-io/audio-complex"]?["ncoref-frequency"] != nil {
             try dt.set("arm-io/audio-complex", "ncoref-frequency", .u32(ncorefHz))
         }

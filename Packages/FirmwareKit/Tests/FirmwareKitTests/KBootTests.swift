@@ -127,8 +127,7 @@ struct KBootTests {
         #expect(dt.value("", "model-number")?.prefix(5) == Data("MC540".utf8))
     }
 
-    /// The IPSW's device-clocks entries for BASE1, SPI2-CLK and DP (candidate parent lists, its flags), and one KBoot
-    /// doesn't know.
+    /// The IPSW's device-clocks entries for BASE1, SPI2-CLK, DP and ETHERNET (candidate parent lists, flags).
     static func deviceClocks() -> Data {
         func entry(_ head: String, _ name: String) -> Data {
             Data(hex: head)! + Data(count: 8) + Data(name.utf8) + Data(count: 16 - name.utf8.count)
@@ -190,14 +189,8 @@ struct KBootTests {
                     68_400_000, 0, 48_857_142, 1_000_000, 0,
                 ]
         )
-        // Each clock on the parent iBoot picks (BASE1 PREDIV1, SPI2 its first candidate), DP's flag as iBoot leaves it.
-        #expect(
-            Self.entries(out.value("arm-io/pmgr", "device-clocks"))
-                == [
-                    "000080090000000002000000", "00008020000000000c000000", "00010076000000001a190000",
-                    "000000590000000016000000",
-                ]
-        )
+        // The IPSW's candidate parents, as iBoot hands them over: the kernel settles them.
+        #expect(out.value("arm-io/pmgr", "device-clocks") == Self.deviceClocks())
         // The iPhone 4's A4 stepping, its panel's ID as iBoot reads it, and the backlight table that panel selects.
         #expect(out.value("arm-io", "chip-revision") == DeviceTree.Value.le([0x20]))
         #expect(out.value("arm-io/mipi-dsim/lcd", "lcd-panel-id") == DeviceTree.Value.le([0xA18A_05C8]))
@@ -217,18 +210,12 @@ struct KBootTests {
         let k48Clocks = kdt.value("arm-io", "clock-frequencies").map { d in (0..<64).map { Self.u32(d, $0 * 4) } } ?? []
         #expect(
             [1, 2, 13, 14, 33, 44, 49].map { k48Clocks[$0] }
-                == [1_000_000_000, 0, 166_666_666, 68_400_000, 102_600_000, 24_000_000, 24_000_000]
+                == [1_000_000_000, 0, 166_666_666, 68_400_000, 102_600_000, 0, 24_000_000]
         )
         #expect(kdt.value("arm-io", "chip-revision") == DeviceTree.Value.le([0x11]))
         #expect(kdt.value("arm-io/mipi-dsim/lcd", "lcd-panel-id") == DeviceTree.Value.le([0xA1E5_06C9]))
         #expect(kdt.value("backlight", "backlight-id") == DeviceTree.Value.le([6]))
-        #expect(
-            Self.entries(kdt.value("arm-io/pmgr", "device-clocks"))
-                == [
-                    "000080090000000002000000", "000080200000000000000000", "00000076000000001a190000",
-                    "000000590000000016000000",
-                ]
-        )
+        #expect(kdt.value("arm-io/pmgr", "device-clocks") == Self.deviceClocks())
     }
 
     /// N88 (S5L8920): its own platform-name/chip-id, a 320x480 panel, its own NOR kept (nothing grafted) with
@@ -351,7 +338,7 @@ struct KBootTests {
         )
         #expect(words("chosen", "unique-chip-id") == [1, 0] && words("chosen", "die-id") == [0, 0])
         #expect(words("chosen", "chip-id") == [0x8930] && words("cpus/cpu0", "timebase-frequency") == [24_000_000])
-        #expect(words("vram", "reg") == [0x4F70_0000, 0x8F_C000] && words("pram", "reg") == [0x4FFF_C000, 0x4000])
+        #expect(words("vram", "reg") == [0x4F70_0000, 0x8F_C000] && words("pram", "reg") == [0x5FFF_C000, 0x4000])
         #expect(words("chosen", "display-rotation") == [270])
 
         // 4.x link base; RAM-disk mode puts the disk after the kernel (0x80004800 -> page 0x80005000), DT after it.

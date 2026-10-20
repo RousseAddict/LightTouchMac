@@ -54,7 +54,8 @@ let package = Package(
         ),
         .testTarget(
             name: "FirmwareKitTests",
-            dependencies: ["FirmwareKit", "FirmwareSchema", .product(name: "HostRuntime", package: "HostRuntime")]
+            dependencies: ["FirmwareKit", "FirmwareSchema", .product(name: "HostRuntime", package: "HostRuntime")],
+            exclude: ["iboot-trees"]  // KBootIBootTests reads them from the source tree
         ),
     ]
 )
