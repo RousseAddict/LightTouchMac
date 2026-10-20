@@ -205,22 +205,20 @@ struct Base {
         self.lock = lock
         let verdict = PreparationChanges.verdict(lock: lock, catalog: catalogEntries)
         print("base \(url.path) (\(verdict.stale.isEmpty ? "fresh" : "stale")): \(verdict.fingerprint)")
+        // Where it was prepared otherwise than its catalog row: a deliberate variant or drift, not stale either way.
+        for variant in (try? LockedPreparation.plan(lock: lock, catalog: catalogEntries))?.variants ?? [] {
+            print("  as prepared, not the catalog row's: \(variant)")
+        }
         fflush(stdout)
         guard !verdict.stale.isEmpty else { return }
         let reasons = verdict.stale.map { "  - \($0)" }.joined(separator: "\n")
         guard allowStale else {
-            let ipsw = ((lock["inputs"] as? [String: Any])?["ipsw"] as? [String: Any])?["path"] as? String ?? "IPSW"
-            let options = ((lock["entry"] as? [String: Any])?["content"] as? [String: Any])
-                .flatMap { ($0["recipe"] as? [String: Any])?["options"] as? [String: Bool] }
-            let flags = [("skip_setup", " --skip-setup"), ("jailbreak", " --jailbreak")]
-                .filter { options?[$0.0] == true }.map(\.1).joined()
             die(
                 """
                 \(url.path) is stale: this tree prepares \(entryID) differently.
                 \(reasons)
-                Prepare it again from this tree, then check the new base with sessions single:
-                  firmwarekit create --catalog LightTouchMac/Resources/firmware-catalog.json --id \(entryID) \
-                --ipsw \(ipsw) --out NEW_BASE\(flags)
+                Prepare it again from this tree as it was prepared (checked with sessions single, then swapped in):
+                  sessions reprepare \(url.path)
                 or pass --allow-stale to boot it anyway.
                 """
             )

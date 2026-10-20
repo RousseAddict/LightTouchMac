@@ -237,6 +237,9 @@ public enum Recipe {
                 "ipsw": ["path": o.ipsw.path, "sha1": c.sha1], "decrypted": dec.path, "identity": "identity.json",
                 "activation": opt(c.activation.map { $0.record }),
                 "rootfs": "rootfs.dmg", "guest_tools": o.guestTools.path, "lockdown": NSNull(),
+                // create's choices beyond the entry, for preparing the base again (LockedPreparation.plan)
+                "language": opt(o.language), "keyboards": opt(o.keyboards),
+                "sibling": opt(o.sibling.map { ["entry": $0.entry.id, "ipsw": $0.ipsw.path] }),
             ],
             "identity": [
                 "seed": c.seed, "udid": ident.udid ?? "",

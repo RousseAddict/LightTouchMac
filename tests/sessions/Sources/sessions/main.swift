@@ -62,7 +62,7 @@ struct Sessions: ParsableCommand {
             SingleCheck.self, PairCheck.self, ProxyTrustCheck.self, LocalNetworkCheck.self, HelperCheck.self,
             HelperBootCheck.self, PhoneCheck.self, RotationCheck.self, KeyboardCheck.self, FlickCheck.self,
             ScrollTopCheck.self,
-            TweaksCheck.self, RespringCheck.self, ClipboardCheck.self, BasesCheck.self,
+            TweaksCheck.self, RespringCheck.self, ClipboardCheck.self, BasesCheck.self, ReprepareCheck.self,
         ]
     )
 }
@@ -139,8 +139,9 @@ struct BasesCheck: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "bases",
         abstract: """
-            Says, booting nothing, whether each base is fresh or stale: how it was prepared, and what this tree would \
-            prepare differently (the check every other command makes before it boots).
+            Says, booting nothing, whether each base is fresh or stale: how it was prepared, where its recipe is not \
+            its catalog row's (a boot path or option it was prepared with: a variant or drift, not stale), and what \
+            this tree would prepare differently (the check every other command makes before it boots).
             """
     )
     @Argument var bases: [String]
