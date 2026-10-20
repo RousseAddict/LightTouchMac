@@ -49,23 +49,14 @@ extension DisplayView {
         shownSerial = frame.serial
         shownSurface = frame.surface
         let newFramePixels = CGSize(width: frame.surface.width, height: frame.surface.height)
-        let drawnFor = Self.frameDegrees(
-            of: newFramePixels,
-            device: emulator?.rotationDegrees ?? 0,
-            shown: (framePixels, frameDegrees)
-        )
-        let geometryChanged = newFramePixels != framePixels || drawnFor != frameDegrees
-        frameDegrees = drawnFor
-        if newFramePixels != framePixels {
+        let geometryChanged = newFramePixels != framePixels
+        if geometryChanged {
             framePixels = newFramePixels
             needsLayout = true
         }
-        // The dims flipping catches every quarter turn but not a half one:
-        // 180° leaves 320×480 at 320×480, so an upside-down app (or two
-        // auto-rotations run back to back) would leave the shell posed at the
-        // old angle until something else happened to lay out. Ask the emulator
-        // directly — it is the source of truth for the pose, and layout()
-        // already compares against the same value to decide whether to animate.
+        // A turn leaves the panel's scan as it is, so the frame's size can't tell of it. Ask the emulator directly:
+        // it is the source of truth for the pose, and layout() compares against the same value to decide whether to
+        // animate.
         if emulator?.rotationDegrees != lastRotation { needsLayout = true }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
@@ -81,27 +72,10 @@ extension DisplayView {
             needsLayout = true
         }
         if let model = modelView ?? pendingModelView, let image = Self.image(frame.surface, colorSpace: colorSpace) {
-            model.updateFrame(image, rotation: frameDegrees)
+            model.updateFrame(image)
         }
         CATransaction.commit()
         return frame.surface
-    }
-
-    /// The device rotation a new frame was drawn for. The device turns at once while the LCD (ipod_touch_lcd.c) turns
-    /// its picture some frames later, and a quarter turn swaps the picture's sides, so a frame of the shown frame's
-    /// shape that a quarter turn hasn't reshaped yet is still the old pose's. A half turn keeps the shape, so its first
-    /// new frame is taken as the new pose's.
-    /// ponytail: a frame the helper published in the moment before the LCD turned can still show for a frame at a half
-    /// turn; a rotation tag in the frame ring (qemu-ios's LCD reporting its own) would make it exact.
-    static func frameDegrees(of pixels: CGSize, device: Int, shown: (pixels: CGSize, rotation: Int)) -> Int {
-        let swapped = CGSize(width: shown.pixels.height, height: shown.pixels.width)
-        // Another panel has no old pose to keep, and a square one's shape can't tell.
-        guard pixels == shown.pixels || pixels == swapped, swapped != shown.pixels else { return device }
-        let transposed = pixels != shown.pixels
-        let quarterTurn = (device - shown.rotation + 360) % 180 != 0
-        if transposed == quarterTurn { return device }
-        // Reshaped while the device is a half turn away (auto-rotation's two quarter steps): the step between, either way.
-        return transposed ? (device + 90) % 360 : shown.rotation
     }
 
     /// A copy of a ring surface, held in use while it is read so the helper
@@ -251,12 +225,8 @@ extension DisplayView {
     func captureFrame(includeTouches: Bool = true) -> CGImage? {
         if let liveTextView { return liveTextView.capturedImage }
         guard let image = capturePanelFrame(includeTouches: includeTouches) else { return nil }
-        // Match the window: scan-to-upright plus, where the surface doesn't follow it, the device's own quarter-turn.
-        let turns = PanelCapture.quarterTurns(
-            guestTurn: guestTurn,
-            deviceDegrees: emulator?.rotationDegrees ?? 0,
-            surfaceFollowsRotation: profile.surfaceFollowsRotation
-        )
+        // Match the window: scan-to-upright plus the device's own quarter-turn.
+        let turns = PanelCapture.quarterTurns(guestTurn: guestTurn, deviceDegrees: emulator?.rotationDegrees ?? 0)
         guard turns != 0 else { return image }
         return PanelCapture.rotated(image, clockwiseQuarterTurns: turns) ?? image
     }

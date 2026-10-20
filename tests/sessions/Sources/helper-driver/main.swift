@@ -433,6 +433,24 @@ Thread.detachNewThread {
                 return r.rotation.degrees
             }
             emit("turned", ["degrees": degrees])
+        // follow NAME: the app's watch of the guest's interface for one reading, read off the frame as published
+        // (NAME.png: where the status bar's clock stands) and handed to DeviceRotation.interfaceRead as the watch does
+        case "follow":
+            guard let r = rotationDriver else { fail("follow: no board") }
+            dump(p[1])
+            let frame = URL(fileURLWithPath: "\(dumpDir)/\(p[1]).png")
+            let interface = interfaceDegrees(frame: frame, scan: r.scan)
+            let (degrees, held) = onMain {
+                // UIInterfaceOrientation, as springboardservices reads it (DeviceRotation.iPadDegrees, inverted)
+                if let interface, let reading = [0: 1, 90: 4, 180: 2, 270: 3][interface] {
+                    r.lastInterface = r.rotation.interfaceRead(reading, last: r.lastInterface)
+                }
+                return (r.rotation.degrees, r.rotation.heldDegrees)
+            }
+            emit("followed", ["name": p[1], "interface": interface ?? -1, "degrees": degrees, "held": held])
+        case "autorotate":  // autorotate on|off: the app's Auto-Rotate with Device (DeviceRotation.toggleAutoRotate)
+            guard let r = rotationDriver else { fail("autorotate: no board") }
+            onMain { if r.rotation.autoRotateEnabled != (p[1] == "on") { r.rotation.toggleAutoRotate() } }
         case "shot":  // shot NAME: the frame (NAME.png) and the picture as the window shows it (NAME-shown.png)
             guard let r = rotationDriver else { fail("shot: no board") }
             dump(p[1])

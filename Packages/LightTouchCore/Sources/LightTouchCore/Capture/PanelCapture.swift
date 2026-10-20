@@ -2,11 +2,10 @@ import CoreGraphics
 
 /// A capture of the panel turned the way the window shows it.
 public nonisolated enum PanelCapture {
-    /// Clockwise quarter-turns from the panel's scan to the window: scan-to-upright (`guestTurn`, radians) plus,
-    /// where the surface doesn't follow the device, the device's own rotation.
-    public static func quarterTurns(guestTurn: CGFloat, deviceDegrees: Int, surfaceFollowsRotation: Bool) -> Int {
-        let device = surfaceFollowsRotation ? 0 : deviceDegrees / 90
-        return ((Int((guestTurn * 2 / .pi).rounded()) + device) % 4 + 4) % 4
+    /// Clockwise quarter-turns from the panel's scan to the window: scan-to-upright (`guestTurn`, radians) plus the
+    /// device's own rotation.
+    public static func quarterTurns(guestTurn: CGFloat, deviceDegrees: Int) -> Int {
+        ((Int((guestTurn * 2 / .pi).rounded()) + deviceDegrees / 90) % 4 + 4) % 4
     }
 
     /// `image` turned clockwise by `turns` quarters; the image itself for none.

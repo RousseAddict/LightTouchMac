@@ -79,11 +79,11 @@ func color(_ image: CGImage, _ p: CGPoint, in size: CGSize) -> NSColor {
     )
 }
 /// Upright quadrants (red, green / blue, yellow), a center circle and TOP, then
-/// turned into the panel's own scan-out orientation: the iPad's is landscape (a quarter counterclockwise), the CLCD
-/// iPods' is turned clockwise with the device, the iPod touch 4's is upright whatever the device does.
-func pattern(_ profile: Board, rotation: Int) -> CGImage {
+/// turned into the panel's own scan-out orientation: the iPad's is landscape (a quarter counterclockwise), every
+/// other board's upright, whatever the device does.
+func pattern(_ profile: Board) -> CGImage {
     // Counterclockwise quarter-turns from upright.
-    let turnsBack = profile.surfaceFollowsRotation ? (4 - rotation / 90) % 4 : profile.panelRotation != 0 ? 1 : 0
+    let turnsBack = profile.panelRotation != 0 ? 1 : 0
     let upright = profile.uprightScreenPixels
     let size = turnsBack % 2 == 0 ? upright : CGSize(width: upright.height, height: upright.width)
     let w = Int(size.width)
@@ -205,11 +205,11 @@ extension SharedState {
                 CGPoint(x: 0.75, y: 0.75),
             ]
             var homeLevels: [CGFloat] = []
-            // The CLCD iPods' surface arrives pre-rotated; the A4's panel (iPad, iPod touch 4) never turns.
+            // No panel turns its surface with the device.
             for rotation in [0, 90, 180, 270] {
-                let frame = pattern(profile, rotation: rotation)
+                let frame = pattern(profile)
                 let reference = NSBitmapImageRep(cgImage: frame)
-                model.updateFrame(frame, rotation: rotation)
+                model.updateFrame(frame)
                 for tilt in [0.0, 0.35] {
                     model.pose(scale: 0.5, rotation: rotation, roll: tilt, pitch: tilt, animated: false)
                     let snapshot = try await render(model)
@@ -297,7 +297,7 @@ extension SharedState {
             )
             // Turned before the LCD's turned picture arrives: the last portrait frame turns with the device, its top-left
             // still at the device's top-left, not mapped for the new pose (it flashed stretched or turned on rotation).
-            model.updateFrame(pattern(profile, rotation: 0), rotation: 0)
+            model.updateFrame(pattern(profile))
             for rotation in [90, 180, 270] {
                 model.pose(scale: 0.5, rotation: rotation, roll: 0, pitch: 0, animated: false)
                 let snapshot = try await render(model)
@@ -316,7 +316,7 @@ extension SharedState {
             }
             // Hardware controls: each named side control answers where it is drawn, and
             // the LCD and bezel are not controls.
-            model.updateFrame(pattern(profile, rotation: 0), rotation: 0)
+            model.updateFrame(pattern(profile))
             model.pose(scale: 0.5, rotation: 0, roll: 0, pitch: 0, animated: false)
             let view = model.subviews[0] as! ARView
             func projected(_ entity: Entity, _ fraction: SIMD3<Float>) -> CGPoint {
@@ -482,7 +482,7 @@ extension SharedState {
                         checker.fill(CGRect(x: x, y: y, width: 1, height: 1))
                     }
                 }
-                model.updateFrame(checker.makeImage()!, rotation: 0)
+                model.updateFrame(checker.makeImage()!)
                 let shot = try await render(model)
                 var mid = 0
                 var total = 0
@@ -493,7 +493,7 @@ extension SharedState {
                     total += 1
                 }
                 #expect(mid * 100 < total * 3, "LCD upscaling is not nearest-neighbor: \(mid)/\(total) blurred samples")
-                model.updateFrame(pattern(profile, rotation: 0), rotation: 0)
+                model.updateFrame(pattern(profile))
             }
             model.setScreenOff(true)
             let dark = color(

@@ -34,78 +34,16 @@ extension SharedState {
             try await MainBundle.with([
                 "shell-iphone4.png": "LightTouchMac/Assets.xcassets/shell-iphone4.imageset/shell-iphone4.png"
             ]) {
-                try await rotationBody()
+                try await rotationBody(.n90)
             }
         }
 
-        /// A CLCD board's rotation (the owner 10-15: the iPhone's Home screen flashed turned and stretched across the
-        /// landscape screen for about a second): the device turns at once, its LCD turns the picture frames later. Until
-        /// then the last frame keeps its shape and turns with the chassis; the turned frame then stands upright in the new
-        /// bounds; a half turn's old frame turns with the chassis too, until the new one arrives.
-        @Test(arguments: Board.allCases.filter(\.surfaceFollowsRotation)) func rotationBeforeTheTurnedFrame(
-            board: Board
-        ) async throws {
-            for key in [DisplayView.bezelKey, DisplayView.showsBezelKey] {
-                UserDefaults.standard.removeObject(forKey: key)
-            }
-            defer {
-                for key in [DisplayView.bezelKey, DisplayView.showsBezelKey] {
-                    UserDefaults.standard.removeObject(forKey: key)
-                }
-            }
-            DisplayView.bezel = .flat
-            let portrait = (Int32(board.screenPixels.width), Int32(board.screenPixels.height))
-            (frameWidth, frameHeight) = portrait
-            let display = DisplayView(frame: NSRect(x: 0, y: 0, width: 800, height: 800), profile: board)
-            let e = EmulatorController()
-            display.emulator = e
-            let window = NSWindow(contentRect: display.frame, styleMask: [.titled], backing: .buffered, defer: false)
-            window.contentView = display
-            defer { window.contentView = nil }
-            func tick() {
-                display.perform(NSSelectorFromString("step"))
-                display.layoutSubtreeIfNeeded()
-            }
-            let lcd = display.contentLayer
-            /// The shown picture's shape against the layer's, and where its top edge sits from the LCD's center (nil: a side).
-            func shown(_ what: String, top expected: CGVector?, line: Int = #line) {
-                let frame = (lcd.contents as! IOSurface)
-                let aspect = lcd.bounds.width / lcd.bounds.height
-                #expect(
-                    abs(aspect - CGFloat(frame.width) / CGFloat(frame.height)) < 0.01,
-                    "line \(line), \(board) \(what): a \(frame.width)x\(frame.height) frame in \(lcd.bounds.size)"
-                )
-                let b = lcd.convert(lcd.bounds, to: display.layer!)
-                let top = lcd.convert(CGPoint(x: lcd.bounds.midX, y: 0), to: display.layer!)
-                let v = CGVector(dx: (top.x - b.midX) / (b.width / 2), dy: (top.y - b.midY) / (b.height / 2))
-                #expect(
-                    (expected.map { hypot(v.dx - $0.dx, v.dy - $0.dy) } ?? hypot(abs(v.dx) - 1, v.dy)) < 0.1,
-                    "line \(line), \(board) \(what): the picture's top is at \(v), not \(expected.map { "\($0)" } ?? "a side")"
-                )
-            }
-            for _ in 0..<3 { tick() }
-            let lcdTop = lcd.convert(CGPoint(x: lcd.bounds.midX, y: 0), to: display.layer!)
-            let upright = CGVector(dx: 0, dy: lcdTop.y < lcd.convert(lcd.bounds, to: display.layer!).midY ? -1 : 1)
-            shown("at rest", top: upright)
-            // Turned a quarter: the helper still publishes portrait frames (the LCD hasn't turned, the ring not resized).
-            e.rotationDegrees = 90
-            tick()
-            tick()
-            // The picture's top edge, still the device's top, turned to a side with the chassis.
-            shown("turned, before the LCD", top: nil)
-            // The LCD's turned picture: landscape, upright in the window.
-            (frameWidth, frameHeight) = (portrait.1, portrait.0)
-            tick()
-            shown("turned, the LCD's frame", top: upright)
-            // A half turn keeps the shape: the frame before the LCD's turns with the chassis, then the new one stands up.
-            frozen = true
-            e.rotationDegrees = 270
-            tick()
-            shown("half turn, before the LCD", top: CGVector(dx: -upright.dx, dy: -upright.dy))
-            frozen = false
-            tick()
-            shown("half turn, the LCD's frame", top: upright)
+        /// The same on the CLCD boards (the iPhone 2G to 3GS, the iPod touch 1G to 3G): their LCD scans its panel out as
+        /// is too, so a turn shows the picture turned with the chassis, never stretched or turned back upright.
+        @Test(arguments: Self.clcdBoards) func rotationOfAFixedLCD(board: Board) async throws {
+            try await rotationBody(board)
         }
+        static let clcdBoards = Board.allCases.filter { $0.soc != .s5l8930 }
 
         /// View ▸ Free-Form Screen (issue #21): the sizes each board's panel= takes, the LCD at one point per guest pixel
         /// for a non-native panel and its touch mapping, dragging the LCD's edge (live stretch, snapped readout, clamps,
@@ -208,11 +146,14 @@ extension SharedState {
                 display.mouseDown(with: down)
                 display.mouseUp(with: up)
             }
-            func touchLands(_ p: CGPoint) {
+            /// A click at `p` of the LCD as seen touches the panel at `p` turned back by the device's quarter turns.
+            func touchLands(_ p: CGPoint, quarters: Int = 0) {
                 click(p)
+                var want = p
+                for _ in 0..<quarters { want = CGPoint(x: want.y, y: 1 - want.x) }
                 check(
-                    !touches.isEmpty && abs(touches[0].0 - p.x) < 0.01 && abs(touches[0].1 - p.y) < 0.01,
-                    "touch at \(p) sent \(touches)"
+                    !touches.isEmpty && abs(touches[0].0 - want.x) < 0.01 && abs(touches[0].1 - want.y) < 0.01,
+                    "touch at \(p) sent \(touches), want \(want)"
                 )
             }
             for p in [CGPoint(x: 0.2, y: 0.3), CGPoint(x: 0.8, y: 0.7)] { touchLands(p) }
@@ -222,17 +163,14 @@ extension SharedState {
                 "a click off the LCD touched or tilted: \(touches) \(e.attitude)"
             )
 
-            // Landscape: the surface arrives turned; the LCD stays centered and fills the pane's width.
+            // Landscape: the panel, scanned out as is, turns with the device; the LCD stays centered and fills the
+            // pane's width, and a click touches the panel where it shows.
             e.rotationDegrees = 90
-            frameWidth = 480
-            frameHeight = 320
             display.perform(NSSelectorFromString("step"))
             try await settle()
             fills(true)
-            for p in [CGPoint(x: 0.2, y: 0.3), CGPoint(x: 0.8, y: 0.7)] { touchLands(p) }
+            for p in [CGPoint(x: 0.2, y: 0.3), CGPoint(x: 0.8, y: 0.7)] { touchLands(p, quarters: 1) }
             e.rotationDegrees = 0
-            frameWidth = 320
-            frameHeight = 480
 
             // Zoom: 2 points per guest pixel, the LCD alone sized by it; Pixel Accurate is one display pixel each, crisp.
             display.zoom = .points(2)
@@ -347,7 +285,7 @@ extension SharedState {
             padWindow.contentView = nil
         }
 
-        func rotationBody() async throws {
+        func rotationBody(_ profile: Board) async throws {
             for key in [DisplayView.bezelKey, DisplayView.showsBezelKey] {
                 UserDefaults.standard.removeObject(forKey: key)
             }
@@ -357,7 +295,6 @@ extension SharedState {
                 }
             }
             DisplayView.bezel = .flat
-            let profile = Board.n90
             frameWidth = Int32(profile.screenPixels.width)
             frameHeight = Int32(profile.screenPixels.height)
             let display = DisplayView(frame: NSRect(x: 0, y: 0, width: 800, height: 800), profile: profile)
@@ -377,9 +314,9 @@ extension SharedState {
                     && ($0.contentsGravity == .resize || $0.contentsGravity == .center)
             }!
             func box() -> CGRect { lcd.convert(lcd.bounds, to: display.layer!) }
-            #expect(box().height > box().width, "not portrait at rest: \(box())")
-            // The A4's display pipe scans its portrait panel out as is (s5l8930_display.c): the frame stays 640x960. The
-            // app hears of the orientation with nothing new on screen.
+            #expect(box().height > box().width, "\(profile) not portrait at rest: \(box())")
+            // The panel scans out as is (s5l8930_display.c, ipod_touch_lcd.c): the frame keeps its size. The app hears
+            // of the orientation with nothing new on screen.
             frozen = true
             e.rotationDegrees = 90
             for _ in 0..<4 { try await tick() }
@@ -513,11 +450,12 @@ extension SharedState {
                 )!
             }
             /// A click at fraction `f` of the LCD as seen is a touch at that point of the panel as it scans: the iPod's
-            /// surface is pre-rotated (as seen); the iPad's landscape panel stands a quarter turn clockwise, (f.y, 1 - f.x).
-            func touchLands(_ d: DisplayView, _ f: CGPoint, ipad: Bool = false) {
+            /// panel scans upright, as seen at rest; a panel standing a quarter turn clockwise (the iPad's landscape one,
+            /// an iPod's turned to landscape) at (f.y, 1 - f.x).
+            func touchLands(_ d: DisplayView, _ f: CGPoint, quarterTurned: Bool = false) {
                 let b = box(d)
                 let p = CGPoint(x: b.minX + f.x * b.width, y: b.minY + f.y * b.height)
-                let want = ipad ? CGPoint(x: f.y, y: 1 - f.x) : f
+                let want = quarterTurned ? CGPoint(x: f.y, y: 1 - f.x) : f
                 touches.removeAll()
                 d.mouseDown(with: event(.leftMouseDown, d, p))
                 d.mouseUp(with: event(.leftMouseUp, d, p))
@@ -703,16 +641,15 @@ extension SharedState {
             check(d.freeFormTarget == size(320, 480) && touches.isEmpty, "double-click: \(touches)")
             w.contentView = nil
 
-            // Landscape: the screen's sides swap, so its on-screen width is the panel's rows.
+            // Landscape: the screen's sides swap, so its on-screen width is the panel's rows; the scan stays as it is.
             requests.removeAll()
             (d, e, w) = try await make(pod, panel: size(320, 504))
             e.rotationDegrees = 90
-            frameWidth = 504
-            frameHeight = 320
+            (frameWidth, frameHeight) = (320, 504)
             d.perform(NSSelectorFromString("step"))
             try await settle(d)
             check(near(box(d), 504, 320), "landscape \(box(d))")
-            touchLands(d, CGPoint(x: 0.25, y: 0.75))
+            touchLands(d, CGPoint(x: 0.25, y: 0.75), quarterTurned: true)
             b = box(d)
             drag(d, from: CGPoint(x: b.minX - 4, y: b.midY), by: CGVector(dx: -3, dy: 0))
             check(d.freeFormReadout == "507 × 320", "landscape readout \(d.freeFormReadout ?? "none")")
@@ -743,7 +680,7 @@ extension SharedState {
             frameHeight = 768
             (d, e, w) = try await make(pad, panel: size(768, 1280))
             check(near(box(d), 768, 1280), "iPad 768x1280 \(box(d))")
-            for f in [CGPoint(x: 0.1, y: 0.2), CGPoint(x: 0.9, y: 0.6)] { touchLands(d, f, ipad: true) }
+            for f in [CGPoint(x: 0.1, y: 0.2), CGPoint(x: 0.9, y: 0.6)] { touchLands(d, f, quarterTurned: true) }
             b = box(d)
             drag(d, from: CGPoint(x: b.midX, y: b.minY - 4), by: CGVector(dx: 0, dy: 20), release: false)
             check(d.freeFormReadout == "768 × 1264", "iPad shrink \(d.freeFormReadout ?? "none")")
@@ -791,8 +728,7 @@ extension SharedState {
                 let upright = size(320, 448)
                 let seen = sideways ? size(448, 320) : upright
                 for zoom in [ZoomMode.points(1), .points(2), .fit] {
-                    frameWidth = Int32(sideways ? 448 : 320)
-                    frameHeight = Int32(sideways ? 320 : 448)
+                    (frameWidth, frameHeight) = (320, 448)  // the panel scans out as is, whatever way it is held
                     (d, e, w) = try await make(pod, panel: upright, rotation: rotation)
                     for z in [ZoomMode.points(2), .fit, .points(1), zoom] {
                         d.zoom = z
@@ -840,7 +776,6 @@ extension SharedState {
                 for _ in 0..<((quarters % 4 + 4) % 4) { q = CGPoint(x: q.y, y: 1 - q.x) }
                 return q
             }
-            func rotCW(_ p: CGPoint, _ quarters: Int) -> CGPoint { rotCCW(p, 4 - (quarters % 4 + 4) % 4) }
             for (profile, scans) in [
                 (pod, [size(400, 400), size(320, 504), size(504, 320)]),
                 (pad, [size(1024, 1024), size(1104, 1024), size(1024, 1104)]),
@@ -851,11 +786,9 @@ extension SharedState {
                     for rotation in [0, 90, 180, 270] {
                         let quarters = rotation / 90
                         let sideways = quarters % 2 == 1
-                        // What the guest publishes: the scan; the iPod's LCD model turns it with the device.
-                        let published =
-                            profile.surfaceFollowsRotation && sideways ? size(scan.height, scan.width) : scan
-                        frameWidth = Int32(published.width)
-                        frameHeight = Int32(published.height)
+                        // What the guest publishes: the scan, whatever way the device is held.
+                        frameWidth = Int32(scan.width)
+                        frameHeight = Int32(scan.height)
                         (d, e, w) = try await make(profile, panel: nil, scan: scan, rotation: rotation)
                         let seen = sideways ? size(upright.height, upright.width) : upright
                         let what = "\(profile) scan \(Int(scan.width))x\(Int(scan.height)) at \(rotation)°"
@@ -870,7 +803,7 @@ extension SharedState {
                             let at = CGPoint(x: b.minX + f.x * b.width, y: b.minY + f.y * b.height)
                             let u = rotCCW(f, quarters)
                             let g = turned ? rotCCW(u, 1) : u
-                            let want = profile.surfaceFollowsRotation ? rotCW(g, quarters) : g
+                            let want = g
                             touches.removeAll()
                             d.mouseDown(with: event(.leftMouseDown, d, at))
                             d.mouseUp(with: event(.leftMouseUp, d, at))

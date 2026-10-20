@@ -237,9 +237,8 @@ extension DisplayView {
     }
 
     /// A movement in view points from the cursor as a movement over the panel: both ends mapped as a press is, so the
-    /// finger goes the way the fingers did on the screen as shown, at its scale, whatever turns the device, the surface
-    /// or the guest's UI, on the flat shell or the 3D model. (A separate angle formula got the iPods' pre-rotated
-    /// surface a quarter or half turn wrong in landscape.)
+    /// finger goes the way the fingers did on the screen as shown, at its scale, whatever turns the device or the
+    /// guest's UI, on the flat shell or the 3D model.
     private func panelDelta(_ event: NSEvent, _ d: CGVector) -> CGVector? {
         let v = convert(event.locationInWindow, from: nil)
         guard let a = panelPoint(windowPoint: event.locationInWindow),

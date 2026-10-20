@@ -32,6 +32,8 @@ final class MainQueueLink: HelperLink {
     let board: Board
     let scan: CGSize
     var rotation: DeviceRotation!
+    /// The interface watch's last reading (`follow`).
+    var lastInterface: Int?
 
     init(link: DeviceLink, board: Board, scan: CGSize, settings: URL) {
         mainLink = MainQueueLink(link)
@@ -40,18 +42,13 @@ final class MainQueueLink: HelperLink {
         rotation = DeviceRotation(
             host: self,
             settings: DeviceSettingsFile(directory: settings),
-            setsAccelerometer: board.orientationSource == .springBoard,  // as EmulatorController
-            pictureFollowsAccelerometer: board.surfaceFollowsRotation
+            setsAccelerometer: board.orientationSource == .springBoard  // as EmulatorController
         )
     }
 
     /// Quarter turns clockwise from the published frame to the window's picture.
     var turns: Int {
-        PanelCapture.quarterTurns(
-            guestTurn: Board.guestTurn(scan: scan),
-            deviceDegrees: rotation.degrees,
-            surfaceFollowsRotation: board.surfaceFollowsRotation
-        )
+        PanelCapture.quarterTurns(guestTurn: Board.guestTurn(scan: scan), deviceDegrees: rotation.degrees)
     }
 
     /// A point on the window's picture (0...1, top-left origin) as the touch the app sends: over the surface as
@@ -80,6 +77,23 @@ final class MainQueueLink: HelperLink {
         CGImageDestinationAddImage(output, shown, nil)
         return CGImageDestinationFinalize(output)
     }
+}
+
+/// The angle the guest's interface stands at on a frame as published, in DeviceRotation's degrees (0, 90, 180, 270):
+/// the clockwise turn, from the panel stood upright, that puts the status bar's clock centered at the top. Vision reads
+/// text at any angle, so the clock's place, not its legibility, says which way up the interface is. nil: no clock.
+func interfaceDegrees(frame: URL, scan: CGSize) -> Int? {
+    guard let input = CGImageSourceCreateWithURL(frame as CFURL, nil),
+        let image = CGImageSourceCreateImageAtIndex(input, 0, nil)
+    else { return nil }
+    let upright = PanelCapture.quarterTurns(guestTurn: Board.guestTurn(scan: scan), deviceDegrees: 0)
+    for quarter in 0..<4 {
+        guard let turned = PanelCapture.rotated(image, clockwiseQuarterTurns: (upright + quarter) % 4),
+            let clock = TextReader.read(turned).first(where: { $0.text.contains(#/\d{1,2}:\d{2}/#) })
+        else { continue }
+        if clock.y < 0.08 && abs(clock.x - 0.5) < 0.2 { return quarter * 90 }
+    }
+    return nil
 }
 
 /// Where Vision reads `word` on an image (top-left origin, 0...1): the first text equal to it, or nil.

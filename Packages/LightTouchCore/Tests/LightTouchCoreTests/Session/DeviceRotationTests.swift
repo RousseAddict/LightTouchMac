@@ -22,17 +22,11 @@ struct DeviceRotationTests {
         }
     }
 
-    /// The iPod 2G steps its machine; the iPad sets its accelerometer and its picture stays put; `clcd` sets the
-    /// accelerometer and the LCD turns its picture with it (the iPhone 3GS, the iPod touch 3G).
-    func rotation(_ directory: URL, iPad: Bool = false, clcd: Bool = false) -> (DeviceRotation, Host) {
+    /// The iPod 2G steps its machine; the iPad (and every other board without the guest agent) sets its accelerometer.
+    func rotation(_ directory: URL, iPad: Bool = false) -> (DeviceRotation, Host) {
         let host = Host()
         return (
-            DeviceRotation(
-                host: host,
-                settings: DeviceSettingsFile(directory: directory),
-                setsAccelerometer: iPad || clcd,
-                pictureFollowsAccelerometer: !iPad
-            ),
+            DeviceRotation(host: host, settings: DeviceSettingsFile(directory: directory), setsAccelerometer: iPad),
             host
         )
     }
@@ -184,18 +178,27 @@ struct DeviceRotationTests {
         }
     }
 
-    /// Where the LCD turns its picture with the accelerometer, the shell can't stand apart from it: an app's turn
-    /// still moves both.
-    @Test func anAppsTurnMovesTheAccelerometerWhereThePictureFollowsIt() throws {
+    /// The same on a machine stepped a quarter turn at a time (the iPod 2G, its guest agent reporting SpringBoard's
+    /// angle): an app's turn moves the shell alone, and the user's next turn steps the machine from how it is held.
+    @Test func anAppsTurnOnASteppedMachineLeavesTheDeviceAsItIsHeld() throws {
         try withTemporaryDirectory { directory in
-            let (rotation, host) = rotation(directory, clcd: true)
-            defer { withExtendedLifetime(host) {} }
-            let last = rotation.interfaceRead(1, last: nil)
-            _ = rotation.interfaceRead(4, last: last)
-            #expect(rotation.degrees == 90 && rotation.heldDegrees == 90 && host.link.requests == [.orientation(4)])
-            rotation.guestOrientationChanged(to: 0)
-            rotation.guestOrientationChanged(to: 90)
+            let (rotation, host) = rotation(directory)
+            rotation.rotate(clockwise: false)
             #expect(rotation.degrees == 270 && rotation.heldDegrees == 270)
+            rotation.guestOrientationChanged(to: 90)
+            rotation.guestOrientationChanged(to: 0)
+            #expect(rotation.degrees == 0, "the portrait-only app turns the shell")
+            #expect(rotation.heldDegrees == 270 && host.link.commands == [.rotate(clockwise: false)], "not the machine")
+            rotation.guestOrientationChanged(to: 90)
+            #expect(rotation.degrees == 270 && host.link.commands.count == 1, "the app quit: back to landscape")
+
+            rotation.guestOrientationChanged(to: 0)
+            rotation.rotate(clockwise: true)
+            #expect(
+                rotation.degrees == 90 && rotation.heldDegrees == 90
+                    && host.link.commands.suffix(2) == [.rotate(clockwise: true), .rotate(clockwise: true)],
+                "a turn from the app's portrait to 90 steps the machine there from 270, the short way"
+            )
         }
     }
 

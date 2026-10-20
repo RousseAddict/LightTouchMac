@@ -23,10 +23,9 @@ final class DeviceModelView: NSView {
     /// The upright screen's width in shell pixels: pose and physical scale
     /// size the model's display to what the flat shell's cutout would be.
     private let screenWidth: Float
-    /// A panel whose surface doesn't follow the device (the A4's: the iPad, the
-    /// iPod touch 4) keeps its surface mapping when the device turns; the CLCD
-    /// iPods' pre-rotated surface follows it. Either way the mapping is one of the four below.
-    private let fixedSurfaceRotation: Int?
+    /// The screen texture's fixed turn on the panel: every board's panel scans out as is, whatever way the device is
+    /// held, so the mapping never changes with it (one of the four below; the iPad's sideways panel's is 270).
+    private let surfaceRotation: Int
     enum Control: Equatable { case sleepWake, volumeUp, volumeDown }
     /// Side controls by node name (revision 7 names, then N72's own); nil is a volume rocker (by half).
     private var controls: [(entity: Entity, control: Control?)] = []
@@ -41,8 +40,6 @@ final class DeviceModelView: NSView {
         didSet { if oldValue != drawsNearest { updateScreenMaterial() } }
     }
     var viewportCenter: CGPoint? { didSet { updateViewport() } }
-    /// The device rotation the screen's texture was drawn for (updateFrame), which its mapping follows, not the pose's.
-    private var frameDegrees = 0
     private var screenOff = false
     private var shakeStarted: CFTimeInterval?
     private var trickStarted: CFTimeInterval?
@@ -77,11 +74,8 @@ final class DeviceModelView: NSView {
         self.home = home
         displayBounds = display.visualBounds(relativeTo: display)
         screenWidth = Float(profile.screenCutout.width)
-        // The clockwise panel quarter-turn is the iPod surface's 270° mapping.
-        fixedSurfaceRotation =
-            profile.surfaceFollowsRotation
-            ? nil
-            : (360 - Int((profile.panelRotation * 180 / .pi).rounded())) % 360
+        // The clockwise panel quarter-turn is a 270° mapping.
+        surfaceRotation = (360 - Int((profile.panelRotation * 180 / .pi).rounded())) % 360
         // N81 (revision 7) has two volume buttons where the others have one rocker.
         let named: [([String], Control?)] = [
             (["SleepWakeButton", "Sleep_wake___black_fitted_button"], .sleepWake),
@@ -308,7 +302,7 @@ final class DeviceModelView: NSView {
         updateScreenMaterial()
         advanceAnimations()
     }
-    /// The screen texture's turn on the panel: the frame's own rotation, or the panel's fixed one.
+    /// The screen texture's turn on the panel.
     private func mapSurface() {
         let surface = surfaceRotation
         let offset: SIMD2<Float>
@@ -379,15 +373,9 @@ final class DeviceModelView: NSView {
             Task { @MainActor in request.finish(false) }
         }
     }
-    /// A new screen picture, drawn for the device turned `rotation` (DisplayView.frameDegrees): its mapping changes
-    /// with it, so a picture never shows in another one's turn.
-    func updateFrame(_ image: CGImage, rotation: Int) {
+    /// A new screen picture.
+    func updateFrame(_ image: CGImage) {
         noteChange()
-        if rotation != frameDegrees {
-            frameDegrees = rotation
-            mapSurface()
-            if screenTexture != nil { updateScreenMaterial() }
-        }
         do {
             // replace() updates the texture the material already holds; reassigning
             // the material every frame makes RealityKit reprocess the model.
@@ -425,7 +413,6 @@ final class DeviceModelView: NSView {
         screenOff = off
         updateScreenMaterial()
     }
-    private var surfaceRotation: Int { fixedSurfaceRotation ?? frameDegrees }
     private func surfacePoint(_ p: CGPoint) -> CGPoint {
         switch surfaceRotation {
         case 90: return CGPoint(x: 1 - p.y, y: p.x)

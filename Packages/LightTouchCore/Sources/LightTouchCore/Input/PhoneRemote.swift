@@ -16,10 +16,9 @@ public enum PhoneRemote {
     }
 
     /// Clockwise quarter-turns from the published surface to the panel as it sits in the upright device: the scan to
-    /// upright, less the device's own turn where the surface follows it. PanelCapture's window turns, without the shell's.
-    public static func quarterTurns(guestTurn: CGFloat, deviceDegrees: Int, surfaceFollowsRotation: Bool) -> Int {
-        let device = surfaceFollowsRotation ? deviceDegrees / 90 : 0
-        return ((Int((guestTurn * 2 / .pi).rounded()) - device) % 4 + 4) % 4
+    /// upright. PanelCapture's window turns, without the shell's.
+    public static func quarterTurns(guestTurn: CGFloat) -> Int {
+        (Int((guestTurn * 2 / .pi).rounded()) % 4 + 4) % 4
     }
 
     /// A point on the phone's picture (normalized, y down) on the surface it was turned from by `turns`.

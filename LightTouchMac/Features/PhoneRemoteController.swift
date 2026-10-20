@@ -199,11 +199,7 @@ import SystemConfiguration
             token == PhoneRemoteRequest.token
         else { return stop() }
         guard let client, !sending, let screen, let surface = screen.currentFrame() else { return }
-        turns = PhoneRemote.quarterTurns(
-            guestTurn: screen.guestTurn,
-            deviceDegrees: emulator.rotationDegrees,
-            surfaceFollowsRotation: emulator.profile.surfaceFollowsRotation
-        )
+        turns = PhoneRemote.quarterTurns(guestTurn: screen.guestTurn)
         guard sent?.serial != screen.shownSerial || sent?.turns != turns,
             let image = DisplayView.image(surface, colorSpace: screen.colorSpace)
         else { return }

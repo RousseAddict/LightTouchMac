@@ -113,25 +113,14 @@ extension DisplayView {
     }
 
     /// The content layer's bounds and turn for the frame it shows. currentFrame() calls it in the transaction that
-    /// puts a frame up, as layout does, so a frame never shows in another frame's geometry.
-    ///
-    /// The CLCD boards' surface arrives pre-rotated (ipod_touch_lcd.c turns the picture the same way the user turned
-    /// the device), so at rest the content sits at -angle inside the shell: net rotation zero, surface shown as
-    /// published. The angle is the one the shown frame was drawn for (frameDegrees), not the device's: the LCD turns
-    /// its picture some frames after the app turns the shell (a quarter turn also waits for the helper's new ring),
-    /// and until then the old picture rides the shell's swing rigidly, as a turning device's screen does, instead of
-    /// being stretched into the new pose's bounds. The new frame drawn at the new pose is pixel-identical to the old
-    /// frame at the old pose, so its arrival doesn't jump. Applied WITHOUT animation. Bounds, never frame: setting
-    /// .frame on a transformed layer is undefined (it was the squished-screen bug).
+    /// puts a frame up, as layout does, so a frame never shows in another frame's geometry. Every board's panel scans
+    /// out as is, whatever way the device is held, and turns with the shell, as on hardware; the guest turns its own
+    /// UI inside it. Applied WITHOUT animation. Bounds, never frame: setting .frame on a transformed layer is undefined
+    /// (it was the squished-screen bug).
     func layoutContent() {
-        // The scan stands a quarter-turn from upright when the guest turned its
-        // UI into it (guestTurn). A panel fixed to the shell (the iPad's) keeps
-        // that; the iPod's pre-rotated surface also swaps with the device.
-        let turned = guestTurn != 0
+        // The scan stands a quarter-turn from upright when the guest turned its UI into it (guestTurn: the iPad's).
         let cutoutSize =
-            (profile.surfaceFollowsRotation ? turned != (frameDegrees % 180 != 0) : turned)
-            ? CGSize(width: screenCutout.height, height: screenCutout.width)
-            : screenCutout.size
+            guestTurn != 0 ? CGSize(width: screenCutout.height, height: screenCutout.width) : screenCutout.size
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         contentLayer.bounds = CGRect(origin: .zero, size: cutoutSize)
@@ -140,13 +129,8 @@ extension DisplayView {
         contentLayer.masksToBounds = holdsOldFrame
         // Counter only the guest's quarter-turn, never the temporary tilt.
         // A layout during a gesture must not leave the panel crooked after release.
-        if !profile.surfaceFollowsRotation {
-            // The iPad's guest turns its own UI inside a panel that turns with
-            // the shell: only the scan-to-upright quarter-turn applies.
-            contentLayer.transform = CATransform3DMakeRotation(guestTurn, 0, 0, 1)
-        } else {
-            contentLayer.transform = CATransform3DMakeRotation(guestTurn - Self.layerAngle(frameDegrees), 0, 0, 1)
-        }
+        // The panel turns with the shell: only the scan-to-upright quarter-turn applies.
+        contentLayer.transform = CATransform3DMakeRotation(guestTurn, 0, 0, 1)
         CATransaction.commit()
     }
 

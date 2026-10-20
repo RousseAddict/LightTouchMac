@@ -46,12 +46,10 @@ struct PhoneRemoteTests {
         #expect(zip(mouse, phone).allSatisfy { abs($0 - $1) < 1e-9 }, "mouse \(mouse), phone \(phone)")
     }
 
-    @Test func turnsFollowTheSurface() {
-        // The iPad's landscape scan stands a quarter turn from upright; its surface never follows the device.
-        #expect(PhoneRemote.quarterTurns(guestTurn: .pi / 2, deviceDegrees: 90, surfaceFollowsRotation: false) == 1)
-        // The CLCD boards publish the picture turned with the device: the phone turns it back.
-        #expect(PhoneRemote.quarterTurns(guestTurn: 0, deviceDegrees: 90, surfaceFollowsRotation: true) == 3)
-        #expect(PhoneRemote.quarterTurns(guestTurn: 0, deviceDegrees: 0, surfaceFollowsRotation: true) == 0)
+    @Test func turnsFollowTheScan() {
+        // The iPad's landscape scan stands a quarter turn from upright; no board's surface follows the device.
+        #expect(PhoneRemote.quarterTurns(guestTurn: .pi / 2) == 1)
+        #expect(PhoneRemote.quarterTurns(guestTurn: 0) == 0)
     }
 
     @Test(arguments: 0..<4) func touchesLandWhereThePictureCameFrom(turns: Int) throws {

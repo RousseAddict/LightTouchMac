@@ -488,11 +488,10 @@ extension SharedState {
             close(emulator.attitude.angle, 0, "twist ended")
 
             // Layouts during repeated tilt: the content counters only the guest's quarter turn, never the gesture, so after
-            // release screen and shell are upright together, unpitched, and the flat shell's Home button is back.
+            // release the screen stands turned with the shell at rest, unpitched, and the flat shell's Home button is
+            // back. The LCD's picture keeps its size whatever the turn.
             for rotation in [0, 90, 180, 270] {
                 emulator.rotationDegrees = rotation
-                // The LCD's picture for the turn, which the content's turn follows.
-                (frameWidth, frameHeight) = rotation % 180 == 0 ? (320, 480) : (480, 320)
                 display.perform(NSSelectorFromString("step"))
                 layout()
                 for (right, down) in [(50.0, -25.0), (-75.0, 40.0), (0.0, 0.0), (100.0, 50.0)] {
@@ -506,7 +505,7 @@ extension SharedState {
                     let combined = CATransform3DConcat(lcd.transform, shell.transform)
                     let scale = hypot(combined.m11, combined.m12)
                     #expect(
-                        abs(combined.m11 / scale - 1) < 1e-5 && abs(combined.m12 / scale) < 1e-5,
+                        abs(remainder(atan2(combined.m12, combined.m11) - rest(rotation), 2 * .pi)) < 1e-5 && scale > 0,
                         "screen crooked at \(rotation): \(combined)"
                     )
                     #expect(abs(combined.m13) < 1e-5 && abs(combined.m23) < 1e-5, "pitch left over at \(rotation)")
@@ -520,8 +519,8 @@ extension SharedState {
         }
 
         /// A two-finger scroll over the panel moves the guest's finger the way a pointer drag the same way does, on every
-        /// board, in every orientation, with the guest's UI turned or not (issue #70: on the iPods' pre-rotated surface,
-        /// landscape swipes went upright and inverted).
+        /// board, in every orientation, with the guest's UI turned or not (issue #70: on the iPods' surface, then turned by
+        /// their LCD with the device, landscape swipes went upright and inverted).
         @Test(arguments: Board.allCases) func scrollFollowsPointer(board: Board) async throws {
             for key in [DisplayView.bezelKey, DisplayView.showsBezelKey] {
                 UserDefaults.standard.removeObject(forKey: key)

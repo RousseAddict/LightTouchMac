@@ -46,13 +46,9 @@ struct PanelCaptureTests {
 
     @Test func turnsCombineScanAndDeviceRotation() {
         // The iPad's panel scans a quarter counter-clockwise of upright (panelRotation -pi/2).
-        #expect(PanelCapture.quarterTurns(guestTurn: -.pi / 2, deviceDegrees: 0, surfaceFollowsRotation: false) == 3)
-        #expect(PanelCapture.quarterTurns(guestTurn: -.pi / 2, deviceDegrees: 90, surfaceFollowsRotation: false) == 0)
-        #expect(PanelCapture.quarterTurns(guestTurn: 0, deviceDegrees: 270, surfaceFollowsRotation: false) == 3)
-        #expect(
-            PanelCapture.quarterTurns(guestTurn: 0, deviceDegrees: 270, surfaceFollowsRotation: true) == 0,
-            "a surface that follows the device"
-        )
-        #expect(PanelCapture.quarterTurns(guestTurn: .pi, deviceDegrees: 180, surfaceFollowsRotation: false) == 0)
+        #expect(PanelCapture.quarterTurns(guestTurn: -.pi / 2, deviceDegrees: 0) == 3)
+        #expect(PanelCapture.quarterTurns(guestTurn: -.pi / 2, deviceDegrees: 90) == 0)
+        #expect(PanelCapture.quarterTurns(guestTurn: 0, deviceDegrees: 270) == 3, "an iPod held landscape")
+        #expect(PanelCapture.quarterTurns(guestTurn: .pi, deviceDegrees: 180) == 0)
     }
 }

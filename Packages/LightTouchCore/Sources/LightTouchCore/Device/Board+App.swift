@@ -54,8 +54,9 @@ nonisolated extension Board {
     public var screenPixels: CGSize { hardware?.screenPixels ?? CGSize(width: 320, height: 480) }
 
     /// Quarter-turn from the scanned-out panel to the upright (portrait, home
-    /// button down) device, clockwise-positive in the view's y-down space. The
-    /// iPod LCD pre-rotates its surface; the iPad's panel is landscape-native
+    /// button down) device, clockwise-positive in the view's y-down space. Every
+    /// panel scans out as is, whatever way the device is held, and the guest
+    /// turns its UI inside it. The iPad's panel is landscape-native
     /// and portrait SpringBoard (interface orientation 1) arrives with its
     /// status bar along the panel's left edge, so it is turned a quarter
     /// clockwise to stand upright.
@@ -67,11 +68,6 @@ nonisolated extension Board {
     /// so a square or taller panel gets the UI as scanned (docs: qemu-ios-files ipad1/7B500 userland-gl-display
     /// §1.4). The host mirrors that one rule; it gives the shipped iPad π/2 and the iPods 0.
     public static func guestTurn(scan: CGSize) -> CGFloat { scan.width > scan.height ? .pi / 2 : 0 }
-
-    /// The CLCD boards' LCD model turns the picture it publishes with the device (ipod_touch_lcd.c). The A4's
-    /// display pipe (s5l8930_display.c: the iPad, iPod touch 4, iPhone 4) scans its panel out as is, whatever way
-    /// the device is held, and the guest turns its UI inside it.
-    public var surfaceFollowsRotation: Bool { soc != .s5l8930 }
 
     /// The screen as it sits in the upright shell.
     public var uprightScreenPixels: CGSize {
