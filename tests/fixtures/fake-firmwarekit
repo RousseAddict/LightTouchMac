@@ -50,7 +50,9 @@ if [ "$(field board)" = n72ap ]; then   # N72Recipe: the direct iBoot, NOR and K
 else
     printf KBOOT > "$out/kboot.bin"
 fi
-if [ "$(field recipe.options.writable_nor)" = true ]; then
+# K48Board's data protection: recipe.options.writable_nor, else 4.0 on (FirmwareEntry.dataProtection).
+nor="$(field recipe.options.writable_nor)" major="$(field version)"
+if [ "$(field board)" != n72ap ] && { [ "$nor" = true ] || { [ -z "$nor" ] && [ "${major%%.*}" -ge 4 ]; }; }; then
     head -c 4096 /dev/zero | LC_ALL=C tr '\0' '\377' > "$out/nor.bin"
 fi
 chmod 444 "$out/nand/store"

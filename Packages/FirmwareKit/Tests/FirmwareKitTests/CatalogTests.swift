@@ -25,29 +25,85 @@ struct CatalogTests {
         }
     }
 
-    /// Every iPod touch 4G and iPhone 4 row composites through the GL bridge: with ca_ogl off CoreAnimation draws in
-    /// software, which on these Retina panels scrolls at a fraction of the frame rate (6.0 beta 1 shipped that way).
-    @Test func retinaRowsCompositeThroughTheGLBridge() throws {
+    /// Every row with a data partition (the k48 recipe's boards) composites through the GL bridge: with ca_ogl off
+    /// CoreAnimation draws in software, which on the Retina panels scrolls at a fraction of the frame rate (6.0 beta 1
+    /// shipped that way), and the iPhone 3GS's 3.0 and 3.0.1 had it off untried.
+    @Test func everyRowCompositesThroughTheGLBridge() throws {
         struct Catalog: Decodable { var entries: [FirmwareEntry] }
         let entries = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: Oracle.catalog)).entries
-        let retina = entries.filter { ["n81ap", "n90ap"].contains($0.board) }
-        #expect(retina.count > 100)
-        let software = retina.filter { $0.recipe?.options["ca_ogl"] != true }.map(\.id)
+        let rows = entries.filter { $0.recipe?.dataSize == "partition" }
+        #expect(rows.count > 250)
+        let software = rows.filter { $0.recipe?.options["ca_ogl"] != true }.map(\.id)
         #expect(software.isEmpty, "\(software)")
     }
 
-    /// Every 3.0 and 3.1.x row with a data partition makes it unjournaled: those builds' mount_hfs refuses the
-    /// journaled one the Mac makes (EINVAL), and /private/var stays on the system volume, without the language,
-    /// region and keyboards preparation seeded (issue 97: n88ap 3.1 to 3.1.3).
-    @Test func iPhoneOS31DataVolumesAreUnjournaled() throws {
+    /// Every row of a recipe has the recipe's options: the per-row flags left (appsync, web_proxy, ca_ogl, gles_shim,
+    /// bluetooth) are facts of the recipe's board and preparation, so a row copied from a sibling can't quietly differ.
+    /// The exceptions, each with its reason:
+    static let optionExceptions: [String: [String: Bool]] = [
+        // BTServer on: the N88 machine answers the BCM4325's HCI, and 3.1.3's SpringBoard waited 5 s on each
+        // BTSessionAttach without it. The 4.x-6.x rows were never tried with it.
+        "n88ap-7A341": ["bluetooth": true], "n88ap-7A400": ["bluetooth": true], "n88ap-7C97d": ["bluetooth": true],
+        "n88ap-7C106c": ["bluetooth": true], "n88ap-7C116a": ["bluetooth": true], "n88ap-7C144": ["bluetooth": true],
+        "n88ap-7D11": ["bluetooth": true], "n88ap-7E18": ["bluetooth": true],
+    ]
+    @Test func rowsOfARecipeShareItsOptions() throws {
         struct Catalog: Decodable { var entries: [FirmwareEntry] }
         let entries = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: Oracle.catalog)).entries
-        let rows = entries.filter {
-            ($0.version.hasPrefix("3.0") || $0.version.hasPrefix("3.1")) && $0.recipe?.dataSize == "partition"
+        var recipes: [String: [String: Bool]] = [:]
+        var differ: [String] = []
+        for e in entries where Self.optionExceptions[e.id] == nil {
+            let name = try #require(e.recipe?.name)
+            recipes[name] = recipes[name] ?? e.recipe?.options
         }
-        #expect(rows.count >= 12)
-        let journaled = rows.filter { $0.recipe?.options["data_journal"] != false }.map(\.id)
-        #expect(journaled.isEmpty, "\(journaled)")
+        for e in entries {
+            let excepted = Self.optionExceptions[e.id] ?? [:]
+            for (k, v) in excepted {
+                #expect(e.recipe?.options[k] == v, "\(e.id): the exception \(k) \(v) no longer holds")
+            }
+            let mine = (e.recipe?.options ?? [:]).filter { excepted[$0.key] == nil }
+            let shared = (recipes[e.recipe?.name ?? ""] ?? [:]).filter { excepted[$0.key] == nil }
+            if mine != shared { differ.append("\(e.id) \(mine) vs \(shared)") }
+        }
+        #expect(differ.isEmpty, "\(differ)")
+        #expect(recipes.count == 8)
+    }
+
+    /// What a release's iOS decides is decided by its version, as the boards that prepare the rows read it, never by a
+    /// row's flag (which a new or copied row can get wrong; issue 97: six n88ap 3.1.x rows lacked data_journal false,
+    /// mount_hfs refused their journaled data volume and /private/var stayed on the system volume for months). Every
+    /// 3.0 and 3.1.x data volume is unjournaled, every later one journaled; data protection (its keybag one-shot and
+    /// writable NOR) from 4.0 on, as the iPod touch 2G's and every k48-recipe board's; no row restates either.
+    @Test func versionRulesDecideEveryRow() throws {
+        struct Catalog: Decodable { var entries: [FirmwareEntry] }
+        let entries = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: Oracle.catalog)).entries
+        let restated = entries.filter { e in
+            ["data_journal", "writable_nor", "data_protection"].contains { e.recipe?.options[$0] != nil }
+        }
+        #expect(restated.isEmpty, "\(restated.map(\.id))")
+        var unjournaled: [String] = []
+        var judged = 0
+        try Oracle.withTemp { dir in
+            for e in entries {
+                let recipe = try #require(e.recipe)
+                let o = Preparer.Options(entry: e, ipsw: dir, out: dir, helper: nil, guestTools: dir)
+                let protected = !(e.version.hasPrefix("2.") || e.version.hasPrefix("3."))
+                if recipe.name == "n72" {
+                    #expect(try N72Board(o).dataProtection == protected, "\(e.id)")
+                    judged += 1
+                } else if recipe.dataSize == "partition" {
+                    #expect(try K48Board(o).dataProtection == protected, "\(e.id)")
+                    let journaled = SystemEdits.Options(recipe: recipe, version: e.version).dataJournal
+                    if !journaled { unjournaled.append(e.id) }
+                    #expect(
+                        journaled == !(e.version.hasPrefix("3.0") || e.version.hasPrefix("3.1")),
+                        "\(e.id) \(e.version): data volume journaled \(journaled)"
+                    )
+                    judged += 1
+                }
+            }
+        }
+        #expect(judged > 250 && unjournaled.count == 12, "\(judged) rows, unjournaled \(unjournaled)")
     }
 
     @Test func sharedWireKeepsMetadataAndFutureTags() throws {

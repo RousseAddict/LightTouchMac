@@ -29,8 +29,7 @@ public enum SystemEdits {
     /// The recipe options SystemEdits reads (FirmwareEntry.Recipe.options), plus bake's switches.
     public struct Options: Sendable, Equatable {
         public var caOGL = true, appsync = false, webProxy = true
-        /// data_journal false: an unjournaled data volume (the iPod touch 3G's 3.1.x mount_hfs refuses the journaled
-        /// one the Mac makes with EINVAL).
+        /// A journaled data volume: data_journal, else FirmwareEntry.journaledData (unjournaled before 3.2).
         public var dataJournal = true
         /// bake --seal: the one-shot clean halt the seal step needs (always on for a prepared device).
         public var seal = true
@@ -60,13 +59,14 @@ public enum SystemEdits {
         /// Mac's enabled ones (seedLanguage).
         public var keyboards: [String]?
         public init() {}
-        public init(recipe: FirmwareEntry.Recipe) {
+        /// `version`: the entry's iOS version, for the options its rules decide (FirmwareEntry.journaledData).
+        public init(recipe: FirmwareEntry.Recipe, version: String) {
             let o = recipe.options
             caOGL = o["ca_ogl"] ?? true
             appsync = o["appsync"] ?? false
             webProxy = o["web_proxy"] ?? true
             glTest = o["gl_test"] ?? false
-            dataJournal = o["data_journal"] ?? true
+            dataJournal = o["data_journal"] ?? FirmwareEntry.journaledData(version: version)
             bluetooth = o["bluetooth"] ?? false
             guestTools = o["guest_tools"] ?? true
             dated = recipe.rtcEpoch != nil

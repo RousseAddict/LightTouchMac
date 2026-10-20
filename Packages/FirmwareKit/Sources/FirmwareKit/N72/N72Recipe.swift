@@ -5,7 +5,8 @@
 // grown to the recipe, fstab, the kernelcache at the path iBoot names, the shared bake (SystemEdits) plus the
 // iPod's own pieces (sound defaults, guest-tools markers), owners patched in the catalog.
 // Store: N72NAND's page directory. There is no seal boot: the legacy FTL store needs no clean halt.
-// options.data_protection (4.x) adds the restore-ramdisk keybag one-shot (N72Keybag) through --helper.
+// Data protection (4.x: FirmwareEntry.dataProtection, or options.data_protection) adds the restore-ramdisk keybag
+// one-shot (N72Keybag) through --helper.
 //
 // The recipe: storage "8g" (model MB528; 16g MB531, 32g MB533; region LL/A), system_mib = the volume
 // (7168 MiB = 1835008 blocks), options gles_shim / appsync / web_proxy / data_protection. --guest-tools
@@ -74,7 +75,7 @@ final class N72Board: Board {
         self.recipe = recipe
         self.model = model
         blocks = recipe.systemMiB * 256
-        dataProtection = recipe.options["data_protection"] == true
+        dataProtection = recipe.options["data_protection"] ?? FirmwareEntry.dataProtection(version: o.entry.version)
     }
 
     func check(_ c: Recipe.Context) throws {

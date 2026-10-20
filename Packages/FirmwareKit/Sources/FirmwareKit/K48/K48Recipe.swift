@@ -32,8 +32,8 @@ final class K48Board: Board {
     let volumesStep = "Building the system and data volumes", keybagStep = "Creating the data-protection keybag"
     var bootStep: String { iboot ? "Writing the identity and boot chain" : "Writing the identity and boot image" }
     /// The seal boot halts through it_seal, a guest helper: none without them (guest_tools off).
-    var needsSeal: Bool { SystemEdits.Options(recipe: recipe).guestTools }
-    let recipe: FirmwareEntry.Recipe, strategy: String, iboot: Bool, dataProtection: Bool
+    var needsSeal: Bool { SystemEdits.Options(recipe: recipe, version: version).guestTools }
+    let recipe: FirmwareEntry.Recipe, version: String, strategy: String, iboot: Bool, dataProtection: Bool
     var helper: URL?, patcher: URL?, mbr: URL?, vols: SystemEdits.Result?
     var gidComponents: [String] = [], ramdisk: String?
     var shipped: [String] {
@@ -117,6 +117,7 @@ final class K48Board: Board {
     init(_ o: Preparer.Options) throws {
         guard let recipe = o.entry.recipe else { throw FirmwareError(.unsupported, "\(o.entry.id): no recipe") }
         self.recipe = recipe
+        version = o.entry.version
         oneshotTimeout = Self.oneshotTimeout(productVersion: o.entry.version)
         board = o.entry.board
         let kbootOnly = o.entry.board != "k48ap"
@@ -131,7 +132,7 @@ final class K48Board: Board {
             )
         }
         iboot = strategy == "iboot"
-        dataProtection = recipe.options["writable_nor"] == true
+        dataProtection = recipe.options["writable_nor"] ?? FirmwareEntry.dataProtection(version: version)
     }
 
     func check(_ c: Recipe.Context) throws {
@@ -284,7 +285,7 @@ final class K48Board: Board {
             }
             kernelcacheImg3 = kernelcacheImg3 ?? raw
         }
-        var options = SystemEdits.Options(recipe: recipe)
+        var options = SystemEdits.Options(recipe: recipe, version: version)
         options.cydia = c.cydia
         options.language = c.o.language
         options.keyboards = c.o.keyboards
@@ -531,8 +532,8 @@ final class K48Board: Board {
             ],
             "identity": ["die_id": dieID],
             "outputs": outputs,
-            "gl_test": SystemEdits.Options(recipe: recipe).glTest,
-            "skip_setup": SystemEdits.Options(recipe: recipe).skipSetup,
+            "gl_test": SystemEdits.Options(recipe: recipe, version: version).glTest,
+            "skip_setup": SystemEdits.Options(recipe: recipe, version: version).skipSetup,
             "machine": machineOptions,
         ]
     }

@@ -99,8 +99,8 @@ enum K48Oracle {
                 )
             )
         }
-        #expect(SystemEdits.Options(recipe: try recipe(#", "rtc_epoch": 1371297600"#)).dated)
-        #expect(!SystemEdits.Options(recipe: try recipe("")).dated)
+        #expect(SystemEdits.Options(recipe: try recipe(#", "rtc_epoch": 1371297600"#), version: "6.0").dated)
+        #expect(!SystemEdits.Options(recipe: try recipe(""), version: "6.0").dated)
     }
 
     /// skip_setup: the keys Setup Assistant itself left on walked devices (the data volume diffed before and after the
@@ -127,7 +127,8 @@ enum K48Oracle {
                         #"{"name": "n90", "version": 1, "storage": "16g", "system_mib": 1664, "data_size": "partition", "boot": "kboot", "options": {\#(o)}}"#
                             .utf8
                     )
-                )
+                ),
+                version: "6.0"
             )
         }
         #expect(try options(#""skip_setup": true"#).skipSetup && !options("").skipSetup, "off unless asked for")
@@ -589,7 +590,7 @@ enum K48Oracle {
                     work: swift,
                     systemBytes: parts[0].count * 4096,
                     dataBytes: Int64(parts[1].count) * 4096,
-                    options: .init(recipe: recipe),
+                    options: .init(recipe: recipe, version: entry.version),
                     helpers: helpers
                 ) { print("  \($0)") }
             }
@@ -671,7 +672,7 @@ enum K48Oracle {
                         work: work,
                         systemBytes: parts[0].count * 4096,
                         dataBytes: Int64(parts[1].count) * 4096,
-                        options: .init(recipe: recipe),
+                        options: .init(recipe: recipe, version: entry.version),
                         helpers: helpers,
                         dataVolumeUUID: [1, 2, 3, 4, 5, 6, 7, 8]
                     ) { _ in }

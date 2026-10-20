@@ -370,7 +370,7 @@ enum FitFixture {
                     work: work,
                     systemBytes: 1_500_000_000,
                     dataBytes: 1 << 30,
-                    options: .init(recipe: recipe),
+                    options: .init(recipe: recipe, version: try Oracle.entry(fw.entryID).version),
                     helpers: helpers,
                     fit: log
                 )
@@ -440,7 +440,7 @@ enum FitFixture {
                 work: dir,
                 systemBytes: parts[0].count * 4096,
                 dataBytes: Int64(parts[1].count) * 4096,
-                options: .init(recipe: recipe),
+                options: .init(recipe: recipe, version: "5.1.1"),
                 helpers: helpers,
                 kernel: kernel,
                 fit: log
@@ -1067,7 +1067,7 @@ enum FitFixture {
                     work: work,
                     systemBytes: 1_500_000_000,
                     dataBytes: 1 << 30,
-                    options: .init(recipe: recipe),
+                    options: .init(recipe: recipe, version: try Oracle.entry(fw.entryID).version),
                     helpers: helpers,
                     fit: log
                 )
