@@ -45,7 +45,9 @@ struct PreparationChangesTests {
         // 2db3a570 (serial 9): the iPhone 3GS's 3.1.x data volume unjournaled
         let journaled = Self.stale(try Self.lock("n88ap-7E18", serial: 8))
         #expect(journaled.count == 1 && journaled.first?.hasPrefix("2db3a570") == true)
-        #expect(Self.stale(try Self.lock("n88ap-8C148", serial: 8)) == [], "4.x isn't a 3.1 row")
+        // f3e5c8d8 (serial 12) keeps the 3GS's 4.x BTServer: that one only
+        let fourX = Self.stale(try Self.lock("n88ap-8C148", serial: 8))
+        #expect(fourX.count == 1 && fourX.first?.hasPrefix("f3e5c8d8") == true, "4.x isn't a 3.1 row")
         #expect(Self.stale(try Self.lock("n18ap-7C146", serial: 8)) == [], "another board")
     }
 
@@ -56,7 +58,7 @@ struct PreparationChangesTests {
         #expect(old.contains { $0.hasPrefix("9c810e4e") })
         let since = Self.stale(try Self.lock("n88ap-8B117", serial: nil, created: "2026-10-06T00:00:00Z"))
         #expect(!since.contains { $0.hasPrefix("8b15001c") } && since.contains { $0.hasPrefix("9c810e4e") })
-        #expect(Self.stale(try Self.lock("n88ap-8B117", serial: nil, created: "not a date")).count == 4)
+        #expect(Self.stale(try Self.lock("n88ap-8B117", serial: nil, created: "not a date")).count == 5)
     }
 
     @Test func aRecipeTheCatalogNoLongerHasIsStale() throws {

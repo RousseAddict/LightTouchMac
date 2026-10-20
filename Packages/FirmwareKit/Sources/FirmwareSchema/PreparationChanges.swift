@@ -229,5 +229,13 @@ nonisolated public enum PreparationChanges {
                 crashes at every boot
                 """
         ),
+        Change(
+            serial: 12,
+            commit: "f3e5c8d8",
+            landed: "2026-10-20T10:37:10Z",
+            boards: ["n88ap", "n18ap"],
+            versions: ["4", "5", "6"],
+            what: "BTServer is disabled, though the machine answers the Bluetooth HCI"
+        ),
     ]
 }
