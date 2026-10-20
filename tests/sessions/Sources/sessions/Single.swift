@@ -455,21 +455,28 @@ func single(_ args: SingleCheck) -> Never {
     // Launchd's job lines reach the serial log on 1.x's two boards only: from 3.0 the guest's crash reports name a
     // crashed process, listed after each boot and before each shutdown (GuestFaults.listsCrashReports).
     let listings = events.find("crashReports", ["device": d])
+    // A report counts if the base didn't carry it, whatever its age (GuestFaults.crashedProcesses(listed:base:)).
     let listed = listings.filter { !$0.has("error") }
+    let baseRead = listed.allSatisfy { $0.has("base") }
     let crashed = Set(
         listed.flatMap {
-            GuestFaults.crashedProcesses(ages: $0["ages"] as? [String: Double] ?? [:], uptime: $0.double("uptime") ?? 0)
+            GuestFaults.crashedProcesses(
+                listed: ($0["ages"] as? [String: Double] ?? [:]).keys,
+                base: $0["base"] as? [String] ?? []
+            )
         }
     ).sorted()
     if GuestFaults.listsCrashReports(version: base.version) {
         r.check(
-            !listed.isEmpty && listed.count == listings.count && crashed.isEmpty,
+            !listed.isEmpty && listed.count == listings.count && baseRead && crashed.isEmpty,
             "\(d): no crash reports from this run's boots"
                 + (listings.isEmpty
                     ? ": never listed"
                     : listed.count < listings.count
                         ? ": " + clip(listings.first { $0.has("error") }?.string("error") ?? "", 160)
-                        : crashed.isEmpty ? "" : ": " + crashed.joined(separator: ", ") + " crashed")
+                        : !baseRead
+                            ? ": the base's own crash reports couldn't be read"
+                            : crashed.isEmpty ? "" : ": " + crashed.joined(separator: ", ") + " crashed")
         )
     }
     let after = SessionJudge.tree(base.url)

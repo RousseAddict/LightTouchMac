@@ -59,6 +59,18 @@ public nonisolated enum GuestFaults {
         Set(ages.compactMap { path, age in age <= uptime + slack ? process(report: path) : nil }).sorted()
     }
 
+    /// The processes a run from a prepared base crashed: every report `listed` (paths as the crash report service
+    /// names them) that wasn't already on the base, whatever its age. `base` is every path on the base's data volume
+    /// (or its one volume). Ages can't tell a run's reports from the base's: a dated beta's clock starts at its pinned
+    /// date every boot. A report is matched by file name, from any CrashReporter folder: at boot crash_mover moves
+    /// /var/logs/CrashReporter's (stackshots, panics) and /var/wireless's into mobile's, where the service lists them.
+    /// ponytail: by name; a run's report under a base report's name (the same second of a pinned clock) is missed.
+    public static func crashedProcesses(listed: some Sequence<String>, base: some Sequence<String>) -> [String] {
+        let name = { (path: String) in (path as NSString).lastPathComponent }
+        let inBase = Set(base.filter { $0.contains("CrashReporter/") }.map(name))
+        return Set(listed.filter { !inBase.contains(name($0)) }.compactMap(process(report:))).sorted()
+    }
+
     /// iOS serves its crash reports over AFC (com.apple.crashreportcopymobile) from 3.0; 1.x and 2.x lockdownd refuse
     /// that service (2.2's says InvalidService) and have CrashReportCopyAgent (com.apple.crashreportcopy), a DeviceLink
     /// protocol, instead. 1.x's two boards, the iPhone 2G and iPod touch 1G, print launchd's "Exited abnormally" on

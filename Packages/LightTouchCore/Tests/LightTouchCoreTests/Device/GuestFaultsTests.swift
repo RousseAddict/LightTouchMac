@@ -89,6 +89,26 @@ struct GuestFaultsTests {
         #expect(!GuestFaults.listsCrashReports(version: "2.2.1") && GuestFaults.listsCrashReports(version: "3.0"))
     }
 
+    /// A run from a prepared base counts every report the base didn't carry, whatever its age, from whichever
+    /// CrashReporter folder the base had it in. An iPhone 4 7.1.2 base's seal boot left a stackshot in
+    /// /var/logs/CrashReporter, which crash_mover moved to mobile's at the run's boot, 166 s old at 75 s up.
+    @Test func aRunCountsOnlyReportsTheBaseDidNotCarry() {
+        let base = [
+            "logs/CrashReporter", "logs/CrashReporter/Panics", "logs/CrashReporter/stacks-2026-10-20-032811.ips",
+            "mobile/Library/Logs/CrashReporter/DiagnosticLogs/security.log.20261020T102812Z",
+            "mobile/Library/Logs/CrashReporter/it_seal_2013-06-15-050106_iPhone.plist",
+            "wireless/Library/Logs/CrashReporter/CommCenter_2026-10-20-032830_iPhone.plist",
+            "mobile/Library/Preferences/SpringBoard_2026-10-20-032811_iPhone.plist",
+        ]
+        let listed = [
+            "stacks-2026-10-20-032811.ips", "it_seal_2013-06-15-050106_iPhone.plist",
+            "CommCenter_2026-10-20-032830_iPhone.plist", "DiagnosticLogs/security.log.20261020T103025Z",
+            "SpringBoard_2026-10-20-032811_iPhone.plist", "Panics/panic-full-2013-06-15-050106.plist",
+        ]
+        #expect(GuestFaults.crashedProcesses(listed: listed, base: base) == ["SpringBoard", "panic-full"])
+        #expect(GuestFaults.crashedProcesses(listed: listed, base: []).count == 5)
+    }
+
     /// The app's watch sees the same: the phrases in order, across writes, then the mount rule once iOS answers.
     @Test func theAppsWatchSeesTheFaults() async throws {
         let seen = BootStageTests.Seen()
