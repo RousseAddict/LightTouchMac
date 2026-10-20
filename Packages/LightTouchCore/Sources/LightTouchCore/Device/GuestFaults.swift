@@ -73,10 +73,10 @@ public nonisolated enum GuestFaults {
 
     /// iOS serves its crash reports over AFC (com.apple.crashreportcopymobile) from 3.0; 1.x and 2.x lockdownd refuse
     /// that service (2.2's says InvalidService) and have CrashReportCopyAgent (com.apple.crashreportcopy), a DeviceLink
-    /// protocol, instead. 1.x's two boards, the iPhone 2G and iPod touch 1G, print launchd's "Exited abnormally" on
-    /// the serial log, which faults(log:) judges; the iPod touch 2G's 2.x is the one left unjudged.
+    /// protocol, instead, which the services worker speaks for 2.x. 1.x's two boards, the iPhone 2G and iPod touch 1G,
+    /// print launchd's "Exited abnormally" on the serial log, which faults(log:) judges.
     public static func listsCrashReports(version: String) -> Bool {
-        version.compare("3.0", options: .numeric) != .orderedAscending
+        version.compare("2.0", options: .numeric) != .orderedAscending
     }
 
     /// The process a crash report is about, from ReportCrash's name for it: "SpringBoard_2011-03-01-120102_iPad.plist"

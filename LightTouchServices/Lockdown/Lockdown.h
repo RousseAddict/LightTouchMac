@@ -11,6 +11,7 @@
 #include <libimobiledevice/lockdown.h>
 #include <libimobiledevice/mobile_image_mounter.h>
 #include <libimobiledevice/notification_proxy.h>
+#include <libimobiledevice/property_list_service.h>
 #include <libimobiledevice/sbservices.h>
 #include <libimobiledevice/service.h>
 #include <plist/plist.h>

@@ -81,6 +81,12 @@ struct SingleCheck: ParsableCommand {
     @Flag(help: "A file uploaded at Home, the helper SIGKILLed, a second boot: the file must survive.")
     var killPersist = false
     @Option(help: "The guest agent reads PATH back at Home.") var readFile: String?
+    @Option(
+        parsing: .unconditionalSingleValue,
+        help:
+            "The guest agent runs this at the first Home, one argument per --spawn (a deliberate crash: the run must fail naming it)."
+    )
+    var spawn: [String] = []
     @Flag(help: "Tweaks' Developer Settings: mount the guest archive's Developer Disk Image for the base at Home.")
     var developerImage = false
     @Flag(

@@ -247,9 +247,14 @@ extension DeviceServices {
     // MARK: - Crash reports
 
     /// The guest's crash reports (paths under its CrashReporter folder) and how many seconds before the device's
-    /// clock now each was written. Throws where the guest has no crash report service.
-    public func crashReports() async throws -> [String: Double] {
-        guard case .ages(let ages) = try await remote(.crashReports, seconds: Timeouts.browse * 2 + Timeouts.query)
+    /// clock now each was written; before 3.0, where they come whole, also written into `copyTo`. Throws where the
+    /// guest has no crash report service.
+    public func crashReports(copyTo: URL? = nil) async throws -> [String: Double] {
+        guard
+            case .ages(let ages) = try await remote(
+                .crashReports(copyTo: copyTo?.path),
+                seconds: Timeouts.browse * 2 + Timeouts.query
+            )
         else {
             throw DeviceError.unavailable
         }

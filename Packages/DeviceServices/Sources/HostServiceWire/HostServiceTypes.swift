@@ -57,7 +57,8 @@ public nonisolated enum HostServiceOperation: Codable, Sendable {
     case makeFolder(String, root: AFCRoot)
     case move(bundle: String, before: String?, deviceName: String)
     case observe
-    case crashReports
+    /// copyTo: a folder the reports CrashReportCopyAgent sends (before 3.0) are also written into.
+    case crashReports(copyTo: String?)
 }
 
 /// Which AFC a Files request goes through.

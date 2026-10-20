@@ -73,6 +73,8 @@ struct SingleConfig: Decodable {
     var audioWAV: String?
     /// A file the guest agent reads back at home (fileRead), e.g. a marker a stopped edit wrote into the root FS.
     var readFile: String?
+    /// A command the guest agent runs at the first Home (e.g. a deliberate crash, which the crash check must name).
+    var spawn: [String]?
     /// Tweaks' Developer Settings: at the first Home this Developer Disk Image (its .signature beside it) is mounted
     /// through LockdownTools.mountDeveloperImage, the settings bundle Preferences looks for is read before and after,
     /// and Settings is opened to show its Developer row (`developerImage`, screenshot developer-settings).
@@ -184,7 +186,7 @@ nonisolated enum WiFiProbe {
     /// The guest's crash reports as the app lists them (DeviceServices.crashReports), with how long it has been up;
     /// three tries, 10 s apart, as a 7.x guest's services can still be slow to start. Before a shutdown, where this
     /// boot wrote any, they are copied into the device directory (crash-<generation>/, through libimobiledevice's
-    /// idevicecrashreport on PATH where there is one) to read.
+    /// idevicecrashreport on PATH where there is one; before 3.0 every report, by the services worker) to read.
     var poweredOn = Date()
     /// The reports the base already carries (baseCrashReports), read at the first listing: none of them is this run's.
     var baseRead = false
@@ -200,11 +202,20 @@ nonisolated enum WiFiProbe {
         for attempt in 0..<3 {
             if attempt > 0 { try? await Task.sleep(for: .seconds(10)) }
             do {
-                let ages = try await d.services.crashReports()
+                // Before 3.0 CrashReportCopyAgent sends the reports whole as it lists them: the services worker
+                // writes them out at the same listing (the agent serves one session at a time).
+                let copies = d.dir.appendingPathComponent("crash-\(generation)")
+                let whole =
+                    when != "booted"
+                    && (lock?.productVersion ?? "3.1").compare("3.0", options: .numeric) == .orderedAscending
+                if whole { try? FileManager.default.createDirectory(at: copies, withIntermediateDirectories: true) }
+                let ages = try await d.services.crashReports(copyTo: whole ? copies : nil)
                 let uptime = Date().timeIntervalSince(poweredOn)
                 event = event.merging(["ages": ages, "uptime": uptime]) { $1 }
                 event["error"] = nil
-                if when != "booted", !GuestFaults.crashedProcesses(listed: ages.keys, base: inBase ?? []).isEmpty {
+                if !whole, when != "booted",
+                    !GuestFaults.crashedProcesses(listed: ages.keys, base: inBase ?? []).isEmpty
+                {
                     let copy = Process()
                     copy.executableURL = URL(fileURLWithPath: "/usr/bin/env")
                     copy.arguments = [
@@ -570,6 +581,13 @@ nonisolated enum WiFiProbe {
             // Music loads (and checks) the library; on 4.x it deleted one whose signature didn't hold.
             if !mediaTitles.isEmpty { await openMusic(d, agent: guestAgent) }
             await mediaCounts(d, agent: guestAgent, generation: generation, stage: "music", titles: mediaTitles)
+        }
+        if let argv = s.spawn, generation == 1, asks {
+            let output: String
+            do { output = String(decoding: try await guestAgent.spawn(argv), as: UTF8.self) } catch {
+                output = "\(error)"
+            }
+            emit("spawned", ["device": d.name, "argv": argv, "output": String(output.prefix(200))])
         }
         if let path = s.readFile {
             let data = asks ? try? await guestAgent.get(path) : nil

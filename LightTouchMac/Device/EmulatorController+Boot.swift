@@ -276,8 +276,7 @@ extension EmulatorController {
 
     /// The guest's crash reports, read once iOS answers and every minute after, in the services worker: each process
     /// that crashed during this boot is logged once as an error. Launchd's job lines reach the serial log on two
-    /// boards only, so this is where a crash-looping daemon shows on the rest. Before 3.0 the guest serves its reports
-    /// by another protocol (GuestFaults.listsCrashReports).
+    /// boards only (1.x's), so this is where a crash-looping daemon shows on the rest (GuestFaults.listsCrashReports).
     func watchCrashReports() {
         guard GuestFaults.listsCrashReports(version: iosVersion) else { return }
         bootScope[.crashReports] = Task { [weak self] in

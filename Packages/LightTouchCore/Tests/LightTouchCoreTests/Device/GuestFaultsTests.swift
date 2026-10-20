@@ -86,7 +86,7 @@ struct GuestFaultsTests {
         #expect(GuestFaults.crashedProcesses(ages: other, uptime: 300) == ["panic-full"])
         #expect(GuestFaults.crashedProcesses(ages: other, uptime: 1000) == ["LowMemory", "panic-full"])
         #expect(GuestFaults.crashedProcesses(ages: [:], uptime: 300) == [])
-        #expect(!GuestFaults.listsCrashReports(version: "2.2.1") && GuestFaults.listsCrashReports(version: "3.0"))
+        #expect(!GuestFaults.listsCrashReports(version: "1.1.5") && GuestFaults.listsCrashReports(version: "2.1.1"))
     }
 
     /// A run from a prepared base counts every report the base didn't carry, whatever its age, from whichever

@@ -429,8 +429,10 @@ extension DeviceServices {
     /// The guest's crash reports and how long before the device's own clock now each was written, so a guest whose
     /// clock is not the Mac's still compares with how long it has been up. crashreportmover first moves in the ones
     /// root's processes left waiting (where the guest has it); com.apple.crashreportcopymobile lists them, one level
-    /// of folders deep. Throws where the guest has no crash report service.
-    func crashReports() async throws -> [String: Double] {
+    /// of folders deep. Before 3.0 lockdownd refuses that service and CrashReportCopyAgent sends them instead
+    /// (CrashReportCopy), whole files: with `copyTo`, those are also written into that folder under their own names
+    /// (3.0 on, idevicecrashreport copies them). Throws where the guest has neither service.
+    func crashReports(copyTo: URL? = nil) async throws -> [String: Double] {
         try await run(Timeouts.browse * 2, "crash reports") { device in
             if let mover = try? IMobileDevice.startService(
                 "com.apple.crashreportmover",
@@ -458,12 +460,31 @@ extension DeviceServices {
                 }
                 _ = lockdownd_client_free(lockdown)
             }
-            let client = try IMobileDevice.startService(
-                "com.apple.crashreportcopymobile",
-                device: device,
-                newClient: { afc_client_new($0, $1, $2) },
-                freeClient: { afc_client_free($0) }
-            ) { DeviceError.afc(.init(code: $0)) }
+            let client: OpaquePointer
+            do {
+                client = try IMobileDevice.startService(
+                    "com.apple.crashreportcopymobile",
+                    device: device,
+                    newClient: { afc_client_new($0, $1, $2) },
+                    freeClient: { afc_client_free($0) }
+                ) { DeviceError.afc(.init(code: $0)) }
+            } catch DeviceError.lockdown(let code) {
+                // 2.2's lockdownd says InvalidService, 2.1.1's -256.
+                let reports: [CrashReportCopy.Report]
+                do { reports = try CrashReportCopy.reports(device: device) } catch DeviceError.lockdown {
+                    throw DeviceError.lockdown(code)  // neither service
+                }
+                var ages: [String: Double] = [:]
+                for report in reports {
+                    ages[report.path] = now - (report.modified?.timeIntervalSince1970 ?? now)
+                    if let copyTo {
+                        try report.data.write(
+                            to: copyTo.appendingPathComponent((report.path as NSString).lastPathComponent)
+                        )
+                    }
+                }
+                return ages
+            }
             defer { _ = afc_client_free(client) }
             var ages: [String: Double] = [:]
             func list(_ path: String, depth: Int) {

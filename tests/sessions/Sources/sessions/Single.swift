@@ -27,6 +27,7 @@ func single(_ args: SingleCheck) -> Never {
     if let zone = args.secondZone { single["secondZone"] = zone }
     if let region = args.region { single["region"] = region }
     if let file = args.readFile { single["readFile"] = file }
+    if !args.spawn.isEmpty { single["spawn"] = args.spawn }
     if args.developerImage {
         guard let image = DeveloperDiskImage.image(version: base.version, in: tools.guest) else {
             die("the guest archive has no Developer Disk Image for \(base.version)")

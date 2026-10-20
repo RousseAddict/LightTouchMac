@@ -107,7 +107,8 @@ nonisolated func logEvent(_ message: String) {
             return .none
         case .move(let bundle, let before, let name):
             return .strings(try await service.moveOnHomeScreen(bundle, before: before, deviceName: name))
-        case .crashReports: return .ages(try await service.crashReports())
+        case .crashReports(let copyTo):
+            return .ages(try await service.crashReports(copyTo: copyTo.map { URL(fileURLWithPath: $0) }))
         case .observe:
             return .boolean(
                 await NotificationEngine.observeOnce(

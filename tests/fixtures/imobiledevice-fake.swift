@@ -297,6 +297,24 @@ nonisolated enum IMDFake {
     _ received: UnsafeMutablePointer<UInt32>?,
     _ timeout: UInt32
 ) -> service_error_t { IMDFake.serviceReceive(c, data, size, received, timeout) }
+// CrashReportCopy's DeviceLink client: never connects here.
+@_cdecl("property_list_service_client_new") nonisolated func fakePlistServiceNew(
+    _ d: idevice_t?,
+    _ s: lockdownd_service_descriptor_t?,
+    _ c: UnsafeMutablePointer<property_list_service_client_t?>?
+) -> property_list_service_error_t { PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR }
+@_cdecl("property_list_service_client_free") nonisolated func fakePlistServiceFree(
+    _ c: property_list_service_client_t?
+) -> property_list_service_error_t { PROPERTY_LIST_SERVICE_E_SUCCESS }
+@_cdecl("property_list_service_send_binary_plist") nonisolated func fakePlistServiceSend(
+    _ c: property_list_service_client_t?,
+    _ p: plist_t?
+) -> property_list_service_error_t { PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR }
+@_cdecl("property_list_service_receive_plist_with_timeout") nonisolated func fakePlistServiceReceive(
+    _ c: property_list_service_client_t?,
+    _ p: UnsafeMutablePointer<plist_t?>?,
+    _ timeout: UInt32
+) -> property_list_service_error_t { PROPERTY_LIST_SERVICE_E_UNKNOWN_ERROR }
 
 @_cdecl("house_arrest_client_new") nonisolated func fakeHouseArrestClientNew(
     _ d: idevice_t?,
