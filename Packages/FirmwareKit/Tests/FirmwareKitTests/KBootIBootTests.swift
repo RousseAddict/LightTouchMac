@@ -16,11 +16,6 @@ struct KBootIBootTests {
     /// the change, why). Each must still change its capture.
     static let corrections: [(String?, String, String, @Sendable (inout Data) -> Void, String)] = [
         (
-            nil, "arm-io", "clock-frequencies", { $0.replaceSubrange(8..<12, with: Data(count: 4)) },
-            "slot 2 is MPLL (PLL1), which the emulator's PMGR runs at 400 MHz (s5l8930_pmgr.c's reset value) and the "
-                + "real iPad leaves off (0 there); through it the kernel also gives VID0-CLK another parent"
-        ),
-        (
             nil, "arm-io/mipi-dsim/lcd", "raw-panel-id", { $0[12] = 0x64 },
             "the emulator's DSI panel-ID reply lacks the panel's backlight-calibration byte, 0x64 on the real iPad"
         ),

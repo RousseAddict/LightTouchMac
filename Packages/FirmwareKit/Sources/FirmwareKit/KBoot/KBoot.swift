@@ -55,9 +55,8 @@ public enum KBoot {
     /// A real iPad's clock-frequencies on 3.2.2 (iBoot-817), slot for slot: the PLLs (1 APLL 1 GHz, 3 EPLL 1026 MHz),
     /// the performance clocks, FMI's 102.6 MHz (33), the panel's 68.4 MHz pixel clock (39), the SPI (47-51) and I2C
     /// (52-54) references; but slot 44, which 3.x's iBoot-817 sets to 24 MHz and 4.x's iBoots leave 0 (the iPad's
-    /// 931, the iPhone 4's 1072). iBoot on the emulated PMGR fills the same table but for slot 2 (400 MHz, PLL1, off on
-    /// the unit). The slots are the same in every A4 DeviceTree (the nodes' clock-ids), so one table serves all
-    /// releases.
+    /// 931, the iPhone 4's 1072). iBoot on the emulated PMGR fills the same table (KBootIBootTests). The slots are the
+    /// same in every A4 DeviceTree (the nodes' clock-ids), so one table serves all releases.
     static let k48Clocks: [UInt32] = [
         24_000_000, 1_000_000_000, 0, 1_026_000_000, 0, 0, 0, 1_000_000_000, 0, 1_000_000_000,
         200_000_000, 102_600_000, 1_026_000_000, 166_666_666, 68_400_000, 200_000_000, 100_000_000, 0, 102_600_000,
