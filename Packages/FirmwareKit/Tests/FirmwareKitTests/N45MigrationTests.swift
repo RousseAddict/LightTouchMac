@@ -149,6 +149,91 @@ import Testing
         #expect(fm.fileExists(atPath: try Self.storage(device).overlay.appendingPathComponent(N45Migration.stamp).path))
     }
 
+    /// A 1.1.4 iPod prepared at recipe 3 before 44b92c0b (preparation 14): the recipe put the known network in root's
+    /// home, where its configd (SpringBoard runs as mobile) never looks. Admission moves it to
+    /// /private/var/preferences/SystemConfiguration; the same base prepared at serial 15, or a 1.1 one, takes nothing.
+    @Test func admissionMovesTheMisplacedPreferences() async throws {
+        let fm = FileManager.default
+        let root = try Fixtures.tempDir("n45-sc-move")
+        defer { try? fm.removeItem(at: root) }
+        let device = root.appendingPathComponent("device")
+        let base = device.appendingPathComponent("base")
+        try fm.createDirectory(at: base, withIntermediateDirectories: true)
+        let image = root.appendingPathComponent("volume.img")
+        try await VolumeMount.makeHFS(image, size: 16 << 20, name: "SC move test")
+        let systemSC = "private/var/preferences/SystemConfiguration"
+        try await VolumeMount.withMounted(image, at: root.appendingPathComponent("initial")) { mount in
+            let job = mount.appendingPathComponent(SystemEdits.daemons + "/com.apple.SpringBoard.plist")
+            try fm.createDirectory(at: job.deletingLastPathComponent(), withIntermediateDirectories: true)
+            try PropertyListSerialization.data(
+                fromPropertyList: ["Label": "com.apple.SpringBoard", "UserName": "mobile"],
+                format: .xml,
+                options: 0
+            ).write(to: job)
+            // what the recipe wrote before 44b92c0b
+            let sc = mount.appendingPathComponent(Self.scPrefs)
+            try fm.createDirectory(at: sc, withIntermediateDirectories: true)
+            try PropertyListSerialization.data(
+                fromPropertyList: N45Board.wifiKnownNetwork,
+                format: .xml,
+                options: 0
+            ).write(to: sc.appendingPathComponent("com.apple.wifi.plist"))
+            try fm.createDirectory(at: mount.appendingPathComponent(systemSC), withIntermediateDirectories: true)
+        }
+        try N45NAND.write(
+            volume: image,
+            out: base.appendingPathComponent("nand"),
+            filID: 0x4330_3030,
+            banks: N45FTLTests.banks
+        )
+        let overlay = device.appendingPathComponent("overlay")
+        try N45FTLTests.booted(overlay, base.appendingPathComponent("nand"), changeData: false)
+        try Data("old".utf8).write(to: overlay.appendingPathComponent(".base-identity"))
+        func lock(version: String, serial: Int) throws {
+            let lock: [String: Any] = [
+                "board": "n45ap", "preparation": serial,
+                "entry": [
+                    "id": "n45ap-4A102", "content": ["version": version, "recipe": ["name": "n45", "version": 3]],
+                ],
+            ]
+            try JSONSerialization.data(withJSONObject: lock).write(to: base.appendingPathComponent("device.lock.json"))
+        }
+        let record: [String: Any] = [
+            "id": UUID().uuidString, "board": "n45ap", "firmware": "n45ap-4A102",
+            "base": ["kind": "prepared", "path": base.path],
+            "storage": ["key": "old", "overlay": overlay.path, "snapshot": "old-snapshot"],
+        ]
+        try DeviceRecord.data(record).write(to: device.appendingPathComponent(DeviceRecord.name))
+        try lock(version: "1.1.4", serial: 15)
+        #expect(try N45Migration.pending(device: device, policy: .standalone) == nil, "prepared with the fix")
+        try lock(version: "1.1", serial: 14)
+        #expect(try N45Migration.pending(device: device, policy: .standalone) == nil, "1.1 reads root's home")
+        try lock(version: "1.1.4", serial: 14)
+        #expect(try N45Migration.pending(device: device, policy: .standalone) == 3)
+
+        #expect(try await FirmwareBootAdmission.admit(device: device).changed)
+        let edited = try Self.storage(device)
+        #expect(fm.fileExists(atPath: edited.overlay.appendingPathComponent(N45Migration.stamp).path))
+        let volume = try HFSPlusVolume(
+            try VolumeRebuild.rebuild(
+                base: edited.base.appendingPathComponent("nand"),
+                overlay: edited.overlay,
+                into: root.appendingPathComponent("verify")
+            )[0].image
+        )
+        let known =
+            try PropertyListSerialization.propertyList(
+                from: volume.contents(volume.record(at: systemSC + "/com.apple.wifi.plist")),
+                format: nil
+            ) as? [String: Any]
+        #expect(
+            (known?["List of known networks"] as? [[String: Any]])?.map { $0["SSID_STR"] as? String } == ["qemu-ios"]
+        )
+        #expect((try? volume.record(at: systemSC + "/preferences.plist")) != nil)
+        #expect((try? volume.record(at: Self.scPrefs + "/com.apple.wifi.plist")) == nil, "root's copy removed")
+        #expect(try N45Migration.pending(device: device, policy: .standalone) == nil, "stamped")
+    }
+
     /// Only the declared steps: a device prepared at the current recipe, or not 1.x, takes none.
     @Test func declaredSteps() {
         #expect(FirmwareWire.admittedRecipe(2, board: "n45ap") == 3)
