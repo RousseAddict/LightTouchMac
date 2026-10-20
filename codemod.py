@@ -50,8 +50,9 @@ COMPAT_PACKAGES = {"BigSurCompat": "Packages/BigSurCompat", "ObservationCompat":
 PROJECT = "LightTouchMac.xcodeproj/project.pbxproj"
 SWIFT = "swift"
 APP = "app"  # the Swift files of the app target (LightTouchMac/)
-# The app's own compat file (add/LightTouchMac/BigSur), linked into each tests/offline target that compiles app files.
-APP_COMPAT = "LightTouchMac/BigSur/AppKitCompat.swift"
+SWIFTUI = "swiftui"  # the app's Swift files that import SwiftUI
+# The app's own compat files (add/LightTouchMac/BigSur), linked into each tests/offline target that compiles app files.
+APP_COMPAT = ["LightTouchMac/BigSur/AppKitCompat.swift", "LightTouchMac/BigSur/SwiftUICompat.swift"]
 
 
 @dataclass
@@ -75,6 +76,31 @@ def local_package(name, url_part, path):
     )
 
 
+def foreground_style(text):
+    """`.foregroundStyle(style)` to `.compatForegroundStyle(color)`: the hierarchical styles that aren't Colors become
+    the label colors they stand for. Left alone when it takes an AnyShapeStyle (a hand patch's)."""
+    out, i, rewritten = [], 0, 0
+    while True:
+        j = text.find(".foregroundStyle(", i)
+        if j < 0:
+            return "".join(out) + text[i:], rewritten
+        start = j + len(".foregroundStyle(")
+        depth, k = 1, start
+        while depth and k < len(text):
+            depth += {"(": 1, ")": -1}.get(text[k], 0)
+            k += 1
+        argument = text[start:k - 1]
+        if "AnyShapeStyle" in argument:
+            out.append(text[i:k])
+        else:
+            argument = re.sub(r"(?<![\w)])\.tertiary\b", ".compatTertiary", argument)
+            argument = re.sub(r"(?<![\w)])\.quaternary\b", ".compatQuaternary", argument)
+            argument = re.sub(r"(?<![\w)])\.tint\b", ".accentColor", argument)
+            out.append(text[i:j] + ".compatForegroundStyle(" + argument + ")")
+            rewritten += 1
+        i = k
+
+
 # SF Symbols missing on macOS 11.7 (checked on the Big Sur Mac), and stand-ins it has.
 SYMBOLS = {"document.on.document": "doc.on.doc", "inset.filled.bottomthird.square": "rectangle.bottomthird.inset.fill"}
 
@@ -86,6 +112,29 @@ RULES = [
     Rule("project: objectVersion 77", [PROJECT], r"objectVersion = 1\d\d;", "objectVersion = 77;"),
     local_package("swift-subprocess", "swift-subprocess", "Packages/BigSur/swift-subprocess"),
     local_package("Sparkle", "sparkle-project/Sparkle", "Packages/BigSur/Sparkle"),
+    # SwiftUI 3-5 (macOS 12-14), in the app's views: LightTouchMac/BigSur/SwiftUICompat.swift.
+    Rule("swiftui: @Bindable", SWIFTUI, r"@Bindable\b", "@CompatBindable"),
+    Rule("swiftui: .textSelection(.enabled)", SWIFTUI, r"\.textSelection\(\.enabled\)", ".compatTextSelectionEnabled()"),
+    Rule("swiftui: .monospacedDigit()", SWIFTUI, r"\.monospacedDigit\(\)", ".compatMonospacedDigit()"),
+    Rule("swiftui: .task", SWIFTUI, r"\.task(\s*\{|\(id:|\(priority:)", r".compatTask\1"),
+    Rule("swiftui: .formStyle(.grouped)", SWIFTUI, r"\.formStyle\(\.grouped\)", ".compatGroupedFormStyle()"),
+    Rule("swiftui: .scrollDisabled", SWIFTUI, r"\.scrollDisabled\(", ".compatScrollDisabled("),
+    Rule("swiftui: .onGeometryChange", SWIFTUI, r"\.onGeometryChange\(for:", ".compatOnGeometryChange(for:"),
+    Rule("swiftui: .onChange(of:)", SWIFTUI, r"\.onChange\(of:", ".compatOnChange(of:"),
+    Rule("swiftui: LabeledContent", SWIFTUI, r"(?<![.\w])LabeledContent\b", "CompatLabeledContent"),
+    Rule("swiftui: NavigationSplitView", SWIFTUI, r"(?<![.\w])NavigationSplitView\b", "CompatNavigationSplitView"),
+    Rule("swiftui: .navigationSplitViewColumnWidth", SWIFTUI, r"\.navigationSplitViewColumnWidth\(",
+         ".compatNavigationSplitViewColumnWidth("),
+    Rule("swiftui: Section(title)", SWIFTUI, r'Section\(("[^"]*"|[A-Za-z_][\w.]*)\)(\s*)\{',
+         r"Section(header: Text(\1))\2{"),
+    Rule("swiftui: .fileDialogDefaultDirectory", SWIFTUI, r"\.fileDialogDefaultDirectory\(",
+         ".compatFileDialogDefaultDirectory("),
+    Rule("swiftui: .foregroundStyle", SWIFTUI, r"\.foregroundStyle\(", foreground_style),
+    # Every view follows ObservationCompat models through CompatObserving (SwiftUI only tracks Observation's).
+    Rule("swiftui: views observe ObservationCompat models", SWIFTUI,
+         r"^([ \t]*)((?:(?:public|private|fileprivate|internal) )?)var body: some View \{",
+         r"\1\2var body: some View { CompatObserving { observedBody } }\n\1@ViewBuilder \2var observedBody: some View {"),
+    Rule("app: urlsForApplications(toOpen:)", APP, r"\.urlsForApplications\(toOpen:", ".compatURLsForApplications(toOpen:"),
     # AppKit (macOS 14), in the app: LightTouchMac/BigSur/AppKitCompat.swift.
     Rule("app: .inspectorTrackingSeparator", APP, r"\.inspectorTrackingSeparator\b", ".compatInspectorTrackingSeparator"),
     Rule("app: .toggleInspector", APP, r"\.toggleInspector\b", ".compatToggleInspector"),
@@ -234,6 +283,9 @@ def run(root):
             paths = files
         elif rule.files == APP:
             paths = [f for f in files if f.startswith("LightTouchMac/")]
+        elif rule.files == SWIFTUI:
+            paths = [f for f in files if f.startswith("LightTouchMac/")
+                     and re.search(r"^import SwiftUI$", open(os.path.join(root, f)).read(), re.MULTILINE)]
         else:
             paths = rule.files
         for rel in paths:
@@ -241,7 +293,10 @@ def run(root):
             if not os.path.exists(path):
                 continue
             text = open(path).read()
-            new, n = re.subn(rule.pattern, rule.replacement, text, flags=re.MULTILINE)
+            if rule.replacement is foreground_style:
+                new, n = foreground_style(text)
+            else:
+                new, n = re.subn(rule.pattern, rule.replacement, text, flags=re.MULTILINE)
             if n:
                 if rule.module:
                     new = add_import(new, rule.module)
@@ -274,15 +329,17 @@ def run(root):
     app = os.path.realpath(os.path.join(root, "LightTouchMac")) + os.sep
     targets = {os.path.dirname(link) for link in links if os.path.realpath(os.path.join(root, link)).startswith(app)}
     for target in sorted(targets):
-        # Hand patches add BigSurCompat imports to app files after this runs, so every such target gets the module.
+        # Hand patches add BigSurCompat imports to app files after this runs, and SwiftUICompat imports
+        # ObservationCompat, so every such target gets both modules.
         owner = target_of(os.path.join(target, "x.swift"))
         if owner:
-            needs[owner[0]][owner[1]].add("BigSurCompat")
-        destination = os.path.join(root, target, "BigSurAppKitCompat.swift")
-        if not os.path.lexists(destination):
-            os.symlink(os.path.relpath(os.path.join(root, APP_COMPAT), os.path.join(root, target)), destination)
-            linked += 1
-    print(f"{linked:5d}  tests/offline: AppKitCompat linked into the targets that compile app files")
+            needs[owner[0]][owner[1]] |= {"BigSurCompat", "ObservationCompat"}
+        for compat in APP_COMPAT:
+            destination = os.path.join(root, target, "BigSur" + os.path.basename(compat))
+            if not os.path.lexists(destination):
+                os.symlink(os.path.relpath(os.path.join(root, compat), os.path.join(root, target)), destination)
+                linked += 1
+    print(f"{linked:5d}  tests/offline: the app's compat files linked into the targets that compile app files")
 
     for package_dir in [f"Packages/{p}" for p in SHIPPED] + ["tests/offline"]:
         manifest = os.path.join(root, package_dir, "Package.swift")

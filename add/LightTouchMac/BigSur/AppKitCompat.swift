@@ -36,3 +36,11 @@ extension NSColor {
         return .quaternaryLabelColor
     }
 }
+
+extension NSWorkspace {
+    /// macOS 12's urlsForApplications(toOpen:): Launch Services' apps for the file, the default first.
+    func compatURLsForApplications(toOpen url: URL) -> [URL] {
+        if #available(macOS 12, *) { return urlsForApplications(toOpen: url) }
+        return (LSCopyApplicationURLsForURL(url as CFURL, .all)?.takeRetainedValue() as? [URL]) ?? []
+    }
+}
