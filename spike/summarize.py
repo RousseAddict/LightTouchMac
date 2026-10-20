@@ -48,6 +48,11 @@ for path, line, _, message in errors:
     else:
         other.append(f"{display(path)}:{line}: {message}")
 
+general = []
+for l in lines:
+    if "error:" in l and not error_line.match(l) and l.strip() not in general:
+        general.append(l.strip())
+
 result = next((l.strip() for l in reversed(lines) if l.startswith("** BUILD")), "no BUILD line")
 failed = []
 if "The following build commands failed:" in lines:
@@ -68,6 +73,10 @@ if apis:
     for (version, api), sites in sorted(apis.items(), key=lambda kv: (-float(kv[0][0].split(".")[0]), kv[0][1])):
         shown = ", ".join(sorted(sites)[:4]) + (f" (+{len(sites) - 4})" if len(sites) > 4 else "")
         print(f"| {version} | `{api}` | {shown} |")
+if general:
+    print("\n### Errors without a source location (first 30)\n")
+    for entry in general[:30]:
+        print(f"- `{entry[:400]}`")
 if other:
     print("\n### Other errors (first 60)\n")
     for entry in other[:60]:
