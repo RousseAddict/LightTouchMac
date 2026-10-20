@@ -35,7 +35,7 @@ public enum SystemEdits {
         public var seal = true
         /// bake --gl-test: the GL fixture job (test devices only: recipe option gl_test, never set in the catalog).
         public var glTest = false
-        /// Leave BTServer enabled: boards whose machine answers the HCI (N88). Off, BTServer is Disabled: with
+        /// Leave BTServer enabled: boards whose machine answers the HCI (N88, N18). Off, BTServer is Disabled: with
         /// nothing on the UART, BlueTool's HCI_Reset never completes.
         public var bluetooth = false
         /// Bake the guest helpers, their jobs and the guest-package seed. Off for firmware whose dyld predates

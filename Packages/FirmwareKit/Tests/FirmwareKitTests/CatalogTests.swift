@@ -46,6 +46,10 @@ struct CatalogTests {
         "n88ap-7A341": ["bluetooth": true], "n88ap-7A400": ["bluetooth": true], "n88ap-7C97d": ["bluetooth": true],
         "n88ap-7C106c": ["bluetooth": true], "n88ap-7C116a": ["bluetooth": true], "n88ap-7C144": ["bluetooth": true],
         "n88ap-7D11": ["bluetooth": true], "n88ap-7E18": ["bluetooth": true],
+        // The same on the N18 (its BCM4329 on uart1): 3.1.1's status bar turned 10 s after the interface, its
+        // SBStatusBarBluetoothView waiting out two BTSessionAttach timeouts on every turn.
+        "n18ap-7C145": ["bluetooth": true], "n18ap-7C146": ["bluetooth": true], "n18ap-7D11": ["bluetooth": true],
+        "n18ap-7E18": ["bluetooth": true],
     ]
     @Test func rowsOfARecipeShareItsOptions() throws {
         struct Catalog: Decodable { var entries: [FirmwareEntry] }

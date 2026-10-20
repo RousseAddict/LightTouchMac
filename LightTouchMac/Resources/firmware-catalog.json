@@ -2441,7 +2441,7 @@
    "rootfs": {"file": "018-6030-001.dmg", "key": "de14c16e21ad5bb12fe572ca9400d29a4443ff208ec49c120ad72d6c3269fd5553047cdd"},
    "UpdateRamDisk": {"file": "018-6045-001.dmg", "iv": "663139ba9ff0d04dbbd68534629994b7", "key": "7345a9977b97937c4fca2f53a1475aff8d5d39e3b91191110b233be4be7d281c"}
   },
-  "recipe": {"name": "n18", "version": 1, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true}, "nand_sig_flags": 4},
+  "recipe": {"name": "n18", "version": 1, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}, "nand_sig_flags": 4},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
@@ -2476,7 +2476,7 @@
    "rootfs": {"file": "018-6113-001.dmg", "key": "42a0805efff7352066541a54aaa6b0f525bf104386e8d5c14cde397453a8981f631261c0"},
    "UpdateRamDisk": {"file": "018-6110-001.dmg", "iv": "e15cdfd21c429635234dfbe4b882ca42", "key": "72c64888628ede4919e012b41ccf7b3152f1c12d53835a67b4438758e566dadc"}
   },
-  "recipe": {"name": "n18", "version": 1, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true}, "nand_sig_flags": 4},
+  "recipe": {"name": "n18", "version": 1, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}, "nand_sig_flags": 4},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
@@ -2511,7 +2511,7 @@
    "rootfs": {"file": "018-6152-014.dmg", "key": "1e05ef21821280869d4029a2328836b9f60bc63907c6e951c0f1c80c2d8c66aef5c39a44"},
    "UpdateRamDisk": {"file": "018-6145-014.dmg", "iv": "ac6b46056dd6dd6521eaa45b13dbb644", "key": "efa9ee796d6d6f92fc79653815f9232ee1f38120e8380b63d85add8f317e5540"}
   },
-  "recipe": {"name": "n18", "version": 1, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true}, "nand_sig_flags": 4},
+  "recipe": {"name": "n18", "version": 1, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}, "nand_sig_flags": 4},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
@@ -2546,7 +2546,7 @@
    "rootfs": {"file": "018-6522-015.dmg", "key": "1402974cba4702e831fb821ef9090229f7bad6fd3084fa99bfc8a76de4d839f9bf4533eb"},
    "UpdateRamDisk": {"file": "018-6513-015.dmg", "iv": "ba606fbd3cd095001aa345d6e62d1986", "key": "c3d3b8d9e01dfbf4460652b5216d4c66b39a276b96ce5cbee9c3ce90cd57c858"}
   },
-  "recipe": {"name": "n18", "version": 1, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true}, "nand_sig_flags": 4},
+  "recipe": {"name": "n18", "version": 1, "storage": "16g", "system_mib": 1280, "data_size": "partition", "boot": "kboot", "options": {"ca_ogl": true, "appsync": true, "web_proxy": true, "bluetooth": true}, "nand_sig_flags": 4},
   "emulator": {"min_protocol": 1},
   "estimates": {"prepared_bytes": 1503238554, "peak_bytes": 3799310312, "seconds": 90}
  },
