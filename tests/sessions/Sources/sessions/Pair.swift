@@ -7,8 +7,8 @@ import SessionKit
 /// one gate; kill -9 of the iPad's helper is noticed while the iPod keeps running; a fresh iPad helper on the same overlay
 /// lights and answers; Stop halts both at once; the bases are untouched.
 func pair(_ args: PairCheck) -> Never {
-    let ipod = Base(args.ipodBase)
-    let ipad = Base(args.ipadBase)
+    let ipod = Base(args.ipodBase, args.inputs)
+    let ipad = Base(args.ipadBase, args.inputs)
     guard ipod.board == "n72ap", ipad.board == "k48ap" else { die("pair boots an n72ap base and a k48ap base") }
     let work = workDirectory(args.inputs, "pair")
     let tools = Tools.resolve(args.inputs, work: work)

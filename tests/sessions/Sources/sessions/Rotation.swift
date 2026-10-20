@@ -16,7 +16,7 @@ import SessionKit
 /// base sits in Setup on its first boot unless prepared --skip-setup: pass --overlay, the overlay of a boot that walked
 /// Setup, cloned.
 func rotationCheck(_ args: RotationCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     let work = workDirectory(args.inputs, "rotation")
     let tools = Tools.resolve(args.inputs, work: work)
     let r = Report()

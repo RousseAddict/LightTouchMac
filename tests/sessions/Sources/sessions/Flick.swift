@@ -6,7 +6,7 @@ import SessionKit
 /// the page left of it (Spotlight), each quick short flick must turn the page and each slow short drag must snap back.
 /// The helper alone boots the base, as `sessions rotation` does; a 5.x-7.x base needs --overlay.
 func flickCheck(_ args: FlickCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     let work = workDirectory(args.inputs, "flick")
     let tools = Tools.resolve(args.inputs, work: work)
     let r = Report()

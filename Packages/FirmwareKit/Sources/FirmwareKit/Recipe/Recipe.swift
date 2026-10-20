@@ -215,6 +215,7 @@ public enum Recipe {
         func opt(_ v: Any?) -> Any { v ?? NSNull() }
         let shared: [String: Any] = [
             "format": 1, "created": ISO8601DateFormatter().string(from: Date()),
+            "preparation": PreparationChanges.serial,
             "entry": [
                 "id": e.id, "sha256": Preparer.sha256(try entryJSON.encode(e)),
                 "content": try JSONSerialization.jsonObject(with: entryJSON.encode(e)),

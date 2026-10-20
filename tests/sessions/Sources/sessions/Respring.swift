@@ -25,7 +25,7 @@ private let closeApp = [
 ]
 
 func respringCheck(_ args: RespringCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     guard !base.firstGeneration else { die("iPhone OS 1 has no guest tools: respring boots a 2.x or later base") }
     let work = workDirectory(args.inputs, "respring")
     let tools = Tools.resolve(args.inputs, work: work)

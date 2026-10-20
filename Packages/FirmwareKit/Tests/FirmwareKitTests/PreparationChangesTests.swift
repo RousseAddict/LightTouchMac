@@ -1,0 +1,90 @@
+import FirmwareSchema
+import Foundation
+import Testing
+
+/// A base the tree would prepare differently is stale (what sessions refuses to boot); one prepared now isn't. Locks
+/// are written in firmwarekit's shape from the shipped catalog's rows.
+struct PreparationChangesTests {
+    static let catalog: [FirmwareWire.Entry] = {
+        struct Catalog: Decodable { let entries: [FirmwareWire.Entry] }
+        return try! JSONDecoder().decode(Catalog.self, from: Data(contentsOf: Oracle.catalog)).entries
+    }()
+
+    /// `id`'s lock as firmwarekit writes it, with `serial` or (nil) none, `created`, and recipe edits.
+    static func lock(
+        _ id: String,
+        serial: Int? = PreparationChanges.serial,
+        created: String = "2026-10-20T12:00:00Z",
+        recipe: (inout [String: Any]) -> Void = { _ in }
+    ) throws -> [String: Any] {
+        let row = try #require(catalog.first { $0.id == id })
+        var content = try #require(try JSONSerialization.jsonObject(with: JSONEncoder().encode(row)) as? [String: Any])
+        var r = try #require(content["recipe"] as? [String: Any])
+        recipe(&r)
+        content["recipe"] = r
+        var lock: [String: Any] = [
+            "format": 1, "created": created, "board": row.board, "build": row.build,
+            "entry": ["id": id, "content": content], "tool": ["name": "firmwarekit", "version": "0.2.0"],
+        ]
+        if let serial { lock["preparation"] = serial }
+        return lock
+    }
+
+    static func stale(_ lock: [String: Any]) -> [String] {
+        PreparationChanges.verdict(lock: lock, catalog: catalog).stale
+    }
+
+    @Test func aBasePreparedNowIsFresh() throws {
+        for id in ["n88ap-8B117", "n18ap-7C146", "n90ap-11D257", "n72ap-7E18", "n45ap-4A102", "k48ap-8C148"] {
+            #expect(Self.stale(try Self.lock(id)) == [], "\(id)")
+            #expect(Self.stale(try Self.lock(id, serial: nil, created: "2026-10-21T00:00:00Z")) == [], "\(id) by date")
+        }
+    }
+
+    @Test func aChangeAfterTheSerialStalesItsRowsOnly() throws {
+        // 2db3a570 (serial 9): the iPhone 3GS's 3.1.x data volume unjournaled
+        let journaled = Self.stale(try Self.lock("n88ap-7E18", serial: 8))
+        #expect(journaled.count == 1 && journaled.first?.hasPrefix("2db3a570") == true)
+        #expect(Self.stale(try Self.lock("n88ap-8C148", serial: 8)) == [], "4.x isn't a 3.1 row")
+        #expect(Self.stale(try Self.lock("n18ap-7C146", serial: 8)) == [], "another board")
+    }
+
+    /// The 4.1 SpringBoard crash's base: prepared 2026-10-05 08:15, before the seal boots carried the modem.
+    @Test func aLockWithoutASerialIsJudgedByItsDate() throws {
+        let old = Self.stale(try Self.lock("n88ap-8B117", serial: nil, created: "2026-10-05T08:15:22Z"))
+        #expect(old.contains { $0.hasPrefix("8b15001c") })
+        #expect(old.contains { $0.hasPrefix("9c810e4e") })
+        let since = Self.stale(try Self.lock("n88ap-8B117", serial: nil, created: "2026-10-06T00:00:00Z"))
+        #expect(!since.contains { $0.hasPrefix("8b15001c") } && since.contains { $0.hasPrefix("9c810e4e") })
+        #expect(Self.stale(try Self.lock("n88ap-8B117", serial: nil, created: "not a date")).count == 4)
+    }
+
+    @Test func aRecipeTheCatalogNoLongerHasIsStale() throws {
+        let noBluetooth = try Self.lock("n88ap-7E18") {
+            $0["options"] = ($0["options"] as! [String: Bool]).filter { $0.key != "bluetooth" }
+        }
+        #expect(Self.stale(noBluetooth) == ["recipe option bluetooth on in the catalog, off in the base"])
+        let derived = try Self.lock("n88ap-7E18") {
+            var options = $0["options"] as! [String: Bool]
+            options["writable_nor"] = true
+            $0["options"] = options
+        }
+        #expect(Self.stale(derived) == [], "an option the catalog no longer sets is a derivation now")
+        #expect(Self.stale(try Self.lock("n88ap-8B117") { $0["version"] = 1 }) == [], "admission migrates n88 1 to 2")
+        #expect(Self.stale(try Self.lock("n81ap-8B117") { $0["version"] = 0 }) == ["recipe 0, the catalog's is 1"])
+    }
+
+    @Test func aLockWithoutACatalogRowIsStale() throws {
+        #expect(!Self.stale(["format": 1, "board": "n45ap"]).isEmpty, "a device.py base")
+        var gone = try Self.lock("n88ap-8B117")
+        gone["entry"] = ["id": "n88ap-0A000", "content": ["recipe": ["version": 2]]]
+        #expect(Self.stale(gone) == ["the catalog has no row n88ap-0A000 any more"])
+    }
+
+    @Test func changesAreInSerialAndDateOrder() throws {
+        let dates = PreparationChanges.all.map { ISO8601DateFormatter().date(from: $0.landed) }
+        #expect(!dates.contains(nil))
+        #expect(PreparationChanges.all.map(\.serial) == Array(1...PreparationChanges.serial))
+        #expect(dates.compactMap { $0 } == dates.compactMap { $0 }.sorted())
+    }
+}

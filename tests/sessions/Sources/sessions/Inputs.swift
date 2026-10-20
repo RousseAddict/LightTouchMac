@@ -1,3 +1,4 @@
+import FirmwareSchema
 import Foundation
 import ReleaseChecks
 import SessionKit
@@ -190,7 +191,11 @@ struct Base {
             as? String == "partition"
     }
 
-    init(_ path: String) {
+    /// Prints how the base was prepared, and refuses one this tree would prepare differently unless --allow-stale:
+    /// a check on an older base chases what the tree has already fixed.
+    init(_ path: String, _ inputs: Inputs) { self.init(path, allowStale: inputs.allowStale) }
+
+    init(_ path: String, allowStale: Bool) {
         url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardized
         guard let data = try? Data(contentsOf: url.appendingPathComponent("device.lock.json")),
             let lock = (try? JSONSerialization.jsonObject(with: data)) as? [String: Any]
@@ -198,5 +203,37 @@ struct Base {
             die("\(url.path) is not a prepared base (no device.lock.json)")
         }
         self.lock = lock
+        let verdict = PreparationChanges.verdict(lock: lock, catalog: catalogEntries)
+        print("base \(url.path) (\(verdict.stale.isEmpty ? "fresh" : "stale")): \(verdict.fingerprint)")
+        fflush(stdout)
+        guard !verdict.stale.isEmpty else { return }
+        let reasons = verdict.stale.map { "  - \($0)" }.joined(separator: "\n")
+        guard allowStale else {
+            let ipsw = ((lock["inputs"] as? [String: Any])?["ipsw"] as? [String: Any])?["path"] as? String ?? "IPSW"
+            let options = ((lock["entry"] as? [String: Any])?["content"] as? [String: Any])
+                .flatMap { ($0["recipe"] as? [String: Any])?["options"] as? [String: Bool] }
+            let flags = [("skip_setup", " --skip-setup"), ("jailbreak", " --jailbreak")]
+                .filter { options?[$0.0] == true }.map(\.1).joined()
+            die(
+                """
+                \(url.path) is stale: this tree prepares \(entryID) differently.
+                \(reasons)
+                Prepare it again from this tree, then check the new base with sessions single:
+                  firmwarekit create --catalog LightTouchMac/Resources/firmware-catalog.json --id \(entryID) \
+                --ipsw \(ipsw) --out NEW_BASE\(flags)
+                or pass --allow-stale to boot it anyway.
+                """
+            )
+        }
+        print(reasons)
     }
 }
+
+/// The catalog's entries in this tree.
+let catalogEntries: [FirmwareWire.Entry] = {
+    struct Catalog: Decodable { let entries: [FirmwareWire.Entry] }
+    let url = repository.appendingPathComponent("LightTouchMac/Resources/firmware-catalog.json")
+    do { return try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: url)).entries } catch {
+        die("can't read the catalog at \(url.path): \(error)")
+    }
+}()

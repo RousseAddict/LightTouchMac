@@ -8,7 +8,7 @@ import SessionKit
 /// the release came is a race, so a lost press failed about half the taps: --taps rounds (default 4) make a miss
 /// near certain to show. A 5.x-7.x base needs --skip-setup or --overlay.
 func scrollTopCheck(_ args: ScrollTopCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     // ponytail: not the iPad, whose Settings is a split view with no list long enough to scroll.
     guard base.board != "k48ap" else { die("scrolltop boots an iPhone or iPod base") }
     let work = workDirectory(args.inputs, "scrolltop")

@@ -21,7 +21,7 @@ struct TweaksCheck: ParsableCommand {
 /// What `sessions tweaks` runs on the base: a boot that applies, reads the status bar and undoes it, and a Time Machine
 /// boot. The steps go through helper-driver's `tweaks` (TweakApplier, as DeviceTweaks applies it) and `ocr`.
 func tweaksCheck(_ args: TweaksCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     guard !base.firstGeneration else { die("iPhone OS 1 has no guest tools: tweaks boots a 2.x or later base") }
     let work = workDirectory(args.inputs, "tweaks")
     let tools = Tools.resolve(args.inputs, work: work)

@@ -28,6 +28,13 @@ struct Inputs: ParsableArguments {
     var work: URL?
     @Flag(help: "Keeps the temporary work directory of a run that passes.") var keep = false
     @Option(help: "The signing requirement the driver pins the helper to.") var requirement: String?
+    @Flag(
+        help: """
+            Boot a base this tree would prepare differently (an older recipe, or a change to what preparation writes \
+            since the base was made: FirmwareSchema's PreparationChanges) instead of refusing it.
+            """
+    )
+    var allowStale = false
 
     func validate() throws {
         if app != nil, dylib != nil {
@@ -55,7 +62,7 @@ struct Sessions: ParsableCommand {
             SingleCheck.self, PairCheck.self, ProxyTrustCheck.self, LocalNetworkCheck.self, HelperCheck.self,
             HelperBootCheck.self, PhoneCheck.self, RotationCheck.self, KeyboardCheck.self, FlickCheck.self,
             ScrollTopCheck.self,
-            TweaksCheck.self, RespringCheck.self, ClipboardCheck.self,
+            TweaksCheck.self, RespringCheck.self, ClipboardCheck.self, BasesCheck.self,
         ]
     )
 }
@@ -126,6 +133,19 @@ struct SingleCheck: ParsableCommand {
     @OptionGroup var inputs: Inputs
 
     func run() { single(self) }
+}
+
+struct BasesCheck: ParsableCommand {
+    static let configuration = CommandConfiguration(
+        commandName: "bases",
+        abstract: """
+            Says, booting nothing, whether each base is fresh or stale: how it was prepared, and what this tree would \
+            prepare differently (the check every other command makes before it boots).
+            """
+    )
+    @Argument var bases: [String]
+
+    func run() { for base in bases { _ = Base(base, allowStale: true) } }
 }
 
 struct PairCheck: ParsableCommand {

@@ -32,6 +32,7 @@ let package = Package(
             dependencies: [
                 "SessionKit", parser, .product(name: "ReleaseChecks", package: "ReleaseChecks"),
                 .product(name: "LightTouchCore", package: "LightTouchCore"),
+                .product(name: "FirmwareSchema", package: "FirmwareKit"),
             ]
         ),
         .executableTarget(

@@ -8,7 +8,7 @@ import SessionKit
 /// reference), the backlight at the firmware's 100%, AFC round trips past 16 KiB, an IPA install (2.x on), a clean
 /// shutdown confirmed by the guest, and the base untouched.
 func single(_ args: SingleCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     let work = workDirectory(args.inputs, "single")
     let tools = Tools.resolve(args.inputs, work: work)
     let d = base.driverBoard

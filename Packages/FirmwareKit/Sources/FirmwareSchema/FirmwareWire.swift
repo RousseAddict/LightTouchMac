@@ -136,6 +136,9 @@ nonisolated public enum FirmwareWire {
                 }
             }
             public var name: String
+            /// Raised when users' devices of the row must be prepared again (the app offers Prepare Again for a lower
+            /// one, after FirmwareWire.admissionRecipeSteps). Every change to what preparation writes into a base also
+            /// appends a PreparationChanges entry, whether or not it raises this.
             public var version: Int
             public var storage: String
             public var systemMiB: Int

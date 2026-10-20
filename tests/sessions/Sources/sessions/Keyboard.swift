@@ -6,7 +6,7 @@ import SessionKit
 /// keys, and the guest agent reads it back from Notes' store. A 5.x-7.x base sits in Setup on its first boot: prepare
 /// it with --skip-setup, or pass --overlay, the overlay of a boot that walked Setup, cloned.
 func keyboardCheck(_ args: KeyboardCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     // ponytail: the iPad (k48ap) has the keyboard too, but where its Notes puts + is unmeasured.
     guard ["n81ap", "n90ap"].contains(base.board) else { die("keyboard boots an n81ap or n90ap base") }
     let work = workDirectory(args.inputs, "keyboard")

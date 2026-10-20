@@ -15,7 +15,7 @@ func httpget(_ args: Inputs) -> URL {
 /// the trust and gets the proxy's own answer after; Safari stays in front on the HTTPS page and its request reached the
 /// proxy; a restart on the same overlay, unlocked, shows the Home screen and no profile screen after the trust runs again.
 func proxyTrust(_ args: ProxyTrustCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     guard ["n72ap", "k48ap"].contains(base.board) else { die("proxy-trust boots an n72ap or k48ap base") }
     let b = base.driverBoard
     let ipad = b == "ipad"
@@ -235,7 +235,7 @@ final class LANProbe: @unchecked Sendable {
 /// usbmuxd may open none at all (the iPad's USB Ethernet bridge once gave the guest its own unfiltered slirp there).
 /// --restricted boots wifi0 restricted (5.x Setup offline): no internet, no DNS, and no LAN even once turned on.
 func localNetworkCheck(_ args: LocalNetworkCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     guard ["n72ap", "k48ap"].contains(base.board) else { die("local-network boots an n72ap or k48ap base") }
     let restricted = args.restricted
     guard

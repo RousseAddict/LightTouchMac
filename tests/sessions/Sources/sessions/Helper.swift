@@ -207,7 +207,7 @@ func helperChecks(_ args: HelperCheck) -> Never {
 /// paused at most 5 Hz and none, resumed 60 Hz, the guest's display asleep at most 5 Hz, woken 60 Hz again. `--only a,b`
 /// picks cases.
 func helperBoot(_ args: HelperBootCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     guard base.board == "n72ap" else { die("helper-boot boots an n72ap base") }
     let work = workDirectory(args.inputs, "helper-boot")
     let tools = Tools.resolve(args.inputs, work: work)
@@ -405,7 +405,7 @@ private func describe(_ buzzes: [(start: Double, seconds: Double?)]) -> String {
 /// directory), cloned, never changed.
 /// `emergency` (4.x and 7.x): 911 from the emergency dialer, which asks the modem first (issue 32).
 func phone(_ args: PhoneCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     guard ["n90ap", "n88ap", "m68ap"].contains(base.board) else { die("phone boots an n90ap, n88ap or m68ap base") }
     let work = workDirectory(args.inputs, "phone")
     let tools = Tools.resolve(args.inputs, work: work)

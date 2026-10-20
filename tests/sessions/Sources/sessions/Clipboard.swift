@@ -7,7 +7,7 @@ import SessionKit
 /// (it_pbtool get), and isn't reported back. Both strings carry non-ASCII text. The guest agent starts its clipboard
 /// 40 s after it comes up, so the check waits that long first.
 func clipboardCheck(_ args: ClipboardCheck) -> Never {
-    let base = Base(args.base)
+    let base = Base(args.base, args.inputs)
     guard base.major >= 3 else { die("iPhone OS 3.0 brought the pasteboard: boot a 3.0 or later base") }
     let work = workDirectory(args.inputs, "clipboard")
     let tools = Tools.resolve(args.inputs, work: work)
