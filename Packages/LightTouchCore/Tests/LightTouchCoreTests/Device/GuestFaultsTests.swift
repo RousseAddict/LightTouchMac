@@ -74,6 +74,11 @@ struct GuestFaultsTests {
             "stacks+MobileMail-2026-10-19-184126.ips": 57, "DiagnosticLogs/security.log.20261020T014048Z": 82,
         ]
         #expect(GuestFaults.crashedProcesses(ages: ios712, uptime: 117) == ["it_seal", "stacks+MobileMail"])
+        // An iPhone 4 4.2.1 boot: mediaserverd's report and the system log snapshot taken with it (bug_type 116).
+        let ios421: [String: Double] = [
+            "mediaserverd_2026-10-19-224443_iPhone.plist": 40, "SystemLog_2026-10-19-224353.plist": 90,
+        ]
+        #expect(GuestFaults.crashedProcesses(ages: ios421, uptime: 120) == ["mediaserverd"])
         // jetsam's report and a panic count; nothing does on an empty folder.
         let other: [String: Double] = [
             "LowMemory-2011-03-01-120102.plist": 600, "Panics/panic-full-2011-03-01-120102.plist": 5,

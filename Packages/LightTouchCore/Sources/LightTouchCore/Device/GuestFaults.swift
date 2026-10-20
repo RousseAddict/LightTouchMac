@@ -71,12 +71,13 @@ public nonisolated enum GuestFaults {
     /// (.ips from 7.0), "LowMemory-2011-03-01-120102.plist" (jetsam's: a clean boot that runs out of memory is a
     /// fault too), "stacks+MobileMail-…" (a hang's stackshot), "panic-full-2011-…" (a kernel panic). nil for what
     /// isn't one: LatestCrash-*.plist (links to the newest report of a process), 7.x's Sandbox-<process>-… (a sandbox
-    /// violation the process survived), the logs beside them (DiagnosticLogs/*.log, MobileBackup.log) and anything
-    /// without ReportCrash's date.
+    /// violation the process survived), SystemLog_… (bug_type 116: a copy of the system log CrashReporter takes beside
+    /// another report, no process of its own), the logs beside them (DiagnosticLogs/*.log, MobileBackup.log) and
+    /// anything without ReportCrash's date.
     public static func process(report path: String) -> String? {
         let name = (path as NSString).lastPathComponent
         guard ["plist", "ips", "crash"].contains((name as NSString).pathExtension),
-            !name.hasPrefix("LatestCrash"), !name.hasPrefix("Sandbox-"),
+            !name.hasPrefix("LatestCrash"), !name.hasPrefix("Sandbox-"), !name.hasPrefix("SystemLog_"),
             let match = name.firstMatch(of: /^(.+?)[_-]\d{4}-\d{2}-\d{2}-\d{6}/)
         else { return nil }
         return String(match.1)
