@@ -1,0 +1,141 @@
+# The Big Sur port's feedback loop: on every push to this branch (or by hand, for a given upstream tag), build and
+# check the compat packages, then apply the port to the newest upstream release and compile it for macOS 11 with
+# Xcode 26.6 (macos-26; Phase 0 showed upstream needs only small patches there). Results go to the ci-results
+# branch (spike/fetch-results.sh RUN_ID reads them with any clone), the job summaries and notice annotations.
+name: Port
+
+on:
+  push:
+    branches: [bigsur]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Upstream release tag (blank for the newest)
+        required: false
+        default: ""
+
+permissions:
+  # spike/save-results.sh commits to the ci-results branch.
+  contents: write
+
+concurrency:
+  group: port-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  compat:
+    runs-on: macos-26
+    timeout-minutes: 60
+    env:
+      OUT: ${{ github.workspace }}/spike-out
+    steps:
+      - name: Check out the port layer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Select Xcode 26.6
+        run: sudo xcode-select -s /Applications/Xcode_26.6.app && xcodebuild -version
+
+      - name: Compat runtimes and their checks (swiftc, as on the Mac)
+        run: |
+          mkdir -p "$OUT"
+          bash check/compat.sh 2>&1 | tee "$OUT/compat-checks.txt"
+
+      - name: Packages build with SwiftPM, and the macro tests
+        run: |
+          set -o pipefail
+          {
+            swift build --package-path add/Packages/BigSurCompat
+            swift build --package-path add/Packages/BigSur/swift-subprocess
+            swift build --package-path add/Packages/BigSur/Sparkle
+            swift test --package-path add/Packages/ObservationCompat
+          } 2>&1 | tee "$OUT/swiftpm.txt"
+
+      - name: Save the results to the ci-results branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          JOB: compat
+        run: |
+          tail -c 20000 "$OUT/swiftpm.txt" > "$OUT/summary-swiftpm.md" || true
+          grep -E '^(==|FAIL|All|[0-9]+ checks)' "$OUT/compat-checks.txt" > "$OUT/summary-compat.md" || true
+          touch "$OUT/probe.txt"
+          bash spike/save-results.sh
+
+      - name: Publish the results as annotations
+        if: always()
+        run: python3 -I spike/annotate.py compat "$OUT/summary-compat.md" "$OUT/summary-swiftpm.md"
+
+  compile:
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      OUT: ${{ github.workspace }}/spike-out
+    steps:
+      - name: Check out the port layer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: port
+
+      - name: Pick the upstream tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANTED: ${{ inputs.tag }}
+        run: |
+          tag="$WANTED"
+          [ -n "$tag" ] || tag=$(gh release view --repo samhenrigold/LightTouchMac --json tagName --jq .tagName)
+          echo "Upstream tag: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check out upstream at the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: samhenrigold/LightTouchMac
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+          path: src
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
+          brew install libimobiledevice libplist
+
+      - name: Apply the port
+        run: |
+          mkdir -p "$OUT"
+          bash port/apply.sh src 2>&1 | tee "$OUT/apply.txt"
+
+      - name: Probe the toolchain
+        if: always()
+        run: bash port/spike/probe-toolchain.sh src
+
+      - name: Compile for macOS 11
+        run: bash port/spike/compile.sh src port
+
+      - name: Write the job summary
+        if: always()
+        run: |
+          {
+            echo "# Port of upstream ${{ steps.tag.outputs.tag }}"
+            echo '```'
+            sed -n '/== 3. codemod/,$p' "$OUT/apply.txt"
+            echo '```'
+            cat "$OUT"/summary-port.md 2>/dev/null
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Save the results to the ci-results branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          JOB: compile
+        run: |
+          cp "$OUT/apply.txt" "$OUT/summary-apply.md" 2>/dev/null || true
+          bash port/spike/save-results.sh
+
+      - name: Publish the results as annotations
+        if: always()
+        run: python3 -I port/spike/annotate.py compile "$OUT/summary-apply.md" "$OUT"/summary-port.md

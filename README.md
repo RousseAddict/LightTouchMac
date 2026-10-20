@@ -45,6 +45,14 @@ Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
 - `.github/workflows/spike.yml` runs both on `macos-26` and `macos-15`. Start it from the Actions tab with
   **Run workflow**. The job summary and the `spike-*` artifacts are the result.
 
+## The feedback loop
+
+`.github/workflows/port.yml` runs on every push to this branch, or by hand for a given upstream tag.
+- **`compat`:** builds the compat packages with Xcode 26.6, runs their checks and ObservationCompat's macro tests.
+- **`compile`:** applies the port to the newest upstream release and compiles it for macOS 11.
+- **Results:** in the `ci-results` branch (`spike/fetch-results.sh RUN_ID`).
+- **On the Big Sur Mac:** `check/compat.sh --display` runs the same compat checks there, the real target.
+
 ## Applying the port
 
 `apply.sh UPSTREAM_CHECKOUT` turns a fresh upstream checkout into the Big Sur tree, on a new
