@@ -34,6 +34,42 @@ extension SharedState {
             #expect(lcds.first?.minificationFilter != .nearest, "DisplayView's LCD minification should filter")
         }
 
+        /// The flat device's shadow is cast from its art's outline (a shadow path), never from the layer's pixels:
+        /// without a path Core Animation renders the shadow from everything the shell holds, the live screen
+        /// included, so each frame re-rendered it offscreen and redrew its area, up under the toolbar (issue 107).
+        /// The outline is the device's: it holds the screen and stays inside the art's rounded corners.
+        @Test(arguments: [Board.n72, .k48, .n45, .n81, .n90, .m68]) func flatShadowFollowsTheArt(_ profile: Board)
+            async throws
+        {
+            let name = profile.shellImageName
+            let folder = MainBundle.repository.appendingPathComponent("LightTouchMac/Assets.xcassets/\(name).imageset")
+            let png = try #require(
+                FileManager.default.contentsOfDirectory(atPath: folder.path).first { $0.hasSuffix(".png") }
+            )
+            try await MainBundle.with(["\(name).png": "LightTouchMac/Assets.xcassets/\(name).imageset/\(png)"]) {
+                DisplayView.bezel = .flat
+                defer { UserDefaults.standard.removeObject(forKey: DisplayView.bezelKey) }
+                let display = DisplayView(frame: NSRect(x: 0, y: 0, width: 800, height: 800), profile: profile)
+                let shell = display.shellLayer
+                #expect(shell.contents != nil, "\(profile): the flat art is loaded")
+                #expect(shell.shadowOpacity > 0, "\(profile): the flat device casts a shadow")
+                let path = try #require(shell.shadowPath, "\(profile): the shadow is cast from the layer's pixels")
+                let size = profile.shellPixels
+                let box = path.boundingBox
+                #expect(
+                    box.height > size.height * 0.95 && box.width > size.width * 0.8 && box.maxX <= size.width + 0.5
+                        && box.maxY <= size.height + 0.5,
+                    "\(profile): outline \(box) in art \(size)"
+                )
+                let cutout = profile.screenCutout
+                #expect(path.contains(CGPoint(x: cutout.midX, y: cutout.midY)), "\(profile): the screen is inside")
+                let corners = [CGPoint(x: 1, y: 1), CGPoint(x: size.width - 1, y: size.height - 1)]
+                #expect(!corners.contains { path.contains($0) }, "\(profile): the outline keeps the art's corners out")
+                display.applyBezel(.off)
+                #expect(shell.shadowOpacity == 0 && shell.shadowPath == nil, "\(profile): no bezel, no shadow")
+            }
+        }
+
         /// A display that leaves its window before its model is presented (another device selected meanwhile) shows
         /// the model when it comes back, where it kept the shell and the Home button hidden until the bezel changed.
         @Test func aModelLoadCutShortLoadsAgainOnReturn() async throws {

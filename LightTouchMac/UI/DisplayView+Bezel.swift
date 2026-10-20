@@ -24,9 +24,14 @@ extension DisplayView {
         CATransaction.begin()
         CATransaction.setDisableActions(true)
         shellLayer.removeAnimation(forKey: "modelPresentation")
-        shellLayer.contents =
+        let art =
             bare ? nil : NSImage(named: profile.shellImageName)?.cgImage(forProposedRect: nil, context: nil, hints: nil)
+        shellLayer.contents = art
         shellLayer.shadowOpacity = bare ? 0 : 0.4
+        // The shadow follows the art's outline. Without a path Core Animation casts it from everything the layer
+        // draws, the live screen inside it included, so each new frame rendered the shadow again offscreen and
+        // redrew its whole area, which reaches up under the toolbar's glass (issue 107).
+        shellLayer.shadowPath = art.map { Self.outline(of: $0, size: shellPixels) }
         // Bare, the transform turns and scales about the screen's center, which layout() puts at the pane's.
         shellLayer.anchorPoint =
             bare
@@ -71,6 +76,40 @@ extension DisplayView {
             }
         }
         needsLayout = true
+    }
+
+    /// The art's opaque outline in the shell layer's space (`size`, top-left origin like the screen cutout): each
+    /// row's leftmost and rightmost opaque pixel, every few rows, as one polygon. A device's outline is convex
+    /// across each row, so that is its shape to within the rows skipped.
+    static func outline(of art: CGImage, size: CGSize) -> CGPath {
+        let (width, height) = (art.width, art.height)
+        var alpha = [UInt8](repeating: 0, count: width * height)
+        alpha.withUnsafeMutableBytes { buffer in
+            CGContext(
+                data: buffer.baseAddress,
+                width: width,
+                height: height,
+                bitsPerComponent: 8,
+                bytesPerRow: width,
+                space: CGColorSpaceCreateDeviceGray(),
+                bitmapInfo: CGImageAlphaInfo.alphaOnly.rawValue
+            )?.draw(art, in: CGRect(x: 0, y: 0, width: width, height: height))
+        }
+        let (sx, sy) = (size.width / CGFloat(width), size.height / CGFloat(height))
+        var left: [CGPoint] = []
+        var right: [CGPoint] = []
+        for row in stride(from: 0, to: height, by: 4) {
+            let line = alpha[(row * width)..<((row + 1) * width)]
+            guard let first = line.firstIndex(where: { $0 >= 128 }), let last = line.lastIndex(where: { $0 >= 128 })
+            else { continue }
+            let y = CGFloat(row) * sy
+            left.append(CGPoint(x: CGFloat(first - row * width) * sx, y: y))
+            right.append(CGPoint(x: CGFloat(last + 1 - row * width) * sx, y: y))
+        }
+        let path = CGMutablePath()
+        path.addLines(between: left + right.reversed())
+        path.closeSubpath()
+        return path
     }
 
     private func stageModelForPresentation(_ model: DeviceModelView) -> Bool {
