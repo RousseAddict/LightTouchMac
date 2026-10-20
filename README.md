@@ -40,6 +40,16 @@ Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
 - `.github/workflows/spike.yml` runs both on `macos-26` and `macos-15`. Start it from the Actions tab with
   **Run workflow**. The job summary and the `spike-*` artifacts are the result.
 
+## Applying the port
+
+`apply.sh UPSTREAM_CHECKOUT` turns a fresh upstream checkout into the Big Sur tree, on a new
+`bigsur-applied-<sha>` branch of that checkout.
+- Use a checkout you can throw away (CI's, or `git clone --no-checkout` plus `git checkout <tag>`). Never use
+  your working copy of upstream.
+- It commits steps 1–3 and the hand patches separately, so `git diff HEAD~1` shows the patches.
+- `codemod.py` prints each rule's count and fails when a required rule matches nothing, which means upstream
+  moved what that rule rewrites.
+
 ## Layout as it grows
 
 | Path | What |

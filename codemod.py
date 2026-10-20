@@ -1,0 +1,221 @@
+# The port's mechanical rewrites of a fresh upstream checkout (apply.sh's third step). It prints each rule's count and
+# exits 1 when a required rule matched nothing, which means upstream moved what the rule rewrites.
+#
+# 1. Text rules: regular-expression replacements over fixed files (deployment target, project format, package
+#    references) or over the Swift code in SWIFT_ROOTS (APIs renamed to the compat modules' equivalents). A Swift file
+#    a rename changes also gets that module's import.
+# 2. Manifests: a block appended to each Package.swift adjusts the `package` value in Swift:
+#    - the platform becomes macOS 11;
+#    - swift-subprocess resolves to the port's local stand-in;
+#    - each target with a rewritten file depends on the compat module that file now imports.
+#    Doing this Swift-side survives any formatting upstream gives the manifest.
+#
+#   codemod.py UPSTREAM_CHECKOUT
+import collections
+import os
+import re
+import sys
+from dataclasses import dataclass
+
+# The Swift code the renames apply to: what ships, its packages' tests, and tests/offline (whose symlinks into the app
+# resolve to files covered here). tests/sessions, tools, BuildTools and ReleaseChecks run on the CI host only and
+# keep upstream's APIs.
+SWIFT_ROOTS = [
+    "LightTouchMac",
+    "LightTouchDevice",
+    "LightTouchServices",
+    "Packages/HostRuntime",
+    "Packages/DeviceRuntime",
+    "Packages/DeviceServices",
+    "Packages/FirmwareKit",
+    "Packages/LightTouchCore",
+    "tests/offline",
+]
+# The port's own code (apply.sh adds it first), which the rules leave alone.
+OWN = ["Packages/BigSurCompat", "Packages/ObservationCompat", "Packages/BigSur", "LightTouchMac/BigSur"]
+# Packages whose platform drops to macOS 11 (they ship); the test and tooling packages keep theirs.
+SHIPPED = ["HostRuntime", "DeviceRuntime", "DeviceServices", "FirmwareKit", "LightTouchCore"]
+COMPAT_PACKAGES = {"BigSurCompat": "Packages/BigSurCompat", "ObservationCompat": "Packages/ObservationCompat"}
+PROJECT = "LightTouchMac.xcodeproj/project.pbxproj"
+SWIFT = "swift"
+
+
+@dataclass
+class Rule:
+    name: str
+    files: object  # a list of paths relative to the checkout, or SWIFT
+    pattern: str
+    replacement: object  # a string with \1-style groups, or a function of the match
+    module: str = ""  # imported by Swift files this rule changes
+    required: bool = True
+
+
+def local_package(name, url_part, path):
+    """The project's remote reference to a package, made local; the object ID, and so every use of it, stays."""
+    return Rule(
+        f"project: {name} as a local package",
+        [PROJECT],
+        r'isa = XCRemoteSwiftPackageReference;\s*repositoryURL = "[^"]*' + re.escape(url_part)
+        + r'[^"]*";\s*requirement = \{[^}]*\};',
+        f"isa = XCLocalSwiftPackageReference;\n\t\t\trelativePath = {path};",
+    )
+
+
+# SF Symbols missing on macOS 11.7 (checked on the Big Sur Mac), and stand-ins it has.
+SYMBOLS = {"document.on.document": "doc.on.doc", "inset.filled.bottomthird.square": "rectangle.bottomthird.inset.fill"}
+
+RULES = [
+    Rule("xcconfig: macOS 11", ["Configuration/Shared.xcconfig"],
+         r"^MACOSX_DEPLOYMENT_TARGET = 14\.4$", "MACOSX_DEPLOYMENT_TARGET = 11.0"),
+    Rule("project: macOS 11", [PROJECT], r"MACOSX_DEPLOYMENT_TARGET = 14\.4;", "MACOSX_DEPLOYMENT_TARGET = 11.0;"),
+    # Xcode 27's format; GitHub's newest Xcode is 26, which opens 77 and builds the project unchanged.
+    Rule("project: objectVersion 77", [PROJECT], r"objectVersion = 1\d\d;", "objectVersion = 77;"),
+    local_package("swift-subprocess", "swift-subprocess", "Packages/BigSur/swift-subprocess"),
+    local_package("Sparkle", "sparkle-project/Sparkle", "Packages/BigSur/Sparkle"),
+    # macOS 13 time and lock APIs.
+    Rule("swift: Duration", SWIFT, r"\bDuration\b", "CompatDuration", "BigSurCompat"),
+    Rule("swift: ContinuousClock", SWIFT, r"\bContinuousClock\b", "CompatContinuousClock", "BigSurCompat"),
+    Rule("swift: SuspendingClock", SWIFT, r"\bSuspendingClock\b", "CompatSuspendingClock", "BigSurCompat"),
+    Rule("swift: Task.sleep(for:)", SWIFT, r"\bTask\.sleep\((\s*)for:", r"Task.compatSleep(\1for:", "BigSurCompat"),
+    Rule("swift: OSAllocatedUnfairLock", SWIFT, r"\bOSAllocatedUnfairLock\b", "CompatUnfairLock", "BigSurCompat"),
+    Rule("swift: firstRange(of:)", SWIFT, r"\.firstRange\(of:", ".compatFirstRange(of:", "BigSurCompat"),
+    Rule("swift: TimeZone.gmt", SWIFT, r"(?<=[\s(:,=])\.gmt\b", ".compatGMT", "BigSurCompat"),
+    # Observation (macOS 14): Swift 6.2's own, ported for macOS 11 as ObservationCompat.
+    Rule("swift: import Observation", SWIFT, r"^import Observation$", "import ObservationCompat"),
+    Rule("swift: @Observable", SWIFT, r"@Observable\b", "@CompatObservable", "ObservationCompat"),
+    Rule("swift: @ObservationIgnored", SWIFT, r"@ObservationIgnored\b", "@CompatObservationIgnored",
+         "ObservationCompat"),
+    Rule("swift: withObservationTracking", SWIFT, r"\bwithObservationTracking\b", "withCompatObservationTracking",
+         "ObservationCompat"),
+    Rule("swift: SF Symbols", SWIFT, r'"(' + "|".join(map(re.escape, SYMBOLS)) + r')"',
+         lambda m: f'"{SYMBOLS[m.group(1)]}"', required=False),
+]
+
+
+def swift_files(root):
+    """Real Swift files under SWIFT_ROOTS (not symlinks, not the port's own), and tests/offline's symlinks."""
+    files, links = [], []
+    for base in SWIFT_ROOTS:
+        for directory, dirs, names in os.walk(os.path.join(root, base)):
+            rel = os.path.relpath(directory, root)
+            dirs[:] = sorted(d for d in dirs if d not in (".build", "build")
+                             and not any(os.path.join(rel, d).startswith(own) for own in OWN))
+            for name in names:
+                path = os.path.join(directory, name)
+                if not name.endswith(".swift") or name == "Package.swift":
+                    continue
+                (links if os.path.islink(path) else files).append(os.path.relpath(path, root))
+    return sorted(files), sorted(links)
+
+
+def add_import(text, module):
+    """Adds `import module` before the first import that isn't inside an #if, unless the file has it already."""
+    if re.search(rf"^(?:@\w+(?:\([^)]*\))? )*import {module}$", text, re.MULTILINE):
+        return text
+    lines = text.split("\n")
+    depth, first = 0, None
+    for i, line in enumerate(lines):
+        stripped = line.strip()
+        if stripped.startswith("#if"):
+            depth += 1
+        elif stripped.startswith("#endif"):
+            depth -= 1
+        elif depth == 0 and re.match(r"^(?:@\w+(?:\([^)]*\))? )*import \w+", stripped):
+            first = i
+            break
+    if first is None:
+        first = next((i for i, l in enumerate(lines) if l.strip() and not l.lstrip().startswith("//")), 0)
+    lines.insert(first, f"import {module}")
+    return "\n".join(lines)
+
+
+def target_of(rel):
+    """(package directory, target name) for a file in a Swift package, or None for the Xcode targets' files."""
+    parts = rel.split("/")
+    if parts[0] == "Packages" and len(parts) > 3 and parts[2] in ("Sources", "Tests"):
+        return "/".join(parts[:2]), parts[3]
+    if parts[:2] == ["tests", "offline"] and len(parts) > 3 and parts[2] in ("Sources", "Tests"):
+        return "tests/offline", parts[3]
+    return None
+
+
+def manifest_block(package_dir, platform, subprocess, needs):
+    lines = ["", "// Big Sur port (bigsur/apply.sh): adjusts the package above for macOS 11."]
+    if platform:
+        lines.append("package.platforms = [.macOS(.v11)]")
+    if subprocess:
+        lines += [
+            "package.dependencies = package.dependencies.map { dependency in",
+            '    guard case .sourceControl(_, let location, _) = dependency.kind, location.contains("swift-subprocess")',
+            "    else { return dependency }",
+            '    return .package(path: "' + os.path.relpath("Packages/BigSur/swift-subprocess", package_dir) + '")',
+            "}",
+        ]
+    for module in sorted({m for modules in needs.values() for m in modules}):
+        targets = sorted(t for t, modules in needs.items() if module in modules)
+        path = os.path.relpath(COMPAT_PACKAGES[module], package_dir)
+        lines.append(f'package.dependencies.append(.package(path: "{path}"))')
+        lines.append("for target in package.targets where [" + ", ".join(f'"{t}"' for t in targets)
+                     + "].contains(target.name) {")
+        lines.append(f'    target.dependencies.append(.product(name: "{module}", package: "{module}"))')
+        lines.append("}")
+    return "\n".join(lines) + "\n"
+
+
+def run(root):
+    files, links = swift_files(root)
+    imported = collections.defaultdict(set)  # file -> compat modules it now imports
+    failed = []
+    for rule in RULES:
+        total = 0
+        for rel in files if rule.files == SWIFT else rule.files:
+            path = os.path.join(root, rel)
+            if not os.path.exists(path):
+                continue
+            text = open(path).read()
+            new, n = re.subn(rule.pattern, rule.replacement, text, flags=re.MULTILINE)
+            if n:
+                if rule.module:
+                    new = add_import(new, rule.module)
+                    imported[rel].add(rule.module)
+                elif rule.name == "swift: import Observation":
+                    imported[rel].add("ObservationCompat")
+                with open(path, "w") as out:
+                    out.write(new)
+                total += n
+        print(f"{total:5d}  {rule.name}")
+        if rule.required and total == 0:
+            failed.append(rule.name)
+
+    # Which targets import which compat module now, including tests/offline's targets through their symlinks.
+    needs = collections.defaultdict(lambda: collections.defaultdict(set))
+    for rel, modules in imported.items():
+        owner = target_of(rel)
+        if owner:
+            needs[owner[0]][owner[1]] |= modules
+    for link in links:
+        real = os.path.relpath(os.path.realpath(os.path.join(root, link)), os.path.realpath(root))
+        owner = target_of(link)
+        if owner and real in imported:
+            needs[owner[0]][owner[1]] |= imported[real]
+
+    for package_dir in [f"Packages/{p}" for p in SHIPPED] + ["tests/offline"]:
+        manifest = os.path.join(root, package_dir, "Package.swift")
+        text = open(manifest).read()
+        block = manifest_block(package_dir, package_dir.startswith("Packages/"),
+                               "swift-subprocess" in text, needs.get(package_dir, {}))
+        with open(manifest, "w") as out:
+            out.write(text.rstrip("\n") + "\n" + block)
+        targets = ", ".join(f"{t}: {'+'.join(sorted(m))}" for t, m in sorted(needs.get(package_dir, {}).items()))
+        print(f"{'':5}  manifest: {package_dir} ({targets or 'platform only'})")
+
+    if failed:
+        print("\nRequired rules that matched nothing (upstream moved what they rewrite):", file=sys.stderr)
+        for name in failed:
+            print(f"  {name}", file=sys.stderr)
+        return 1
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(run(sys.argv[1]))
