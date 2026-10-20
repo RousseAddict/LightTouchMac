@@ -27,8 +27,13 @@ Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
   - They become small compiler-compatibility patches.
   - swift.org's 6.4.1 toolchain was tried and dropped. Xcode can't link package manifests with it, it ships no
     back-deployed concurrency library, and its standard library is built for macOS 13.
-- **Next:** the spike runs on macos-15, macos-26 and the Intel macos-26-intel. Full results go to the `ci-results`
-  branch; read them with `spike/fetch-results.sh RUN_ID`.
+- **Build environment (run 39500162968): Xcode 26.6 (Swift 6.3.3, macOS 26.5 SDK) on `macos-26`.**
+  - It ships the back-deployed concurrency library.
+  - Unmodified upstream stops on only two Swift errors there: `DeviceLink.swift:268`, a closure that captures
+    `channel` before it's declared, and `K48Recipe.swift:205`, an ambiguous `init`.
+  - Its `actool` throws on `LightTouch.icon` (Icon Composer, Xcode 27).
+  - Those three become compiler-compatibility patches.
+  - Full results are on the `ci-results` branch; read them with `spike/fetch-results.sh RUN_ID`.
 
 - `spike/probe-toolchain.sh` records:
   - the Xcode version and its SDK's deployment-target range;
