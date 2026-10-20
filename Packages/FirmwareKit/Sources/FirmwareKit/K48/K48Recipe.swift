@@ -32,7 +32,14 @@ final class K48Board: Board {
     let volumesStep = "Building the system and data volumes", keybagStep = "Creating the data-protection keybag"
     var bootStep: String { iboot ? "Writing the identity and boot chain" : "Writing the identity and boot image" }
     /// The seal boot halts through it_seal, a guest helper: none without them (guest_tools off).
-    var needsSeal: Bool { SystemEdits.Options(recipe: recipe, version: version).guestTools }
+    var needsSeal: Bool { systemOptions.guestTools }
+    /// The recipe's options for the system and data volumes, with what the board decides: BTServer kept where the
+    /// machine answers the HCI (KBoot.Board.bluetoothHCI).
+    var systemOptions: SystemEdits.Options {
+        var o = SystemEdits.Options(recipe: recipe, version: version)
+        o.bluetooth = a4.bluetoothHCI
+        return o
+    }
     let recipe: FirmwareEntry.Recipe, version: String, strategy: String, iboot: Bool, dataProtection: Bool
     var helper: URL?, patcher: URL?, mbr: URL?, vols: SystemEdits.Result?
     var gidComponents: [String] = [], ramdisk: String?
@@ -285,7 +292,7 @@ final class K48Board: Board {
             }
             kernelcacheImg3 = kernelcacheImg3 ?? raw
         }
-        var options = SystemEdits.Options(recipe: recipe, version: version)
+        var options = systemOptions
         options.cydia = c.cydia
         options.language = c.o.language
         options.keyboards = c.o.keyboards
@@ -532,8 +539,8 @@ final class K48Board: Board {
             ],
             "identity": ["die_id": dieID],
             "outputs": outputs,
-            "gl_test": SystemEdits.Options(recipe: recipe, version: version).glTest,
-            "skip_setup": SystemEdits.Options(recipe: recipe, version: version).skipSetup,
+            "gl_test": systemOptions.glTest,
+            "skip_setup": systemOptions.skipSetup,
             "machine": machineOptions,
         ]
     }

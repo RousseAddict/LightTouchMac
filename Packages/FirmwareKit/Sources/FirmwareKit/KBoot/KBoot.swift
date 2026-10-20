@@ -118,6 +118,11 @@ public enum KBoot {
         public var dram: UInt32 = KBoot.dramSize
         /// A radio board (N90) keeps its baseband node; the machine's `baseband` property unmatches it at boot.
         public var radio = false
+        /// The machine answers the Bluetooth HCI on the UART the DT hangs the board's bluetooth node off (qemu-ios
+        /// bt_uart: ipod_touch_bt.c's H4 controller), so the preparation keeps BTServer (SystemEdits.Options.bluetooth).
+        /// Without it, BTServer is disabled: BlueTool's HCI_Reset would never complete. The A4 boards' UART is silent:
+        /// their serial driver reads it through CDMA v2's pause-and-resume, which qemu-ios doesn't model yet.
+        public var bluetoothHCI = false
         /// The SoC as iBoot names it (root platform-name, chosen/chip-id).
         public var platformName = "s5l8930x", chipID: UInt32 = 0x8930
         /// /product/product-id, which iBoot fills and the IPSW DT reserves zeroed (6.x MobileGestalt's product hash).
@@ -188,6 +193,7 @@ public enum KBoot {
             scale: 1,
             boardID: 0x00,
             modelNumber: "MB715",
+            bluetoothHCI: true,
             platformName: "s5l8920x",
             chipID: 0x8920,
             productID: [
@@ -203,6 +209,7 @@ public enum KBoot {
             scale: 1,
             boardID: 0x02,
             modelNumber: "MC008",
+            bluetoothHCI: true,
             platformName: "s5l8922x",
             chipID: 0x8922
         )

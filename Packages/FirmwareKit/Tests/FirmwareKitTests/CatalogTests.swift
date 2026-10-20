@@ -37,20 +37,10 @@ struct CatalogTests {
         #expect(software.isEmpty, "\(software)")
     }
 
-    /// Every row of a recipe has the recipe's options: the per-row flags left (appsync, web_proxy, ca_ogl, gles_shim,
-    /// bluetooth) are facts of the recipe's board and preparation, so a row copied from a sibling can't quietly differ.
-    /// The exceptions, each with its reason:
-    static let optionExceptions: [String: [String: Bool]] = [
-        // BTServer on: the N88 machine answers the BCM4325's HCI, and 3.1.3's SpringBoard waited 5 s on each
-        // BTSessionAttach without it. The 4.x-6.x rows were never tried with it.
-        "n88ap-7A341": ["bluetooth": true], "n88ap-7A400": ["bluetooth": true], "n88ap-7C97d": ["bluetooth": true],
-        "n88ap-7C106c": ["bluetooth": true], "n88ap-7C116a": ["bluetooth": true], "n88ap-7C144": ["bluetooth": true],
-        "n88ap-7D11": ["bluetooth": true], "n88ap-7E18": ["bluetooth": true],
-        // The same on the N18 (its BCM4329 on uart1): 3.1.1's status bar turned 10 s after the interface, its
-        // SBStatusBarBluetoothView waiting out two BTSessionAttach timeouts on every turn.
-        "n18ap-7C145": ["bluetooth": true], "n18ap-7C146": ["bluetooth": true], "n18ap-7D11": ["bluetooth": true],
-        "n18ap-7E18": ["bluetooth": true],
-    ]
+    /// Every row of a recipe has the recipe's options: the per-row flags left (appsync, web_proxy, ca_ogl, gles_shim)
+    /// are facts of the recipe's board and preparation, so a row copied from a sibling can't quietly differ.
+    /// The exceptions, each with its reason (none today):
+    static let optionExceptions: [String: [String: Bool]] = [:]
     @Test func rowsOfARecipeShareItsOptions() throws {
         struct Catalog: Decodable { var entries: [FirmwareEntry] }
         let entries = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: Oracle.catalog)).entries
@@ -71,6 +61,28 @@ struct CatalogTests {
         }
         #expect(differ.isEmpty, "\(differ)")
         #expect(recipes.count == 8)
+    }
+
+    /// Whether a device keeps BTServer is the board's machine's, never a row's: BTServer is kept where the machine
+    /// answers the HCI on the DT's Bluetooth UART (KBoot.Board.bluetoothHCI, qemu-ios bt_uart), disabled elsewhere.
+    /// A per-row `bluetooth` flag left the N18's 3.1.x without BTServer, and its status bar waited out two 5 s
+    /// BTSessionAttach timeouts on every turn. The table is the emulator's (the A4 boards' UART is silent).
+    static let machineAnswersHCI = ["k48ap": false, "n81ap": false, "n90ap": false, "n88ap": true, "n18ap": true]
+    @Test func bluetoothIsTheBoardsMachine() throws {
+        struct Catalog: Decodable { var entries: [FirmwareEntry] }
+        let entries = try JSONDecoder().decode(Catalog.self, from: Data(contentsOf: Oracle.catalog)).entries
+        let flagged = entries.filter { $0.recipe?.options["bluetooth"] != nil }.map(\.id)
+        #expect(flagged.isEmpty, "\(flagged)")
+        var judged = 0
+        try Oracle.withTemp { dir in
+            for e in entries where e.recipe?.dataSize == "partition" {
+                let o = Preparer.Options(entry: e, ipsw: dir, out: dir, helper: nil, guestTools: dir)
+                let expected = try #require(Self.machineAnswersHCI[e.board], "\(e.id): no board fact")
+                #expect(try K48Board(o).systemOptions.bluetooth == expected, "\(e.id)")
+                judged += 1
+            }
+        }
+        #expect(judged > 250)
     }
 
     /// What a release's iOS decides is decided by its version, as the boards that prepare the rows read it, never by a

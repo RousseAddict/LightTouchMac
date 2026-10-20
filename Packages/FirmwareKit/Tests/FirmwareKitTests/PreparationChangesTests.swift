@@ -60,10 +60,10 @@ struct PreparationChangesTests {
     }
 
     @Test func aRecipeTheCatalogNoLongerHasIsStale() throws {
-        let noBluetooth = try Self.lock("n88ap-7E18") {
-            $0["options"] = ($0["options"] as! [String: Bool]).filter { $0.key != "bluetooth" }
+        let noAppSync = try Self.lock("n88ap-7E18") {
+            $0["options"] = ($0["options"] as! [String: Bool]).filter { $0.key != "appsync" }
         }
-        #expect(Self.stale(noBluetooth) == ["recipe option bluetooth on in the catalog, off in the base"])
+        #expect(Self.stale(noAppSync) == ["recipe option appsync on in the catalog, off in the base"])
         let derived = try Self.lock("n88ap-7E18") {
             var options = $0["options"] as! [String: Bool]
             options["writable_nor"] = true

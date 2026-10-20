@@ -7,7 +7,7 @@
 //               CA_ENABLE_OGL=0) + stdio on /dev/console; [appsync] process-local libappsync.dylib injected into installd;
 //               [ca_ogl] the GL front end as OpenGLES.framework/OpenGLES
 //               (+ dyld's override switch: OpenGLES is cached); [web_proxy] the PAC; the guest helpers; storage_mounter loads
-//               it_msmquiet; BTServer Disabled (unless [bluetooth]); lockdownd activated (Activation); the guest-package loader and
+//               it_msmquiet; BTServer Disabled (unless the machine answers its HCI); lockdownd activated (Activation); the guest-package loader and
 //               seed package from armv7.itpack (GuestPackage.seed), whose jobs it_boot loads.
 //   data.img    fresh journaled HFSX "Data" (sparse) seeded with the system volume's /private/var skeleton
 //               (+ [web_proxy] the en0 AirPort service with the PAC), owners
@@ -35,8 +35,9 @@ public enum SystemEdits {
         public var seal = true
         /// bake --gl-test: the GL fixture job (test devices only: recipe option gl_test, never set in the catalog).
         public var glTest = false
-        /// Leave BTServer enabled: boards whose machine answers the HCI (N88, N18). Off, BTServer is Disabled: with
-        /// nothing on the UART, BlueTool's HCI_Reset never completes.
+        /// Leave BTServer enabled: the board's machine answers the HCI (KBoot.Board.bluetoothHCI, which K48Board sets;
+        /// never a recipe option). Off, BTServer is Disabled: with nothing on the UART, BlueTool's HCI_Reset never
+        /// completes.
         public var bluetooth = false
         /// Bake the guest helpers, their jobs and the guest-package seed. Off for firmware whose dyld predates
         /// LC_DYLD_INFO (3.0, as the iPod 2G's 7A341): such a device gets no it_seal either, so no seal boot.
@@ -67,7 +68,6 @@ public enum SystemEdits {
             webProxy = o["web_proxy"] ?? true
             glTest = o["gl_test"] ?? false
             dataJournal = o["data_journal"] ?? FirmwareEntry.journaledData(version: version)
-            bluetooth = o["bluetooth"] ?? false
             guestTools = o["guest_tools"] ?? true
             dated = recipe.rtcEpoch != nil
             skipSetup = o["skip_setup"] ?? false
