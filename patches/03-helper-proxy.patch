@@ -1,0 +1,35 @@
+URLSessionTask.delegate is macOS 12. The web proxy's session gets one delegate, UpstreamRouter
+(add/LightTouchDevice/UpstreamRouter.swift), which hands each task's callbacks to the Upstream registered for it
+before the task resumes.
+
+diff --git a/LightTouchDevice/WebProxy.swift b/LightTouchDevice/WebProxy.swift
+index a8c1b9ce..ccf018b1 100644
+--- a/LightTouchDevice/WebProxy.swift
++++ b/LightTouchDevice/WebProxy.swift
+@@ -88,7 +88,7 @@ final class WebProxy: @unchecked Sendable {
+         configuration.timeoutIntervalForRequest = 60
+         let queue = OperationQueue()
+         queue.maxConcurrentOperationCount = 1
+-        session = URLSession(configuration: configuration, delegate: nil, delegateQueue: queue)
++        session = URLSession(configuration: configuration, delegate: UpstreamRouter(), delegateQueue: queue)
+         // The C helper's archive cache and gate files (64 slots of up to 2 MiB) are the URLCache's job now.
+         let directory = config.deletingLastPathComponent()
+         for name in (try? FileManager.default.contentsOfDirectory(atPath: directory.path)) ?? []
+@@ -372,7 +372,7 @@ final class WebProxy: @unchecked Sendable {
+         let upstream = Upstream(anchors: anchors, store: store)
+         let task = session.dataTask(with: request)
+         upstream.task = task
+-        task.delegate = upstream
++        UpstreamRouter.route(task, to: upstream, in: session)
+         task.resume()
+         defer { task.cancel() }
+         var started = false
+@@ -429,7 +429,7 @@ final class WebProxy: @unchecked Sendable {
+         let upstream = Upstream(anchors: anchors, store: false)
+         let task = session.dataTask(with: request)
+         upstream.task = task
+-        task.delegate = upstream
++        UpstreamRouter.route(task, to: upstream, in: session)
+         task.resume()
+         defer { task.cancel() }
+         var response: HTTPURLResponse?

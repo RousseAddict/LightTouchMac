@@ -32,8 +32,10 @@ public macro CompatObservable() = #externalMacro(module: "ObservationCompatMacro
 public macro CompatObservationTracked() =
     #externalMacro(module: "ObservationCompatMacros", type: "ObservationTrackedMacro")
 
-/// Disables observation tracking of a property, as Observation's `@ObservationIgnored`.
-@attached(accessor)
+/// Disables observation tracking of a property, as Observation's `@ObservationIgnored`. It produces no accessors;
+/// the compiler accepts that only from an accessor macro that may add observers (it exempts Observation's own by
+/// name), hence `names: named(willSet)`.
+@attached(accessor, names: named(willSet))
 public macro CompatObservationIgnored() =
     #externalMacro(module: "ObservationCompatMacros", type: "ObservationIgnoredMacro")
 #endif
