@@ -12,6 +12,7 @@
 #
 #   codemod.py UPSTREAM_CHECKOUT
 import collections
+import json
 import os
 import re
 import sys
@@ -90,6 +91,40 @@ RULES = [
     Rule("swift: SF Symbols", SWIFT, r'"(' + "|".join(map(re.escape, SYMBOLS)) + r')"',
          lambda m: f'"{SYMBOLS[m.group(1)]}"', required=False),
 ]
+
+
+# Xcode 27's Icon Composer keys, which Xcode 26's actool throws on ("attempt to insert nil object"); macOS 11 shows the
+# flat icon, which doesn't use them.
+ICON = "LightTouchMac/LightTouch.icon/icon.json"
+ICON_KEYS = ("features", "refractivity", "blur-material")
+
+
+def icon_for_xcode26(root):
+    """Drops Xcode 27-only keys from the app icon's manifest; returns how many it removed."""
+    path = os.path.join(root, ICON)
+    if not os.path.exists(path):
+        return 0
+    removed = 0
+
+    def strip(node):
+        nonlocal removed
+        if isinstance(node, dict):
+            for key in ICON_KEYS:
+                if key in node:
+                    del node[key]
+                    removed += 1
+            for value in node.values():
+                strip(value)
+        elif isinstance(node, list):
+            for value in node:
+                strip(value)
+
+    manifest = json.load(open(path))
+    strip(manifest)
+    with open(path, "w") as out:
+        json.dump(manifest, out, indent=2, separators=(",", " : "), ensure_ascii=False)
+        out.write("\n")
+    return removed
 
 
 def swift_files(root):
@@ -186,6 +221,8 @@ def run(root):
         print(f"{total:5d}  {rule.name}")
         if rule.required and total == 0:
             failed.append(rule.name)
+
+    print(f"{icon_for_xcode26(root):5d}  icon: Xcode 27 keys dropped for Xcode 26's actool")
 
     # Which targets import which compat module now, including tests/offline's targets through their symlinks.
     needs = collections.defaultdict(lambda: collections.defaultdict(set))
