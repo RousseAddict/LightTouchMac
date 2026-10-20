@@ -245,5 +245,16 @@ nonisolated public enum PreparationChanges {
             versions: ["7"],
             what: "DeviceOMatic's job doesn't load it_msmquiet, so nothing hides its USB \"not supported\" notice"
         ),
+        Change(
+            serial: 14,
+            commit: "76944f75",
+            landed: "2026-10-20T15:38:50Z",
+            boards: ["n90ap"],
+            versions: ["7"],
+            what: """
+                the read-only root keeps the guest package it was prepared with (before serial 35), whose AppSync \
+                carries Apple's certificate
+                """
+        ),
     ]
 }
