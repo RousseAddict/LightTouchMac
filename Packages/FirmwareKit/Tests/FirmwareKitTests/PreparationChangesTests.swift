@@ -57,6 +57,10 @@ struct PreparationChangesTests {
         let sevenAppSync = Self.stale(try Self.lock("n90ap-11D257", serial: 13))
         #expect(sevenAppSync.count == 1 && sevenAppSync.first?.hasPrefix("76944f75") == true, "\(sevenAppSync)")
         #expect(Self.stale(try Self.lock("n90ap-9B206", serial: 13)) == [], "5.x takes it from the package at boot")
+        // 44b92c0b (serial 15): 1.1.3 and later's SystemConfiguration preferences in /private/var/preferences
+        let wifi = Self.stale(try Self.lock("n45ap-4A102", serial: 14))
+        #expect(wifi.count == 1 && wifi.first?.hasPrefix("44b92c0b") == true, "\(wifi)")
+        #expect(Self.stale(try Self.lock("m68ap-1A543a", serial: 14)) == [], "1.0 reads root's home")
     }
 
     /// The 4.1 SpringBoard crash's base: prepared 2026-10-05 08:15, before the seal boots carried the modem.

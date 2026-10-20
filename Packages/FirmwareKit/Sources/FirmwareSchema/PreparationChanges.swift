@@ -256,5 +256,16 @@ nonisolated public enum PreparationChanges {
                 carries Apple's certificate
                 """
         ),
+        Change(
+            serial: 15,
+            commit: "44b92c0b",
+            landed: "2026-10-20T18:36:11Z",
+            boards: ["n45ap", "m68ap"],
+            versions: ["1.1.3", "1.1.4", "1.1.5"],
+            what: """
+                the Wi-Fi known network and the PAC'd AirPort service are in root's home, where configd from 1.1.3 \
+                never looks, so it joins nothing at boot
+                """
+        ),
     ]
 }
