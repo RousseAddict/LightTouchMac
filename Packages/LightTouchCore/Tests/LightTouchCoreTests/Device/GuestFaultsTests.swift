@@ -52,6 +52,38 @@ struct GuestFaultsTests {
         #expect(faults.contains { $0.hasPrefix("the iOS kernel panicked") })
     }
 
+    /// A crash report written during this boot names its process, once; one from before the boot, a LatestCrash link,
+    /// a sandbox violation and the logs beside them don't. The listings are the sweep's: an iPhone 3GS 4.1 boot whose
+    /// SpringBoard crashed (a mediaserverd report left from its preparation two weeks before), an iPhone 4 7.0 beta 2
+    /// boot (it_seal's report, ubd's sandbox reports and securebackupd's logs) and a 7.1.2 one (.ips).
+    @Test func crashReportsFromThisBootNameTheirProcess() {
+        let ios41: [String: Double] = [
+            "LatestCrash-mediaserverd.plist": 1_277_758, "LatestCrash-SpringBoard.plist": 37, "LatestCrash.plist": 37,
+            "mediaserverd_2026-10-05-011507_iPhone.plist": 1_277_758, "SpringBoard_2026-10-19-201030_iPhone.plist": 37,
+        ]
+        #expect(GuestFaults.crashedProcesses(ages: ios41, uptime: 62) == ["SpringBoard"])
+        let ios70: [String: Double] = [
+            "AirTraffic/airtraffic.log": 28, "com.apple.asl.1371297605": 132,
+            "DiagnosticLogs/securebackupd_2013-06-15-050152.log": 84, "DiagnosticLogs/securebackupd.log": 25,
+            "it_seal_2013-06-15-050106_iPhone.plist": 71, "MobileBackup/MobileBackup.log": 111,
+            "Sandbox-ubd-2013-06-15-050049.plist": 88, "Sandbox-ubd-2013-06-15-080209.plist": 8,
+        ]
+        #expect(GuestFaults.crashedProcesses(ages: ios70, uptime: 138) == ["it_seal"])
+        let ios712: [String: Double] = [
+            "it_seal_2026-10-19-214220_iPhone.ips": 3, "stacks-2026-10-18-093555.ips": 119_188,
+            "stacks+MobileMail-2026-10-19-184126.ips": 57, "DiagnosticLogs/security.log.20261020T014048Z": 82,
+        ]
+        #expect(GuestFaults.crashedProcesses(ages: ios712, uptime: 117) == ["it_seal", "stacks+MobileMail"])
+        // jetsam's report and a panic count; nothing does on an empty folder.
+        let other: [String: Double] = [
+            "LowMemory-2011-03-01-120102.plist": 600, "Panics/panic-full-2011-03-01-120102.plist": 5,
+        ]
+        #expect(GuestFaults.crashedProcesses(ages: other, uptime: 300) == ["panic-full"])
+        #expect(GuestFaults.crashedProcesses(ages: other, uptime: 1000) == ["LowMemory", "panic-full"])
+        #expect(GuestFaults.crashedProcesses(ages: [:], uptime: 300) == [])
+        #expect(!GuestFaults.listsCrashReports(version: "2.2.1") && GuestFaults.listsCrashReports(version: "3.0"))
+    }
+
     /// The app's watch sees the same: the phrases in order, across writes, then the mount rule once iOS answers.
     @Test func theAppsWatchSeesTheFaults() async throws {
         let seen = BootStageTests.Seen()

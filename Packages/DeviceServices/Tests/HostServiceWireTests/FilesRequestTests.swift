@@ -32,11 +32,12 @@ struct FilesRequestTests {
             .delete("Documents/Old", root: root),
             .rename("Documents/a.sav", to: "b.sav", root: root),
             .makeFolder("Documents/Mods", root: .fileSystem),
+            .crashReports,
         ]
         for operation in operations {
             let request = HostServiceRequest(id: UUID(), session: UUID(), operation: operation)
             let decoded = try JSONDecoder().decode(HostServiceRequest.self, from: JSONEncoder().encode(request))
-            #expect(decoded.version == 4 && "\(decoded.operation)" == "\(operation)")
+            #expect(decoded.version == 5 && "\(decoded.operation)" == "\(operation)")
         }
     }
 }

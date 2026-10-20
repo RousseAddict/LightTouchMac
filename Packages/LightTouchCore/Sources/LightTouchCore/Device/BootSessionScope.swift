@@ -9,7 +9,7 @@ public final class BootSessionScope {
     public init() {}
     public enum Work: CaseIterable {
         case foreground, readiness, recovery, watchdog, timeZone, orientation
-        case guestPackage, activation, staging, powerOn, reset
+        case guestPackage, activation, staging, powerOn, reset, crashReports
     }
     public private(set) var id = UUID()
     @ObservationIgnored public private(set) var generation = 0

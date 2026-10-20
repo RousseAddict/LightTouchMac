@@ -92,6 +92,19 @@ nonisolated enum IMDFake {
     nonisolated(unsafe) static var afcDictionaryFree:
         (UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?) -> afc_error_t = { _ in AFC_E_SUCCESS }
 
+    /// The raw service client crashreportmover's ping is read through (DeviceServices.crashReports).
+    nonisolated(unsafe) static var serviceClientNew:
+        (idevice_t?, lockdownd_service_descriptor_t?, UnsafeMutablePointer<service_client_t?>?) -> service_error_t = {
+            _,
+            _,
+            _ in SERVICE_E_UNKNOWN_ERROR
+        }
+    nonisolated(unsafe) static var serviceClientFree: (service_client_t?) -> service_error_t = { _ in SERVICE_E_SUCCESS
+    }
+    nonisolated(unsafe) static var serviceReceive:
+        (service_client_t?, UnsafeMutablePointer<CChar>?, UInt32, UnsafeMutablePointer<UInt32>?, UInt32) ->
+            service_error_t = { _, _, _, _, _ in SERVICE_E_UNKNOWN_ERROR }
+
     nonisolated(unsafe) static var houseArrestClientNew:
         (idevice_t?, lockdownd_service_descriptor_t?, UnsafeMutablePointer<house_arrest_client_t?>?) ->
             house_arrest_error_t = { _, _, _ in HOUSE_ARREST_E_UNKNOWN_ERROR }
@@ -268,6 +281,22 @@ nonisolated enum IMDFake {
 @_cdecl("afc_dictionary_free") nonisolated func fakeAfcDictionaryFree(
     _ d: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
 ) -> afc_error_t { IMDFake.afcDictionaryFree(d) }
+
+@_cdecl("service_client_new") nonisolated func fakeServiceClientNew(
+    _ d: idevice_t?,
+    _ s: lockdownd_service_descriptor_t?,
+    _ c: UnsafeMutablePointer<service_client_t?>?
+) -> service_error_t { IMDFake.serviceClientNew(d, s, c) }
+@_cdecl("service_client_free") nonisolated func fakeServiceClientFree(_ c: service_client_t?) -> service_error_t {
+    IMDFake.serviceClientFree(c)
+}
+@_cdecl("service_receive_with_timeout") nonisolated func fakeServiceReceive(
+    _ c: service_client_t?,
+    _ data: UnsafeMutablePointer<CChar>?,
+    _ size: UInt32,
+    _ received: UnsafeMutablePointer<UInt32>?,
+    _ timeout: UInt32
+) -> service_error_t { IMDFake.serviceReceive(c, data, size, received, timeout) }
 
 @_cdecl("house_arrest_client_new") nonisolated func fakeHouseArrestClientNew(
     _ d: idevice_t?,

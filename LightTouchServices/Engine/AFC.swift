@@ -424,3 +424,76 @@ extension DeviceServices {
         if found.ok { throw DeviceError.preflight("An item named “\(name)” is already there.") }
     }
 }
+
+extension DeviceServices {
+    /// The guest's crash reports and how long before the device's own clock now each was written, so a guest whose
+    /// clock is not the Mac's still compares with how long it has been up. crashreportmover first moves in the ones
+    /// root's processes left waiting (where the guest has it); com.apple.crashreportcopymobile lists them, one level
+    /// of folders deep. Throws where the guest has no crash report service.
+    func crashReports() async throws -> [String: Double] {
+        try await run(Timeouts.browse * 2, "crash reports") { device in
+            if let mover = try? IMobileDevice.startService(
+                "com.apple.crashreportmover",
+                device: device,
+                newClient: { service_client_new($0, $1, $2) },
+                freeClient: { service_client_free($0) },
+                connectError: { DeviceError.lockdown($0) }
+            ) {
+                // It says "ping" once they are moved; up to 10 s.
+                var ping = [CChar](repeating: 0, count: 4)
+                for _ in 0..<5 {
+                    var count: UInt32 = 0
+                    let rc = service_receive_with_timeout(mover, &ping, 4, &count, 2000)
+                    if count > 0 || rc != SERVICE_E_TIMEOUT { break }
+                }
+                _ = service_client_free(mover)
+            }
+            var now = Date().timeIntervalSince1970
+            var lockdown: OpaquePointer?
+            if lockdownd_client_new_with_handshake(device, &lockdown, "LightTouchMac").ok, let lockdown {
+                var value: plist_t?
+                if lockdownd_get_value(lockdown, nil, "TimeIntervalSince1970", &value).ok, let value {
+                    if let seconds = IMobileDevice.decode(value) as? Double { now = seconds }
+                    plist_free(value)
+                }
+                _ = lockdownd_client_free(lockdown)
+            }
+            let client = try IMobileDevice.startService(
+                "com.apple.crashreportcopymobile",
+                device: device,
+                newClient: { afc_client_new($0, $1, $2) },
+                freeClient: { afc_client_free($0) }
+            ) { DeviceError.afc(.init(code: $0)) }
+            defer { _ = afc_client_free(client) }
+            var ages: [String: Double] = [:]
+            func list(_ path: String, depth: Int) {
+                var names: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+                guard afc_read_directory(client, path.isEmpty ? "/" : path, &names).ok, let names else { return }
+                defer { _ = afc_dictionary_free(names) }
+                var i = 0
+                while let raw = names[i] {
+                    i += 1
+                    let name = String(cString: raw)
+                    if name.isEmpty || name == "." || name == ".." || name.contains("/") { continue }
+                    let child = path.isEmpty ? name : path + "/" + name
+                    var values: UnsafeMutablePointer<UnsafeMutablePointer<CChar>?>?
+                    guard afc_get_file_info(client, child, &values).ok, let values else { continue }
+                    var info: [String: String] = [:]
+                    var j = 0
+                    while let key = values[j], let value = values[j + 1] {
+                        info[String(cString: key)] = String(cString: value)
+                        j += 2
+                    }
+                    _ = afc_dictionary_free(values)
+                    if info["st_ifmt"] == "S_IFDIR" {
+                        if depth > 0 { list(child, depth: depth - 1) }
+                    } else if let modified = info["st_mtime"].flatMap(Double.init) {
+                        ages[child] = now - modified / 1e9  // nanoseconds
+                    }
+                }
+            }
+            list("", depth: 1)
+            return ages
+        }
+    }
+}

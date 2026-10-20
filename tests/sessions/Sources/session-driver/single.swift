@@ -181,7 +181,49 @@ nonisolated enum WiFiProbe {
             .compare("3.1", options: .numeric) != .orderedAscending)
 
     var mediaTitles: [String] = []
+    /// The guest's crash reports as the app lists them (DeviceServices.crashReports), with how long it has been up;
+    /// three tries, 10 s apart, as a 7.x guest's services can still be slow to start. Before a shutdown, where this
+    /// boot wrote any, they are copied into the device directory (crash-<generation>/, through libimobiledevice's
+    /// idevicecrashreport on PATH where there is one) to read.
+    var poweredOn = Date()
+    func crashReports(_ generation: Int, _ when: String) async {
+        guard GuestFaults.listsCrashReports(version: lock?.productVersion ?? "3.1") else { return }
+        var event: [String: Any] = ["device": d.name, "generation": generation, "when": when]
+        for attempt in 0..<3 {
+            if attempt > 0 { try? await Task.sleep(for: .seconds(10)) }
+            do {
+                let ages = try await d.services.crashReports()
+                let uptime = Date().timeIntervalSince(poweredOn)
+                event = event.merging(["ages": ages, "uptime": uptime]) { $1 }
+                event["error"] = nil
+                if when != "booted", !GuestFaults.crashedProcesses(ages: ages, uptime: uptime).isEmpty {
+                    let copy = Process()
+                    copy.executableURL = URL(fileURLWithPath: "/usr/bin/env")
+                    copy.arguments = [
+                        "idevicecrashreport", "-e", "-k", d.dir.appendingPathComponent("crash-\(generation)").path,
+                    ]
+                    copy.environment = ProcessInfo.processInfo.environment.merging(
+                        ["USBMUXD_SOCKET_ADDRESS": d.mux.clientSocket]
+                    ) { $1 }
+                    copy.standardOutput = FileHandle.nullDevice
+                    copy.standardError = FileHandle.nullDevice
+                    try? FileManager.default.createDirectory(
+                        at: d.dir.appendingPathComponent("crash-\(generation)"),
+                        withIntermediateDirectories: true
+                    )
+                    if (try? copy.run()) != nil {
+                        for _ in 0..<60 where copy.isRunning { try? await Task.sleep(for: .seconds(1)) }
+                        if copy.isRunning { copy.terminate() }
+                    }
+                }
+                break
+            } catch { event["error"] = "\(error)" }
+        }
+        emit("crashReports", event)
+    }
+
     func boot(_ generation: Int) async {
+        poweredOn = Date()
         do { try d.boot(generation: generation, guestPackage: offer()) } catch { fail("boot \(generation): \(error)") }
         await waitLit(d, ipad ? 0.2 : 0.03, d.profile.bootBudget * slow)  // the app's own boot budget (iPad 300 s)
         await waitUSB(d, expecting: d.profile.productType, 300 * slow)
@@ -214,6 +256,7 @@ nonisolated enum WiFiProbe {
                 ["device": d.name, "generation": generation, "seconds": Date().timeIntervalSince(t0), "by": by]
             )
         }
+        await crashReports(generation, "booted")
         if let tool = s.lockdownTZ {
             var completed = false
             var lastError = ""
@@ -764,6 +807,7 @@ nonisolated enum WiFiProbe {
     /// Test-only clean shutdown: stock gesture or qualified agent halt, confirmed by PMU.
     /// GUI Stop is a separate hard halt and does not establish guest unmount.
     func shutdown(_ generation: Int) async {
+        await crashReports(generation, "before shutdown")
         let quit = Date()
         if s.prefersHostPowerGesture(build: lock?.build) && !ipad {
             do {

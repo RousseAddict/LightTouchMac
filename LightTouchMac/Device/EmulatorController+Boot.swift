@@ -242,6 +242,8 @@ extension EmulatorController {
 
     private func openSerialLog() {
         guestFaultsSeen = []
+        poweredOn = Date()
+        crashesLogged = []
         do {
             serialCapture = try SerialLogCapture(
                 url: instance.paths.logs.appendingPathComponent("serial.log"),
@@ -269,6 +271,29 @@ extension EmulatorController {
     func checkGuestMounts() {
         if let fault = GuestFaults.dataVolumeFault(seen: guestFaultsSeen, dataVolume: lock?.hasDataVolume == true) {
             logEvent("guest: \(instance.name): error: \(fault)")
+        }
+    }
+
+    /// The guest's crash reports, read once iOS answers and every minute after, in the services worker: each process
+    /// that crashed during this boot is logged once as an error. Launchd's job lines reach the serial log on two
+    /// boards only, so this is where a crash-looping daemon shows on the rest. Before 3.0 the guest serves its reports
+    /// by another protocol (GuestFaults.listsCrashReports).
+    func watchCrashReports() {
+        guard GuestFaults.listsCrashReports(version: iosVersion) else { return }
+        bootScope[.crashReports] = Task { [weak self] in
+            while !Task.isCancelled {
+                await self?.logNewCrashes()
+                try? await Task.sleep(for: .seconds(60))
+            }
+        }
+    }
+
+    private func logNewCrashes() async {
+        guard let services = try? services, let ages = try? await services.crashReports() else { return }
+        let uptime = Date().timeIntervalSince(poweredOn)
+        for process in GuestFaults.crashedProcesses(ages: ages, uptime: uptime)
+        where crashesLogged.insert(process).inserted {
+            logEvent("guest: \(instance.name): error: \(process) crashed (the device wrote a crash report for it)")
         }
     }
 

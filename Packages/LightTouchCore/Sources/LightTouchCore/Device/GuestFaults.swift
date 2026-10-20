@@ -47,4 +47,38 @@ public nonisolated enum GuestFaults {
         }
         return out
     }
+
+    // MARK: - Crash reports
+
+    /// The processes the guest wrote a crash report for during this boot, each once, sorted: `ages` are the reports'
+    /// paths and how many seconds before the device's clock now each was written (DeviceServices.crashReports),
+    /// `uptime` the seconds since power-on. Most boards' serial never shows launchd's job lines, so a crash-looping
+    /// daemon is seen only here. A report counts if it is no older than the boot, give or take `slack` (the guest's
+    /// clock against the Mac's over a boot).
+    public static func crashedProcesses(ages: [String: Double], uptime: Double, slack: Double = 120) -> [String] {
+        Set(ages.compactMap { path, age in age <= uptime + slack ? process(report: path) : nil }).sorted()
+    }
+
+    /// iOS serves its crash reports over AFC (com.apple.crashreportcopymobile) from 3.0; 1.x and 2.x lockdownd refuse
+    /// that service (2.2's says InvalidService) and have CrashReportCopyAgent (com.apple.crashreportcopy), a DeviceLink
+    /// protocol, instead. 1.x's two boards, the iPhone 2G and iPod touch 1G, print launchd's "Exited abnormally" on
+    /// the serial log, which faults(log:) judges; the iPod touch 2G's 2.x is the one left unjudged.
+    public static func listsCrashReports(version: String) -> Bool {
+        version.compare("3.0", options: .numeric) != .orderedAscending
+    }
+
+    /// The process a crash report is about, from ReportCrash's name for it: "SpringBoard_2011-03-01-120102_iPad.plist"
+    /// (.ips from 7.0), "LowMemory-2011-03-01-120102.plist" (jetsam's: a clean boot that runs out of memory is a
+    /// fault too), "stacks+MobileMail-…" (a hang's stackshot), "panic-full-2011-…" (a kernel panic). nil for what
+    /// isn't one: LatestCrash-*.plist (links to the newest report of a process), 7.x's Sandbox-<process>-… (a sandbox
+    /// violation the process survived), the logs beside them (DiagnosticLogs/*.log, MobileBackup.log) and anything
+    /// without ReportCrash's date.
+    public static func process(report path: String) -> String? {
+        let name = (path as NSString).lastPathComponent
+        guard ["plist", "ips", "crash"].contains((name as NSString).pathExtension),
+            !name.hasPrefix("LatestCrash"), !name.hasPrefix("Sandbox-"),
+            let match = name.firstMatch(of: /^(.+?)[_-]\d{4}-\d{2}-\d{2}-\d{6}/)
+        else { return nil }
+        return String(match.1)
+    }
 }

@@ -35,6 +35,9 @@ final class EmulatorController {
     @ObservationIgnored var serialCapture: SerialLogCapture?
     /// The GuestFaults phrases this boot's serial log has shown (openSerialLog resets it).
     @ObservationIgnored var guestFaultsSeen: Set<String> = []
+    /// When this boot powered on, and the processes whose crash reports it has logged (openSerialLog resets both).
+    @ObservationIgnored var poweredOn = Date()
+    @ObservationIgnored var crashesLogged: Set<String> = []
     var isErasing = false { didSet { trackStartup(was: oldValue || state == .booting || preparingDevice) } }
     /// When the current startup (erase, boot, readiness) began: the toast's counter, per device, not per window.
     private(set) var startupBegan = Date()
@@ -142,6 +145,7 @@ final class EmulatorController {
                 reachableSince = Date()
                 startFileWatch()  // iOS is up: every file the helper depends on exists now
                 checkGuestMounts()
+                watchCrashReports()
             }
             recovery.consider()
             activation.checkIfNeeded()

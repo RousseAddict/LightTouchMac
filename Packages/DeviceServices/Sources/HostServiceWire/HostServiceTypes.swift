@@ -57,6 +57,7 @@ public nonisolated enum HostServiceOperation: Codable, Sendable {
     case makeFolder(String, root: AFCRoot)
     case move(bundle: String, before: String?, deviceName: String)
     case observe
+    case crashReports
 }
 
 /// Which AFC a Files request goes through.
@@ -78,6 +79,8 @@ public nonisolated enum HostServiceValue: Codable, Sendable {
     case strings([String])
     case apps([InstalledApp])
     case files([DeviceFile])
+    /// Paths and a number of seconds each: the crash reports' ages.
+    case ages([String: Double])
 }
 
 public nonisolated enum HostServiceProgress: Codable, Sendable {

@@ -12,6 +12,7 @@
 #include <libimobiledevice/mobile_image_mounter.h>
 #include <libimobiledevice/notification_proxy.h>
 #include <libimobiledevice/sbservices.h>
+#include <libimobiledevice/service.h>
 #include <plist/plist.h>
 #pragma clang diagnostic pop
 

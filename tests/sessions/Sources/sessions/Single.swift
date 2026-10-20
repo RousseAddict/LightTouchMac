@@ -452,6 +452,26 @@ func single(_ args: SingleCheck) -> Never {
         "\(d): no guest faults in the serial log"
             + (serial.isEmpty ? ": no serial log" : faults.isEmpty ? "" : ": " + faults.joined(separator: "; "))
     )
+    // Launchd's job lines reach the serial log on 1.x's two boards only: from 3.0 the guest's crash reports name a
+    // crashed process, listed after each boot and before each shutdown (GuestFaults.listsCrashReports).
+    let listings = events.find("crashReports", ["device": d])
+    let listed = listings.filter { !$0.has("error") }
+    let crashed = Set(
+        listed.flatMap {
+            GuestFaults.crashedProcesses(ages: $0["ages"] as? [String: Double] ?? [:], uptime: $0.double("uptime") ?? 0)
+        }
+    ).sorted()
+    if GuestFaults.listsCrashReports(version: base.version) {
+        r.check(
+            !listed.isEmpty && listed.count == listings.count && crashed.isEmpty,
+            "\(d): no crash reports from this run's boots"
+                + (listings.isEmpty
+                    ? ": never listed"
+                    : listed.count < listings.count
+                        ? ": " + clip(listings.first { $0.has("error") }?.string("error") ?? "", 160)
+                        : crashed.isEmpty ? "" : ": " + crashed.joined(separator: ", ") + " crashed")
+        )
+    }
     let after = SessionJudge.tree(base.url)
     r.check(
         after == before,
