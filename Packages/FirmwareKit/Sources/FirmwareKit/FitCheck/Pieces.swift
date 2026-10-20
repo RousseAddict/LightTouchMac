@@ -400,7 +400,7 @@ extension FitCheck {
     ///     GetMainDisplay + GetID for sendNotification:, which names the framebuffer by ID);
     ///   - the 5.x macro context, where QuartzCore or CoreImage sends GetMacroContextPrivate: the stock OpenGLES's
     ///     __GLIFunctionDispatchRec @encode (read from the shared cache at run time), every field a row of the name
-    ///     table `names` (gles-names.h) knows.
+    ///     table `names` (gles-names.h) knows, or (6.0 beta 1) name-less slots the stock exports name at run time.
     public static func glesFrontEnd(_ fw: Firmware, binary: Data, names table: String) -> Fit {
         let piece = "OpenGLES front end (contrib/gles-public)"
         let l = loads(piece, binary, on: fw)
@@ -468,14 +468,22 @@ extension FitCheck {
             proof.append(String(sel.prefix { $0 != ":" }) + " signals through IOMobileFramebufferSwapSignal")
         }
         if names(fw, quartzCore, "GetMacroContextPrivate") || names(fw, coreImage, "GetMacroContextPrivate") {
-            guard fw.cache != nil, let enc = string(fw, openGLES, prefix: "{__GLIFunctionDispatchRec="),
-                let fields = GLIDispatch.fields(in: Data((enc + "}").utf8)), !fields.isEmpty
+            let tag = "{__GLIFunctionDispatchRec="
+            guard fw.cache != nil, let enc = string(fw, openGLES, prefix: tag),
+                let fields = GLIDispatch.fields(in: Data((enc + "}").utf8))
             else {
                 return Fit(
                     piece,
                     fits: false,
                     "QuartzCore or CoreImage asks for a macro context and the shared cache's OpenGLES carries no __GLIFunctionDispatchRec @encode"
                 )
+            }
+            if fields.isEmpty {  // 6.0 beta 1's: gles_dispatch.c counts the slots and names them from the exports
+                let slots = enc.dropFirst(tag.count).prefix { $0 != "}" }.components(separatedBy: "^?").count - 1
+                guard slots > 0 else {
+                    return Fit(piece, fits: false, "the macro context's dispatch @encode has neither fields nor slots")
+                }
+                proof.append("macro context: \(slots) unnamed dispatch slots, named by the stock exports at run time")
             }
             let known = Set(table.matches(of: /(?m)^GLES_FN\(\w+,\s*(\w+),/).map { String($0.1) })
             let unknown = fields.filter { !known.contains($0) }
@@ -486,7 +494,7 @@ extension FitCheck {
                     "the macro context's dispatch fields \(unknown.prefix(6).joined(separator: ", "))\(unknown.count > 6 ? " (+\(unknown.count - 6))" : "") are no rows of gles-names.h"
                 )
             }
-            proof.append("macro context: \(fields.count) dispatch fields, all named")
+            if !fields.isEmpty { proof.append("macro context: \(fields.count) dispatch fields, all named") }
         }
         proof.append(
             fw.resolve(sgxEngine) != nil ? "ES 1.1 + 2.0 (GLEngine.bundle)" : "ES 1.1 only (no GLEngine.bundle)"

@@ -56,6 +56,8 @@ enum Oracle {
 
     static let ipadCache = path("Developer/qemu-ios-files/ipad1/repro/cache")
     static let ipodCache = path("Developer/qemu-ios-files/ipod-ipsw/cache")
+    /// The app's decrypt cache: <IPSW sha1>/<key digest>/.
+    static let appCache = path("Library/Caches/gold.samhenri.LightTouchMac/Decrypted/decrypted-v2")
     static let feasibility = "Downloads/ipad1-ios32-feasibility/"
 
     static let firmwares: [Firmware] = [

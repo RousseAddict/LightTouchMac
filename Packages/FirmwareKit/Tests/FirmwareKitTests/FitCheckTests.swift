@@ -17,7 +17,12 @@ enum FitFixture {
         "n72ap-7A341": Oracle.ipodCache.appendingPathComponent("0f7fc76d9b9aa826b5ab14be9821a315d3d9dc42/rootfs.dmg"),
         "n72ap-7E18": Oracle.ipodCache.appendingPathComponent("5f4f5c01eda2f811f73167e7d1f82dbeed82367b/rootfs.dmg"),
         "n72ap-8C148": Oracle.ipodCache.appendingPathComponent("b9efddc7bb4350c237a8d3846af61bbfc8a2f647/rootfs.dmg"),
-        "n90ap-10A5316k": Oracle.path("Developer/qemu-ios-files/n90/ios6b1/cache/rootfs.dmg"),
+        "n81ap-10A5316k": Oracle.appCache.appendingPathComponent(
+            "3b8101d3c30453e4c4ab8eae224e6a3d7f9f6a92/e49b23d7a4af6ba2b26037209fee7904fe3ab27f3b2421f96826937a3a6bdd29/rootfs.dmg"
+        ),
+        "n90ap-10A5316k": Oracle.appCache.appendingPathComponent(
+            "adc3ec213dd10dad9e6cf5f89029a4e6aa115a35/90fc8eb2bf33e08769f3533ad538eba91830c29b47d94cb9ddb45432479694dc/rootfs.dmg"
+        ),
     ]
     static func arch(_ id: String) -> String { id.hasPrefix("n72") ? "armv6" : "armv7" }
     static let springBoard = "System/Library/CoreServices/SpringBoard.app/SpringBoard"
@@ -269,11 +274,14 @@ enum FitFixture {
         }
     }
 
-    /// The GL front end fits iOS 6.0 beta 1 (its catalog rows prepare with ca_ogl): its OpenGLES's dispatch @encode
-    /// has no field names, as 6.x's and 7.x's, and the stock exports name the slots.
-    @Test(.enabled(if: FixtureRequirements.corpusEnabled, "Firmware corpus test; set FK_TEST_CORPUS=1 to run"))
-    func glesFrontEndFitsSixBetaOne() async throws {
-        let id = "n90ap-10A5316k"
+    /// The GL front end fits iOS 6.0 beta 1 (its catalog rows prepare with ca_ogl): its QuartzCore asks for a macro
+    /// context, as 5.x's does, and its OpenGLES's dispatch @encode has no field names, as 6.x's and 7.x's, so the
+    /// stock exports name the slots at run time.
+    @Test(
+        .enabled(if: FixtureRequirements.corpusEnabled, "Firmware corpus test; set FK_TEST_CORPUS=1 to run"),
+        arguments: ["n81ap-10A5316k", "n90ap-10A5316k"]
+    )
+    func glesFrontEndFitsSixBetaOne(_ id: String) async throws {
         let bin = Oracle.guestPackages.appendingPathComponent(SystemEdits.Helpers.openGLES)
         let table = Oracle.guestPackages.appendingPathComponent(SystemEdits.Helpers.glesNames)
         guard Oracle.exists(bin), Oracle.exists(table) else {
@@ -287,7 +295,7 @@ enum FitFixture {
         ]
         try await Oracle.withTemp { dir in
             guard let v = try await FitFixture.volume(id, FitFixture.stock(id) + files, in: dir) else {
-                try FixtureRequirements.missing(#"FitCheckTests.swift: FitFixture.volume("n90ap-10A5316k")"#)
+                try FixtureRequirements.missing("FitCheckTests.swift: FitFixture.volume(\"\(id)\")")
             }
             let f = FitCheck.glesFrontEnd(
                 FitCheck.Firmware(root: v, arch: "armv7"),
@@ -295,6 +303,7 @@ enum FitFixture {
                 names: try String(contentsOf: table, encoding: .utf8)
             )
             #expect(f.fits, "\(f.proof)")
+            #expect(f.proof.contains("macro context: 914 unnamed dispatch slots"), "\(f.proof)")
         }
     }
 
