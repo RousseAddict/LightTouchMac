@@ -241,10 +241,11 @@ extension EmulatorController {
     }
 
     private func openSerialLog() {
+        guestFaultsSeen = []
         do {
             serialCapture = try SerialLogCapture(
                 url: instance.paths.logs.appendingPathComponent("serial.log"),
-                watch: [BootWatch.recoveryMarker] + BootStage.serialMarkers.keys
+                watch: [BootWatch.recoveryMarker] + BootStage.serialMarkers.keys + GuestFaults.watched
             ) { [weak self] phrase in
                 Task { @MainActor in
                     guard let self else { return }
@@ -252,11 +253,23 @@ extension EmulatorController {
                     case BootWatch.recoveryMarker:
                         self.inRecovery = true
                         self.abortBoot(BootWatch.recoveryReason(self.profile))
+                    case _ where GuestFaults.watched.contains(phrase):
+                        self.guestFaultsSeen.insert(phrase)
+                        if let meaning = GuestFaults.phrases[phrase] {
+                            logEvent("guest: \(self.instance.name): error: \(meaning) (Device Console: “\(phrase)”)")
+                        }
                     default: self.noteBoot(.serial(phrase))
                     }
                 }
             }
         } catch { logEvent("logging: serial capture unavailable: \(error.localizedDescription)") }
+    }
+
+    /// iOS answered: by now launchd has mounted every volume it is going to.
+    func checkGuestMounts() {
+        if let fault = GuestFaults.dataVolumeFault(seen: guestFaultsSeen, dataVolume: lock?.hasDataVolume == true) {
+            logEvent("guest: \(instance.name): error: \(fault)")
+        }
     }
 
     // MARK: - Files under a running device

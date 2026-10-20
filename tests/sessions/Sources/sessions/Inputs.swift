@@ -184,6 +184,11 @@ struct Base {
     /// The kboot boards boot as the iPad does (an armv7 offer); the rest take the armv6 package.
     var armv7: Bool { ["k48ap", "n81ap", "n90ap", "n18ap", "n88ap"].contains(board) }
     var firstGeneration: Bool { ["n45ap", "m68ap"].contains(board) }
+    /// The layout has a data partition (fstab mounts it on /private/var).
+    var dataVolume: Bool {
+        (((lock["entry"] as? [String: Any])?["content"] as? [String: Any])?["recipe"] as? [String: Any])?["data_size"]
+            as? String == "partition"
+    }
 
     init(_ path: String) {
         url = URL(fileURLWithPath: (path as NSString).expandingTildeInPath).standardized

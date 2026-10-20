@@ -447,6 +447,18 @@ func single(_ args: SingleCheck) -> Never {
         let reads = events.find("fileRead", ["device": d])
         r.check(!reads.isEmpty && reads.allSatisfy { $0.bool("found") }, "\(d): the guest agent reads back \(file)")
     }
+    let serial = ["serial.log.1", "serial.log"].compactMap {
+        FileManager.default.contents(atPath: work.appendingPathComponent("\(d)/\($0)").path)
+    }
+    let faults = GuestFaults.faults(
+        log: serial.map { String(decoding: $0, as: UTF8.self) }.joined(separator: "\n"),
+        dataVolume: base.dataVolume
+    )
+    r.check(
+        !serial.isEmpty && faults.isEmpty,
+        "\(d): no guest faults in the serial log"
+            + (serial.isEmpty ? ": no serial log" : faults.isEmpty ? "" : ": " + faults.joined(separator: "; "))
+    )
     let after = SessionJudge.tree(base.url)
     r.check(
         after == before,
