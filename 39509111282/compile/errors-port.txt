@@ -1,0 +1,109 @@
+            switch object.statusOfValue(forKey: key, error: &error) {
+    func stream(_ stream: SCStream, didStopWithError error: Error) { fail(error) }
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/BigSur/SwiftUICompat.swift:29:24: error: type 'CompatObservationToken' does not conform to protocol 'ObservableObject'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/BigSur/SwiftUICompat.swift:30:6: error: initializer 'init(wrappedValue:)' is not available due to missing import of defining module 'Combine'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:12:25: error: 'SCStream' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:174:27: error: 'SCStream' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:175:27: error: 'SCStream' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:175:98: error: 'SCStreamOutputType' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:178:23: error: 'SCStreamFrameInfo' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:179:43: error: 'status' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:179:60: error: 'SCFrameStatus' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:18:25: error: 'SCContentFilter' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:28:44: error: 'SCStreamConfiguration' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:42:22: error: 'SCStreamConfiguration' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:47:16: error: 'capturesAudio' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:48:16: error: 'ignoreShadowsSingleWindow' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:49:16: error: 'includeChildWindows' is only available in macOS 14.2 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:57:50: error: 'SCContentFilter' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:63:33: error: 'SCShareableContent' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:63:52: error: 'currentProcess' is only available in macOS 14.4 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:71:22: error: 'SCContentFilter' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:80:26: error: 'SCScreenshotManager' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:80:46: error: 'captureImage(contentFilter:configuration:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/Features/CanvasCapture.swift:90:22: error: 'SCStream' is only available in macOS 12.3 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:100:50: error: 'formatted' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:100:61: error: 'byteCount(style:allowedUnits:spellsOutZero:includesActualByteCount:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:122:13: error: 'Grid' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:124:62: error: 'formatted' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:124:73: error: 'byteCount(style:allowedUnits:spellsOutZero:includesActualByteCount:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:127:73: error: 'formatted' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:127:84: error: 'byteCount(style:allowedUnits:spellsOutZero:includesActualByteCount:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:130:14: error: conformance of 'Grid<Content>' to 'View' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:145:14: error: 'background(_:in:fillStyle:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:145:26: error: 'quaternary' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:190:18: error: 'foregroundStyle' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:190:54: error: 'AnyShapeStyle' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:190:78: error: 'AnyShapeStyle' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:190:93: error: 'tertiary' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:53:17: error: 'Grid' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:57:68: error: 'formatted' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:57:79: error: 'byteCount(style:allowedUnits:spellsOutZero:includesActualByteCount:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:59:18: error: conformance of 'Grid<Content>' to 'View' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:79:9: error: 'GridRow' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:80:59: error: 'gridColumnAlignment' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:83:10: error: conformance of 'GridRow<Content>' to 'View' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:87:39: error: 'init(_:strategy:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:87:59: error: 'iso8601' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:87:67: error: 'year()' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:87:74: error: 'month()' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:87:82: error: 'day()' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:88:14: error: 'formatted(date:time:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceSummary.swift:93:66: error: 'host(percentEncoded:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:105:26: error: 'badge' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:118:17: error: 'init(_:role:action:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:133:17: error: 'sizingOptions' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:157:22: error: 'selectionDisabled' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:159:18: error: 'contextMenu(forSelectionType:menu:primaryAction:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:212:37: error: 'formatted' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:212:48: error: 'byteCount(style:allowedUnits:spellsOutZero:includesActualByteCount:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:229:22: error: 'background(_:in:fillStyle:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/AddDeviceView.swift:229:34: error: 'quaternary' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:180:24: error: 'AnyShape' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:181:30: error: 'AnyShape' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:181:52: error: 'AnyShape' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:244:55: error: 'bold' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:247:10: error: 'buttonBorderShape' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:247:29: error: 'circle' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:266:14: error: 'onDrag(_:preview:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:268:47: error: conformance of 'NSImage' to 'NSItemProviderWriting' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:282:25: error: 'init(filePath:directoryHint:relativeTo:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:289:10: error: 'background(alignment:content:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:300:21: error: 'background(_:in:fillStyle:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:300:33: error: 'regularMaterial' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CaptureStatusView.swift:58:17: error: 'sizingOptions' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:107:21: error: 'MapReader' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:108:25: error: 'init(position:bounds:interactionModes:scope:content:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:108:50: error: 'Marker' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:110:30: error: 'onTapGesture(count:coordinateSpace:perform:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:111:70: error: 'local' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:18:33: error: 'MapCameraPosition' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:28:25: error: 'init(_:text:prompt:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:30:25: error: 'init(_:text:prompt:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:90:21: error: 'init(_:text:prompt:axis:)' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:91:41: error: 'lineLimit' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CarrierPanel.swift:91:58: error: 'onSubmit(of:_:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CatalogDetailsViewController.swift:29:9: error: 'sizingOptions' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/CatalogDetailsViewController.swift:70:17: error: 'init(_:role:action:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DeviceModelView.swift:384:35: error: 'replace(withImage:options:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DeviceModelView.swift:389:53: error: 'generate(from:withName:options:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DeviceModelView.swift:396:27: error: 'MaterialParameters' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DeviceModelView.swift:404:28: error: 'color' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DeviceModelView.swift:404:37: error: 'init(tint:texture:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DeviceModelView.swift:406:28: error: 'color' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DeviceModelView.swift:406:37: error: 'init(tint:texture:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/InlineLiveTextView.swift:10:28: error: 'ImageAnalyzer' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/InlineLiveTextView.swift:100:40: error: 'ImageAnalysisOverlayView' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/InlineLiveTextView.swift:51:36: error: 'ImageAnalyzer' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/InlineLiveTextView.swift:9:27: error: 'ImageAnalysisOverlayView' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/InlineLiveTextView.swift:95:24: error: 'ImageAnalysisOverlayView' is only available in macOS 13.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/TweaksPanel.swift:165:6: error: 'FocusState' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/TweaksPanel.swift:169:9: error: 'init(_:text:prompt:)' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/TweaksPanel.swift:170:14: error: 'focused' is only available in macOS 12.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/TweaksPanel.swift:171:14: error: 'onSubmit(of:_:)' is only available in macOS 12.0 or newer
+<unknown>:0: error: static subscript 'subscript(_enclosingInstance:wrapped:storage:)' is not available due to missing import of defining module 'Combine'
+error: The file “Light_Touch.abi.json” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftdoc” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftmodule” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+Internal Error: DecodingError.dataCorrupted: Data was corrupted. Debug description: Corrupted JSON. Underlying error: unexpected end of file
