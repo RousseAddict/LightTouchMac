@@ -128,10 +128,12 @@ public enum SystemEdits {
     static let springBoardJob = daemons + "/com.apple.SpringBoard.plist"
     static let msmJob = daemons + "/com.apple.mobile.storage_mounter.plist"
     /// The stock jobs that raise the USB "not supported" notice for a device nothing claims (the emulated keyboard):
-    /// MobileStorageMounter through 4.x; 5.x moved it to USBDeviceArbitrator, LaunchBuddy's catch-all for IOUSBDevice.
+    /// MobileStorageMounter through 4.x; 5.x moved it to USBDeviceArbitrator, LaunchBuddy's catch-all for IOUSBDevice;
+    /// 7.x to DeviceOMatic, which launchd starts for a removable IOUSBDevice.
     static let noticeJobs = [
         (msmJob, "com.apple.mobile.storage_mounter"),
         (daemons + "/com.apple.mobile.usb_device_arbitrator.plist", "com.apple.mobile.usb_device_arbitrator"),
+        (daemons + "/com.apple.device-o-matic.plist", "com.apple.device-o-matic"),
     ]
     static let btJob = daemons + "/com.apple.BTServer.plist"
     static let installdJob = daemons + "/com.apple.mobile.installd.plist"
@@ -249,22 +251,20 @@ public enum SystemEdits {
             let legacy = fw.precedent[MachO32.lcDyldInfoOnly] == nil
             let pick = { (n: String) in legacy ? Helpers.legacy(n) : n }
             if legacy { log("this dyld predates LC_DYLD_INFO_ONLY: the legacy-linked helpers and AppSync") }
-            // it_msmquiet only where the mounter raises the notice it recognizes; else left out, job untouched
-            // (3.1.x has no storage_mounter job at all)
+            // it_msmquiet only in the jobs that raise the notice it recognizes; else left out, jobs untouched (3.1.x
+            // has no storage_mounter job at all). One job raises it per version, so the others' misfits are no warning.
             let msm = Helpers.msmQuiet
-            var quietJobs: [(String, String)] = []
-            for (job, label) in noticeJobs where o.guestTools && fm.fileExists(atPath: at(job).path) {
-                if try fit.check(
+            let candidates = noticeJobs.filter { o.guestTools && fm.fileExists(atPath: at($0.0).path) }
+            let quietFits = fit.checkAny(
+                try candidates.map { job, label in
                     FitCheck.msmQuiet(
                         fw,
                         program: try stockProgram(m, job, label: label),
-                        dylib: Data(contentsOf: try helper(pick(msm.name)))
-                    ),
-                    required: false
-                ) {
-                    quietJobs.append((job, label))
+                        dylib: try Data(contentsOf: helper(pick(msm.name)))
+                    )
                 }
-            }
+            )
+            let quietJobs = zip(candidates, quietFits).filter(\.1).map(\.0)
             let quiet = !quietJobs.isEmpty
             if !quiet { tools.removeAll { $0.name == msm.name } }
             if o.guestTools {

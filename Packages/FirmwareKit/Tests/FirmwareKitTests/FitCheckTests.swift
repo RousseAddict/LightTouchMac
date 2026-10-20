@@ -23,11 +23,13 @@ enum FitFixture {
         "n90ap-10A5316k": Oracle.appCache.appendingPathComponent(
             "adc3ec213dd10dad9e6cf5f89029a4e6aa115a35/90fc8eb2bf33e08769f3533ad538eba91830c29b47d94cb9ddb45432479694dc/rootfs.dmg"
         ),
+        "n90ap-11D257": Oracle.path("Developer/qemu-ios-files/n90/11D257/dec/rootfs.dmg"),
     ]
     static func arch(_ id: String) -> String { id.hasPrefix("n72") ? "armv6" : "armv7" }
     static let springBoard = "System/Library/CoreServices/SpringBoard.app/SpringBoard"
     static let mounter = "System/Library/CoreServices/MobileStorageMounter.app/MobileStorageMounter"
     static let usbArbitrator = "System/Library/CoreServices/USBDeviceArbitrator.app/USBDeviceArbitrator"
+    static let deviceOMatic = "System/Library/CoreServices/DeviceOMatic.app/DeviceOMatic"
     /// What a guest binary's load check reads: the precedent executables, libSystem, the shared cache, SystemVersion.
     static func stock(_ id: String) -> [String] {
         FitCheck.Firmware.precedentBinaries + [
@@ -129,6 +131,22 @@ enum FitFixture {
 @Suite(.serialized, .detachesItsImages) struct FitCheckTests {
     /// An export trie's one-by-one re-export (iOS 6 CoreFoundation's _OBJC_CLASS_$_NSObject) counts as an export;
     /// a plain export, which the nlist already lists, does not come from here.
+    /// One optional piece for whichever place takes it (it_msmquiet in the job that raises the notice): every place is
+    /// recorded, and the misfits are warned about only when no place fits (5.x and 6.x prepares warned that the
+    /// mounter, which no longer raises the notice there, didn't fit, and the app listed it under Recent errors).
+    @Test func checkAnyWarnsOnlyWhenNoPlaceFits() {
+        var warnings: [String] = []
+        let log = FitCheck.Log { warnings.append($0) }
+        let mounter = FitCheck.Fit("q (mounter)", fits: false, "names neither")
+        let arbitrator = FitCheck.Fit("q (arbitrator)", fits: true, "raises it")
+        #expect(log.checkAny([mounter, arbitrator]) == [false, true])
+        #expect(warnings.isEmpty, "\(warnings)")
+        #expect(log.fits == [mounter, arbitrator])
+        #expect(log.checkAny([mounter, mounter]) == [false, false])
+        #expect(warnings == [mounter.warning("left out"), mounter.warning("left out")])
+        #expect(log.checkAny([]) == [] && warnings.count == 2)
+    }
+
     @Test func trieReexports() {
         // (one byte before the trie) root: no info, children "_A" -> 10 and "_B" -> 15;
         // _A: flags 8 (re-export), ordinal 2, same name; _B: flags 0, address 4
@@ -409,6 +427,11 @@ enum FitFixture {
                 "k48ap-9B206", FitFixture.usbArbitrator, true,
                 "UNSUPPORTED_FAILURE_BODY through CFUserNotificationCreate"
             ),
+            ("n90ap-11D257", FitFixture.mounter, false, "names neither"),
+            (
+                "n90ap-11D257", FitFixture.deviceOMatic, true,
+                "UNSUPPORTED_FAILURE_BODY through CFUserNotificationCreate"
+            ),
         ] {
             try await Oracle.withTemp { dir in
                 guard let v = try await FitFixture.volume(id, FitFixture.stock(id) + [program], in: dir) else {
@@ -438,12 +461,17 @@ enum FitFixture {
         }
         try await Oracle.withTemp { dir in
             let recipe = try #require(try Oracle.entry("k48ap-9B206").recipe)
-            let log = FitCheck.Log()
+            var warnings: [String] = []
+            let log = FitCheck.Log { warnings.append($0) }
             let parts = K48NAND.partitions(mbr: [UInt8](K48NAND.makeMBR(systemMiB: recipe.systemMiB)))
             let kernel = try Data(
                 contentsOf: dmg.deletingLastPathComponent().appendingPathComponent("kernelcache.mach"),
                 options: .alwaysMapped
             )
+            defer {
+                let quiet = warnings.filter { $0.contains("it_msmquiet") }
+                #expect(quiet.isEmpty, "the mounter's misfit is no warning where the arbitrator fits: \(quiet)")
+            }
             let r = try await SystemEdits.buildK48(
                 rootfs: dmg,
                 work: dir,
