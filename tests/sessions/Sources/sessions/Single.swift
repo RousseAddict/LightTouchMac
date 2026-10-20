@@ -161,6 +161,16 @@ func single(_ args: SingleCheck) -> Never {
             wifi.bool("ok"),
             "\(d): Wi-Fi up: the guest fetched wifi0's page: \(clip(wifi.string("output") ?? "not asked", 80))"
         )
+    } else if base.firstGeneration {
+        // iPhone OS 1 has no agent to fetch a page, but its configd says on the console when it auto-joins.
+        let serial = String(
+            decoding: (try? Data(contentsOf: work.appendingPathComponent("\(d)/serial.log"))) ?? Data(),
+            as: UTF8.self
+        )
+        r.check(
+            serial.contains("WiFi: Joined: qemu-ios"),
+            "\(d): Wi-Fi up: configd joined qemu-ios at boot"
+        )
     } else {
         r.note("\(d): Wi-Fi not checked (no guest agent)")
     }

@@ -104,17 +104,25 @@ final class N45Board: Board {
         return plist?["UserName"] as? String == "mobile" ? ("private/var/mobile/Library", 501) : (rootLibrary, 0)
     }
     static let openGLESExports = "opengles-1x.exports"
-    /// 1.x's SCPreferences live in the user's home, root's: SystemConfiguration (1.0 and 1.1) opens
-    /// ~/Library/Preferences/SystemConfiguration (2.x moved them to /var/preferences, where 1.x never looks).
-    static let scPrefs = rootLibrary + "/Preferences/SystemConfiguration"
+    /// Where configd keeps its SCPreferences. While everything runs as root (1.0 to 1.1.2), SystemConfiguration opens
+    /// ~/Library/Preferences/SystemConfiguration, root's home. From 1.1.3, where SpringBoard and the apps run as mobile
+    /// (springBoardUser), it opens /Library/Preferences/SystemConfiguration, which the root links to
+    /// /private/var/preferences, and never looks in root's home: 1.1.4's configd creates that directory at its first
+    /// boot, next to a seeded one in root's home, and joins nothing.
+    static func scPrefs(_ m: URL) -> String {
+        springBoardUser(m).uid == 0
+            ? rootLibrary + "/Preferences/SystemConfiguration" : "private/var/preferences/SystemConfiguration"
+    }
     /// configd's Aeropuerto plug-in (AirPort-53 on 1.0, -63 on 1.1) keeps the Wi-Fi power preference (AllowEnable)
     /// and the networks it has joined ("List of known networks", entries keyed by SSID_STR) in this file.
-    static let wifiPrefs = scPrefs + "/com.apple.wifi.plist"
+    static func wifiPrefs(_ m: URL) -> String { scPrefs(m) + "/com.apple.wifi.plist" }
     /// The PAC, the en0 AirPort service carrying it (preferences.plist) and the known network (wifiPrefs) in scPrefs.
     /// Returns the paths to make root-owned. The recipe writes them on a fresh volume; its admission step
     /// (N45Migration) on a device whose configd has already written both files there: the PAC goes on configd's own
     /// en0 service (not a second one) and qemu-ios joins its known networks, the rest of each file kept.
     static func seedSystemConfiguration(_ m: URL) throws -> [String] {
+        let scPrefs = scPrefs(m)
+        let wifiPrefs = wifiPrefs(m)
         let owned = try SystemEdits.installPAC(m, dirs: [scPrefs])
         try SystemEdits.seedPlist(m.appendingPathComponent(scPrefs + "/preferences.plist")) { d in
             let en0 = ((d["NetworkServices"] as? NSDictionary)?.allValues ?? []).compactMap {
@@ -338,7 +346,7 @@ final class N45Board: Board {
             )
             owners += try Self.seedSystemConfiguration(m).map { (UInt32(0), $0) }
             derived["wifi"] =
-                "en0 AirPort service (PAC /\(SystemEdits.pacPath)); known network qemu-ios, Wi-Fi on (/\(Self.wifiPrefs))"
+                "en0 AirPort service (PAC /\(SystemEdits.pacPath)); known network qemu-ios, Wi-Fi on (/\(Self.wifiPrefs(m)))"
             // 1.x runs no guest helpers (it_prefs): its SpringBoard preferences, in the home of the user SpringBoard
             // runs as (root's on 1.0 and 1.1.2; mobile's from 1.1.3, its launchd job's UserName)
             let user = Self.springBoardUser(m)

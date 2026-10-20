@@ -34,9 +34,6 @@ func rotationCheck(_ args: RotationCheck) -> Never {
     let iPad = base.board == "k48ap"
     let slide = iPad ? "dragshown 0.36 0.935 0.8 0.935" : "dragshown 0.18 0.9 0.92 0.9"
     let field = iPad ? "tapshown 0.4 0.072" : "tapshown 0.4 0.18"
-    // 1.1.4 has not joined qemu-ios when Safari first opens and asks to Select a Wi-Fi Network, as a device out of
-    // range of every known network does; its sheet doesn't turn, so it is cancelled as a user would.
-    let wifiPicker = base.firstGeneration ? ["tapword Cancel", "wait 2"] : []
     let d = HelperDriver(
         "rotation",
         tools: tools,
@@ -54,7 +51,6 @@ func rotationCheck(_ args: RotationCheck) -> Never {
                 "wait 4", "shot home", "follow start",
                 // Safari through the guest agent; without one (iPhone OS 1), its Home screen icon.
                 "agentop launch com.apple.mobilesafari", "wait 8", "tapword Safari -0.06", "wait 10",
-            ] + wifiPicker + [
                 // A first launch's alerts and Safari's bookmarks sheet (Done again: a tap while Safari opens can be lost).
                 "tapword OK", "wait 2", "tapword Dismiss", "wait 2", "tapword Dismiss", "wait 2", "tapword Done",
                 "wait 3", "tapword Done",
