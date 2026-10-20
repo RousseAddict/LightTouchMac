@@ -80,25 +80,6 @@ struct VendorTests {
         #expect(!Vendor.preparedWith(linked, lock: try lock(dir, guestTools: other.path)))
     }
 
-    /// A vendor directory or static build complete only in the old root is used there; an incomplete one, one the
-    /// new root has, or any with LTM_VENDOR_ROOT set (no legacy root) is under the new root.
-    @Test func legacyRootIsReadWhereComplete() throws {
-        let home = try scratch()
-        defer { remove(home) }
-        let root = home.appendingPathComponent("Developer/ltm-vendor.noindex")
-        let legacy = home.appendingPathComponent("Developer/ltm-vendor")
-        try files.createDirectory(at: legacy.appendingPathComponent("def"), withIntermediateDirectories: true)
-        try touch(legacy.appendingPathComponent("abc/vendor.json"))
-        func cached(_ name: String, legacy: URL?) -> URL {
-            Vendor.cached(name, record: "vendor.json", root: root, legacy: legacy)
-        }
-        #expect(cached("abc", legacy: legacy) == legacy.appendingPathComponent("abc"))
-        #expect(cached("def", legacy: legacy) == root.appendingPathComponent("def"))
-        #expect(cached("abc", legacy: nil) == root.appendingPathComponent("abc"))
-        try files.createDirectory(at: root.appendingPathComponent("abc"), withIntermediateDirectories: true)
-        #expect(cached("abc", legacy: legacy) == root.appendingPathComponent("abc"))
-    }
-
     /// pack-base reuses the chunks of this vendor directory's own packed built-in iPod, else of the newest one under
     /// the root; an old single-file base (no index.json) offers none.
     @Test func previousBuiltInIsOwnElseTheNewest() throws {

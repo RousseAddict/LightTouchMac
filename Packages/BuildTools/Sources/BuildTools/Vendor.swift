@@ -27,8 +27,7 @@ public struct Vendor {
         Inputs besides the pins: ARMV6_SDK (default ~/Developer/ipod2g-re/OldSDK/iPhoneOS3.1.3.sdk), LTM_ASSETS (the
         SecureROMs, default ~/Developer/qemu-ios-files), the n72ap-7E18 IPSW in the app's IPSW cache (or
         LTM_BUILT_IN_IPSW), network for the pinned source archives. LTM_VENDOR_ROOT moves the cache (default
-        ~/Developer/ltm-vendor.noindex, which Spotlight leaves alone). A vendor directory or static build that only the
-        old ~/Developer/ltm-vendor has complete is used where it is.
+        ~/Developer/ltm-vendor.noindex, which Spotlight leaves alone).
         """
 
     let root: URL
@@ -39,20 +38,6 @@ public struct Vendor {
             environment["LTM_VENDOR_ROOT"].map { ($0 as NSString).expandingTildeInPath }
                 ?? home.appendingPathComponent("Developer/ltm-vendor.noindex").path
         )
-    }
-    /// The root before it became `.noindex` (Spotlight indexed a million files there); nothing moves out of it, since
-    /// other checkouts' Vendor.xcconfig may still name its directories.
-    var legacyRoot: URL? {
-        environment["LTM_VENDOR_ROOT"] == nil ? home.appendingPathComponent("Developer/ltm-vendor") : nil
-    }
-    /// `relative` under the vendor root, or under the legacy root when only that has it complete (`record` there).
-    static func cached(_ relative: String, record: String, root: URL, legacy: URL?) -> URL {
-        let current = root.appendingPathComponent(relative)
-        guard let old = legacy?.appendingPathComponent(relative),
-            !files.fileExists(atPath: current.path),
-            files.fileExists(atPath: old.appendingPathComponent(record).path)
-        else { return current }
-        return old
     }
     var sdk: URL {
         url(
@@ -140,7 +125,7 @@ public struct Vendor {
     }
 
     public func directory() throws -> URL {
-        Self.cached(try pinKey(), record: "vendor.json", root: vendorRoot, legacy: legacyRoot)
+        vendorRoot.appendingPathComponent(try pinKey())
     }
 
     // MARK: steps
@@ -191,12 +176,7 @@ public struct Vendor {
         let staticKey = String(try treeHash(Self.staticKeyed).prefix(12))
         for arch in Self.archs {  // one at a time: both stage usbmuxd through a worktree of the same checkout
             let slice = work.appendingPathComponent("native/\(arch)")
-            let staticRoot = Self.cached(
-                "static/\(staticKey)/\(arch)",
-                record: "static-build.json",
-                root: vendorRoot,
-                legacy: legacyRoot
-            )
+            let staticRoot = vendorRoot.appendingPathComponent("static/\(staticKey)/\(arch)")
             if files.fileExists(atPath: slice.appendingPathComponent("native-build.json").path) { continue }
             let log = work.appendingPathComponent("logs/native-\(arch).log")
             say("native \(arch) (dependencies, usbmuxd, QEMU); log \(log.path)")
