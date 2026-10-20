@@ -1,5 +1,10 @@
-# Phase 0 of the Big Sur port: can a GitHub-hosted Xcode build upstream at all, and can it target macOS 11? Runs by
-# hand; the job summary and the spike-* artifacts are the result.
+# Phase 0 of the Big Sur port: which compiler builds upstream on a GitHub-hosted Mac, and can it target macOS 11? Runs
+# by hand. Results are in the job summaries, in each job's notice annotations (spike/read-results.py reads them
+# without signing in) and in the spike-* artifacts.
+#
+# Upstream builds with Xcode 27 (Swift 6.4), which GitHub's runners don't have. Each job pairs a runner's newest Xcode
+# with either its own compiler or swift.org's Swift 6.4.1 toolchain. The macos-26 job (Xcode 26.6, Swift 6.3.3) often
+# waits for capacity; the macos-15 jobs carry the answer.
 name: Phase 0 spike
 
 on:
@@ -15,14 +20,22 @@ permissions:
 
 jobs:
   spike:
+    name: spike (${{ matrix.runner }}, ${{ matrix.toolchain }})
     strategy:
       fail-fast: false
       matrix:
-        runner: [macos-26, macos-15]
+        include:
+          - runner: macos-15
+            toolchain: xcode
+          - runner: macos-15
+            toolchain: swift-6.4.1-RELEASE
+          - runner: macos-26
+            toolchain: xcode
     runs-on: ${{ matrix.runner }}
-    timeout-minutes: 150
+    timeout-minutes: 180
     env:
       OUT: ${{ github.workspace }}/spike-out
+      LABEL: ${{ matrix.runner }} ${{ matrix.toolchain }}
     steps:
       - name: Check out the port layer
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,8 +67,17 @@ jobs:
           sudo xcode-select -s "$xcode"
           echo "Selected $xcode"
 
-      - name: Install Homebrew libimobiledevice
-        run: brew install libimobiledevice libplist
+      - name: Install the swift.org toolchain
+        if: matrix.toolchain != 'xcode'
+        run: bash port/spike/install-toolchain.sh "${{ matrix.toolchain }}"
+
+      - name: Prepare Xcode
+        run: |
+          # Keep building the targets that don't depend on a failed one, so one run reports more modules.
+          defaults write com.apple.dt.Xcode IDEBuildingContinueBuildingAfterErrors -bool YES
+          # Upstream's project is in Xcode 27's format (objectVersion 110); 77 opens in Xcode 26 and builds.
+          sed -i '' -E 's/objectVersion = 1[0-9]{2};/objectVersion = 77;/' src/LightTouchMac.xcodeproj/project.pbxproj
+          brew install libimobiledevice libplist
 
       - name: Probe the toolchain
         run: bash port/spike/probe-toolchain.sh src
@@ -70,7 +92,7 @@ jobs:
         if: always()
         run: |
           {
-            echo "# ${{ matrix.runner }}, upstream ${{ steps.tag.outputs.tag }}"
+            echo "# $LABEL, upstream ${{ steps.tag.outputs.tag }}"
             echo '```'
             sed -n '/== xcode/,/== SDK deployment targets/p;/== back-deployed/,/== availability/p' "$OUT/probe.txt"
             echo '```'
@@ -79,11 +101,11 @@ jobs:
 
       - name: Publish the results as annotations
         if: always()
-        run: python3 -I port/spike/annotate.py "${{ matrix.runner }}" "$OUT/probe.txt" "$OUT"/summary-*.md
+        run: python3 -I port/spike/annotate.py "$LABEL" "$OUT/probe.txt" "$OUT"/summary-*.md
 
       - name: Upload the spike results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: spike-${{ matrix.runner }}
+          name: spike-${{ matrix.runner }}-${{ matrix.toolchain }}
           path: spike-out/

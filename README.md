@@ -6,8 +6,21 @@ This branch is a port layer, not a copy of Light Touch. It holds only what turns
 
 ## Status
 
-Phase 0 is the go/no-go check: can the Xcode on GitHub's macOS runners open the upstream project, and can it
-target macOS 11? It isn't run yet.
+Phase 0 is the go/no-go check: which compiler builds upstream on a GitHub-hosted Mac, and can it target macOS 11?
+
+Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
+- **Targeting macOS 11 works.**
+  - The SDK accepts deployment targets from 10.13 to 26.2.
+  - The back-deployed `libswift_Concurrency.dylib` ships.
+  - An async program built for `x86_64-apple-macos11.0` links it with minos 11.0.
+- **APIs:**
+  - `NSLocking.withLock` is `@_alwaysEmitIntoClient` and available from 10.10.
+  - `NSSplitViewItem(inspectorWithViewController:)` is available from 11.0.
+  - `CGWindowListCreateImage` is deprecated in 14 and obsoleted in 15, so it still works when targeting 11.
+- **Project format:** Xcode 26 can't open upstream's objectVersion 110 (Xcode 27); with 77 it opens and builds.
+- **Compiler:** Swift 6.2.4 rejects one upstream line that Xcode 27's Swift 6.4 accepts
+  (`HostServiceWorkers.swift:177`, a `sending` closure). The spike now also builds with swift.org's 6.4.1
+  toolchain to settle which compiler to use.
 
 - `spike/probe-toolchain.sh` records:
   - the Xcode version and its SDK's deployment-target range;

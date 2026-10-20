@@ -19,7 +19,9 @@ section() { printf '\n== %s\n' "$1"; }
     section xcode
     xcode-select -p
     xcodebuild -version
-    swift --version 2>&1
+    echo "TOOLCHAINS=${TOOLCHAINS:-default}"
+    xcrun --find swiftc
+    xcrun swift --version 2>&1
     SDK=$(xcrun --sdk macosx --show-sdk-path)
     echo "SDK: $SDK"
 
@@ -28,7 +30,8 @@ section() { printf '\n== %s\n' "$1"; }
     plutil -extract SupportedTargets.macosx.ValidDeploymentTargets json -o - "$SDK/SDKSettings.plist" 2>&1 | cut -c1-400
 
     section "back-deployed Swift concurrency"
-    TOOLCHAIN="$(xcode-select -p)/Toolchains/XcodeDefault.xctoolchain"
+    TOOLCHAIN=$(dirname "$(dirname "$(dirname "$(xcrun --find swiftc)")")")
+    echo "toolchain: $TOOLCHAIN"
     ls "$TOOLCHAIN/usr/lib" | grep -i '^swift'
     ls -la "$TOOLCHAIN/usr/lib/swift-5.5/macosx" 2>&1
 
