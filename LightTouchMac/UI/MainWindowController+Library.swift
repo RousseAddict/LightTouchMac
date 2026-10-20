@@ -14,6 +14,8 @@ extension MainWindowController {
         library.select(entry)
         // With several devices, which to run is the user's call: launch only selects.
         guard library.entries.filter({ host.instance(for: $0) != nil }).count <= 1 else { return }
+        // Nor after a run that quit unexpectedly while a device started (CrashGuard): its Start button is right there.
+        guard !CrashGuard.skips(.deviceStart) else { return }
         if canPerform(.start, for: entry) { start(entry) }
     }
 

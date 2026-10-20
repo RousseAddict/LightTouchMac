@@ -101,9 +101,12 @@ extension MainWindowController {
         }
     }
 
+    /// The device's notice, else (once, until dismissed) the launch's own: the last run quit in a step CrashGuard
+    /// now skips, with 3D's Try Again.
     private func updateDeviceNotice() {
         guard let window else { return }
-        guard let emulator, let message = emulator.deviceNotice else {
+        let device = emulator?.deviceNotice
+        guard let message = device ?? CrashGuard.notice else {
             if let accessory = noticeAccessory,
                 let index = window.titlebarAccessoryViewControllers.firstIndex(of: accessory)
             {
@@ -115,15 +118,32 @@ extension MainWindowController {
         if noticeAccessory == nil {
             let accessory = DeviceNoticeViewController()
             accessory.onShowLogs = { [weak self] in self?.showDeviceLogs(nil) }
-            accessory.onDismiss = { [weak self] in self?.emulator?.dismissDeviceNotice() }
-            accessory.onAction = { [weak self] in self?.eraseDevice(nil) }
             window.addTitlebarAccessoryViewController(accessory)
             noticeAccessory = accessory
         }
+        if let emulator, device != nil {
+            noticeAccessory?.onDismiss = { [weak self] in self?.emulator?.dismissDeviceNotice() }
+            noticeAccessory?.onAction = { [weak self] in self?.eraseDevice(nil) }
+            noticeAccessory?.update(
+                message,
+                canDismiss: !emulator.storageFailed,
+                action: emulator.deviceNoticeOffersErase ? "Erase…" : nil
+            )
+            return
+        }
+        noticeAccessory?.onDismiss = { [weak self] in
+            CrashGuard.dismissNotice()
+            self?.updateDeviceNotice()
+        }
+        noticeAccessory?.onAction = { [weak self] in
+            CrashGuard.tryAgain(.model)
+            DisplayView.bezel = .model
+            self?.updateDeviceNotice()
+        }
         noticeAccessory?.update(
             message,
-            canDismiss: !emulator.storageFailed,
-            action: emulator.deviceNoticeOffersErase ? "Erase…" : nil
+            canDismiss: true,
+            action: CrashGuard.unnoticed.contains(.model) ? "Try 3D Again" : nil
         )
     }
 

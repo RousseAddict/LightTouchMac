@@ -62,7 +62,10 @@ extension MainWindowController: NSMenuItemValidation {
             // A device without a 3D model (the iPhone 4, the original iPhone), or a Mac whose graphics driver isn't
             // Apple's, shows 2D for 3D: its 3D is dimmed and the check is on what it shows.
             let hasModel = currentProfile.deviceModelName != nil && DisplayView.rendersModel
-            let shown = DisplayView.bezel == .model && !hasModel ? DisplayView.Bezel.flat : DisplayView.bezel
+            // 3D skipped after a crash (CrashGuard) shows 2D too, but stays enabled: choosing it tries again.
+            let skipped = hasModel && CrashGuard.skips(.model)
+            let shown =
+                DisplayView.bezel == .model && (!hasModel || skipped) ? DisplayView.Bezel.flat : DisplayView.bezel
             menuItem.state = menuItem.tag == shown.rawValue ? .on : .off
             // Free-form shows this device's screen alone; the setting still applies to the others and comes back here.
             let freeForm = deviceVC?.screen.isFreeForm == true
@@ -71,7 +74,9 @@ extension MainWindowController: NSMenuItemValidation {
             menuItem.toolTip =
                 freeForm
                 ? "Free-Form Screen shows this device’s screen without its bezel."
-                : menuItem.tag == DisplayView.Bezel.model.rawValue && !hasModel ? noModel : nil
+                : menuItem.tag != DisplayView.Bezel.model.rawValue
+                    ? nil
+                    : !hasModel ? noModel : skipped ? "Light Touch quit while showing 3D. Choose 3D to try again." : nil
             return !freeForm && (menuItem.tag != DisplayView.Bezel.model.rawValue || hasModel)
         case #selector(toggleFreeFormScreen(_:)):
             menuItem.state = deviceVC?.screen.isFreeForm == true ? .on : .off

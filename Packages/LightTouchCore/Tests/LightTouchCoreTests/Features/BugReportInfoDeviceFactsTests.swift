@@ -145,6 +145,7 @@ struct BugReportInfoDeviceFactsTests {
         for absent in ["Notice", "Web proxy", "Tweaks", "Accessibility", "120 Hz", "Clipboard", "Free space", "Storage"] {
             #expect(!plain.contains(absent), "\(absent)")
         }
+        #expect(!plain.contains("Skipped"))
         var settings = DeviceSettings()
         settings.deviceNotices = [.init(message: "Light Touch needs 2 GB of free space.", operation: "storageUpdate")]
         settings.tweaks = TweakSettings()
@@ -155,6 +156,7 @@ struct BugReportInfoDeviceFactsTests {
             freeSpace: 5_000_000_000,
             refresh120: true,
             shareClipboard: false,
+            skippedAfterCrash: ["3D device", "starting a device at launch"],
             devices: [d],
             recentErrors: [],
             identity: identity
@@ -166,6 +168,7 @@ struct BugReportInfoDeviceFactsTests {
                 Free space: \(Int64(5_000_000_000).formatted(.byteCount(style: .file))) on the library's volume
                 120 Hz refresh: on
                 Clipboard sharing: off
+                Skipped after a crash: 3D device, starting a device at launch
                 """
             )
         )

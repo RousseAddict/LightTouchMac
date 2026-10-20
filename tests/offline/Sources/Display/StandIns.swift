@@ -65,6 +65,8 @@ extension NSPasteboard.PasteboardType { static let ltmCatalogApp = Self("test.ca
 @MainActor final class EmulatorController {
     enum Pose { case flat, upright }
     var motionPose = Pose.upright, rotationDegrees = 0, acceptsInput = true, canQueueInstall = true
+    /// How the device is held: here every turn is the user's, so it is the rotation.
+    var heldDegrees: Int { rotationDegrees }
     var keyboardInputEnabled = true, keyboardTiltRate = 90.0, isSleeping = false, isPoweredOff = false,
         shuttingDown = false
     var preparingDevice = false

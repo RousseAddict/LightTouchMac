@@ -187,6 +187,8 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         do { try NativeLogging.start() } catch {
             logEvent("logging: native output capture unavailable: \(error.localizedDescription)")
         }
+        // This copy holds the library: the marks of the steps a crash interrupted are its own to read.
+        CrashGuard.launch()
         // State from before devices were prepared from IPSWs: erased once, or the app quits. The erase
         // runs off the main actor behind a progress window; a launch after a quit midway resumes without asking.
         if let legacy = LegacyState.find(
@@ -325,7 +327,10 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSMenuItemValidation {
         quitting.willTerminate()
         // A quit (or a crash, through firmwarekit's parent watch) cancels
         // every preparation; the next launch's sweep removes its staging.
-        if host != nil { FirmwareJobs.shared.cancelAll() }
+        if host != nil {
+            FirmwareJobs.shared.cancelAll()
+            CrashGuard.quit()
+        }
         emulators.forEach { $0.stop() }
     }
 

@@ -68,6 +68,7 @@ extension MainWindowController {
     /// View ▸ Device Bezels: every device as the 3D model, the flat art, or the screen alone.
     @objc func selectDeviceBezel(_ sender: NSMenuItem) {
         guard let bezel = DisplayView.Bezel(rawValue: sender.tag) else { return }
+        if bezel == .model { CrashGuard.tryAgain(.model) }
         DisplayView.bezel = bezel
     }
 

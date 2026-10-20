@@ -139,14 +139,16 @@ public nonisolated enum BugReportInfo {
     }
 
     /// The block: `system` (DiagnosticsExport.systemSummary), the free space on the library's volume, the app-wide
-    /// settings that aren't the default, each device (the selected one first, as the caller orders them) and the
-    /// recent errors, scrubbed with `secrets` besides the Mac's own identity.
+    /// settings that aren't the default, the steps skipped since a run quit in them (CrashGuard), each device (the
+    /// selected one first, as the caller orders them) and the recent errors, scrubbed with `secrets` besides the Mac's
+    /// own identity.
     public static func text(
         system: String,
         freeSpace: Int64? = nil,
         bezel: String? = nil,
         refresh120: Bool = false,
         shareClipboard: Bool = true,
+        skippedAfterCrash: [String] = [],
         devices: [Device],
         recentErrors: [String],
         secrets: [String] = [],
@@ -159,6 +161,9 @@ public nonisolated enum BugReportInfo {
         if let bezel { lines.append("Device bezels: \(bezel)") }
         if refresh120 { lines.append("120 Hz refresh: on") }
         if !shareClipboard { lines.append("Clipboard sharing: off") }
+        if !skippedAfterCrash.isEmpty {
+            lines.append("Skipped after a crash: " + skippedAfterCrash.joined(separator: ", "))
+        }
         if devices.isEmpty { lines += ["", "No device"] }
         for d in devices {
             lines += ["", "\(d.marketingName) (\(d.board)), iOS \(d.iosVersion) (\(d.iosBuild)), catalog \(d.entryID)"]

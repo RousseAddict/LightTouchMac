@@ -11,7 +11,9 @@ extension DisplayView {
     /// mapping are unchanged.
     func applyBezel(_ bezel: Bezel) {
         guard bezel != appliedBezel else { return }
-        appliedBezel = bezel
+        // 3D skipped after a crash (CrashGuard) is applied again each time, so choosing 3D tries it again.
+        let modelSkipped = bezel == .model && CrashGuard.skips(.model)
+        appliedBezel = modelSkipped ? nil : bezel
         bare = bezel == .off
         modelLoadTask?.cancel()
         modelFallbackTask?.cancel()
@@ -34,7 +36,8 @@ extension DisplayView {
         CATransaction.commit()
         modelPresentationFinished = true
         // macOS 14 keeps the photo shell; RealityKit texture rotation requires 15.
-        if bezel == .model, Self.rendersModel, #available(macOS 15, *), let name = profile.deviceModelName,
+        if bezel == .model, Self.rendersModel, !modelSkipped, #available(macOS 15, *),
+            let name = profile.deviceModelName,
             let url = Bundle.main.url(forResource: name, withExtension: "usdz", subdirectory: "Models")
         {
             modelPresentationFinished = false
@@ -48,7 +51,9 @@ extension DisplayView {
                 do { try await Task.sleep(for: .seconds(1)) } catch { return }
                 self?.showStaticDevice()
             }
+            CrashGuard.begin(.model)
             modelLoadTask = Task { [weak self] in
+                defer { CrashGuard.end(.model) }
                 do {
                     let model = try await DeviceModelView(url: url, profile: profile)
                     try Task.checkCancellation()

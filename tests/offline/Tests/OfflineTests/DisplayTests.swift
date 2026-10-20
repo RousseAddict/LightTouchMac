@@ -170,5 +170,35 @@ extension SharedState {
                 }
             }
         }
+
+        /// A run that died starting the 3D device (CrashGuard's mark left at the next launch) shows the flat device at
+        /// 3D and starts no model; View ▸ Device Bezels ▸ 3D loads it again, and a load that ends leaves no mark.
+        @Test func modelSkippedAfterACrashInIt() async throws {
+            let domain = "ltm-display-crash-guard-" + UUID().uuidString
+            let defaults = try #require(UserDefaults(suiteName: domain))
+            defer { defaults.removePersistentDomain(forName: domain) }
+            CrashGuard.launch(defaults)
+            CrashGuard.begin(.model)
+            #expect(CrashGuard.launch(defaults) == [.model], "the run died with the model loading")
+            try await MainBundle.with(Self.n72Model) {
+                DisplayView.bezel = .model
+                defer {
+                    UserDefaults.standard.removeObject(forKey: DisplayView.bezelKey)
+                    CrashGuard.tryAgain(.model)
+                }
+                let display = DisplayView(frame: NSRect(x: 0, y: 0, width: 500, height: 800), profile: .n72)
+                #expect(display.modelLoadTask == nil, "no model load after a crash in one")
+                #expect(!display.shellLayer.isHidden, "the flat device shows")
+                // View ▸ Device Bezels ▸ 3D (MainWindowController.selectDeviceBezel).
+                CrashGuard.tryAgain(.model)
+                DisplayView.bezel = .model
+                let load = try #require(display.modelLoadTask, "choosing 3D loads the model")
+                #expect(defaults.dictionary(forKey: CrashGuard.key) as? [String: String] == ["model": "running"])
+                await load.value
+                #expect(defaults.object(forKey: CrashGuard.key) == nil, "a load that ends leaves no mark")
+                #expect(CrashGuard.launch(defaults).isEmpty && !CrashGuard.skips(.model))
+                display.applyBezel(.off)
+            }
+        }
     }
 }

@@ -40,7 +40,15 @@ final class EmulatorController {
     private(set) var startupBegan = Date()
     /// A boot being stopped (Stop, or Shut Down before it is up) is no longer starting up: its toast goes at once.
     var isStartingUp: Bool { isErasing || (state == .booting && !shuttingDown) || preparingDevice }
-    private func trackStartup(was: Bool) { if isStartingUp, !was { startupBegan = Date() } }
+    private func trackStartup(was: Bool) {
+        if isStartingUp, !was { startupBegan = Date() }
+        // A crash while a device starts keeps the next launch from starting it (CrashGuard).
+        if isStartingUp != guardsStartup {
+            guardsStartup = isStartingUp
+            if guardsStartup { CrashGuard.begin(.deviceStart) } else { CrashGuard.end(.deviceStart) }
+        }
+    }
+    @ObservationIgnored private var guardsStartup = false
 
     var isSleeping = false
     /// The guest runs its vibration motor (an iPhone's), as of the last status poll; the display trembles with it.
