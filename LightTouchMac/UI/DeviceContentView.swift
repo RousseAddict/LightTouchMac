@@ -16,10 +16,15 @@ final class DeviceContentView: NSView {
         layer?.masksToBounds = true
         screen.translatesAutoresizingMaskIntoConstraints = false
         addSubview(screen)
+        // The gradient runs up behind the toolbar; the device starts below it, as Simulator's does. The screen changes
+        // with every guest frame, and anything live under the toolbar's glass has the window server composite the glass
+        // again with each one (issue 107): the 3D model's renderer filled the whole pane, and a zoomed screen reached
+        // up under it. The screen view clips to its bounds, so nothing of it shows there.
         NSLayoutConstraint.activate([
             screen.leadingAnchor.constraint(equalTo: leadingAnchor),
             screen.trailingAnchor.constraint(equalTo: trailingAnchor),
-            screen.topAnchor.constraint(equalTo: topAnchor), screen.bottomAnchor.constraint(equalTo: bottomAnchor),
+            screen.topAnchor.constraint(equalTo: safeAreaLayoutGuide.topAnchor),
+            screen.bottomAnchor.constraint(equalTo: bottomAnchor),
         ])
         statuses.orientation = .vertical
         statuses.alignment = .centerX

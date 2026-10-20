@@ -52,7 +52,8 @@ extension DisplayView {
         if !active { endKeyboardTouch() }
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        keyboardPointerLayer.isHidden = !active || !keyboardPointer.isShown
+        let hidden = !active || !keyboardPointer.isShown
+        if keyboardPointerLayer.isHidden != hidden { keyboardPointerLayer.isHidden = hidden }
         if active { keyboardPointerLayer.position = projectedPanelPoint(keyboardPointer.point) }
         CATransaction.commit()
     }

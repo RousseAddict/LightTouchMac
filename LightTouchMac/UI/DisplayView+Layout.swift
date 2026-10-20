@@ -24,10 +24,10 @@ extension DisplayView {
         let scale = zoomScale()
         appliedScale = scale
         applyZoomFilter()
-        // Center on the SAFE area, not the raw bounds: with .fullSizeContentView
-        // the pane runs behind the toolbar, so centring on bounds would push the
-        // device up under it. The gradient still fills the whole pane, which is
-        // the point — only the device is inset.
+        // Center on the safe area, not the raw bounds: a view that ran behind a
+        // toolbar would push the device up under it. The main window's pane
+        // (DeviceContentView) already starts below the toolbar, where its
+        // gradient doesn't.
         let usable = deviceLayoutRect
         // A one-sided free-form resize keeps the opposite edge where it was.
         let offset = freeFormActive ? freeFormOffset : .zero

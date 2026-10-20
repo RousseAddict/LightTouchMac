@@ -61,6 +61,12 @@ let fixtureMachines: Void = {
 struct CatalogApp: Codable { let id: Int }
 extension NSPasteboard.PasteboardType { static let ltmCatalogApp = Self("test.catalog") }
 @MainActor final class SleepingAnimationView: NSView {}
+/// DeviceContentView's notices (here a status only says whether it shows) and its overlay panel's policy.
+@MainActor final class CaptureStatusView: NSView {
+    var isWindowActive = false
+    var onVisibilityChange: (() -> Void)?
+}
+enum WindowRestorationPolicy { static func configure(_ window: NSWindow) {} }
 
 @MainActor final class EmulatorController {
     enum Pose { case flat, upright }

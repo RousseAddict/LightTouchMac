@@ -236,5 +236,99 @@ extension SharedState {
                 display.applyBezel(.off)
             }
         }
+
+        /// What changes with each guest frame stays out of the toolbar (issue 107): in the main window's full-size
+        /// content window, with the sidebar shown or collapsed, at Fit and zoomed past the pane, no live layer (the
+        /// flat screen, the 3D model's renderer) shows under the toolbar, where the glass would be composited again
+        /// with every frame, and a frame lays nothing out and marks nothing for display in the device's pane.
+        @Test(arguments: [DisplayView.Bezel.off, .flat, .model], [false, true])
+        func framesStayOutOfTheToolbar(_ bezel: DisplayView.Bezel, sidebarCollapsed: Bool) async throws {
+            try await MainBundle.with(Self.n72Model) {
+                DisplayView.bezel = bezel
+                defer { UserDefaults.standard.removeObject(forKey: DisplayView.bezelKey) }
+                let display = DisplayView(frame: NSRect(x: 0, y: 0, width: 720, height: 640), profile: .n72)
+                let emulator = EmulatorController()
+                display.emulator = emulator
+                let content = DeviceContentView(screen: display)
+                // As MainWindowController builds it: a sidebar beside the device pane, the toolbar unified.
+                let split = NSSplitViewController()
+                let library = NSViewController()
+                library.view = NSView(frame: NSRect(x: 0, y: 0, width: 260, height: 640))
+                let sidebar = NSSplitViewItem(sidebarWithViewController: library)
+                split.addSplitViewItem(sidebar)
+                let pane = NSViewController()
+                pane.view = content
+                split.addSplitViewItem(NSSplitViewItem(viewController: pane))
+                let window = NSWindow(contentViewController: split)
+                window.styleMask = [.titled, .closable, .miniaturizable, .resizable, .fullSizeContentView]
+                window.setContentSize(NSSize(width: 980, height: 700))
+                window.toolbarStyle = .unified
+                window.toolbar = NSToolbar(identifier: "frames-\(UUID())")
+                sidebar.isCollapsed = sidebarCollapsed
+                defer {
+                    window.contentViewController = nil
+                    withExtendedLifetime(emulator) {}
+                }
+                // Toolbar and titlebar: the window above its content layout rect.
+                let layoutRect = window.contentLayoutRect
+                let toolbar = CGRect(x: 0, y: layoutRect.maxY, width: window.frame.width, height: 10_000)
+                #expect(layoutRect.maxY < window.frame.height - 20, "the window has a toolbar over its content")
+                @MainActor func model() -> DeviceModelView? {
+                    display.subviews.compactMap { $0 as? DeviceModelView }.first { $0.alphaValue > 0.99 }
+                }
+                if bezel == .model {
+                    let started = ContinuousClock.now
+                    while model() == nil && ContinuousClock.now - started < .seconds(5) {
+                        display.step()
+                        try await Task.sleep(for: .milliseconds(10))
+                    }
+                    #expect(model() != nil, "the 3D model is live")
+                }
+                /// A rect of `view` in window points, as far as the views that clip it show it.
+                @MainActor func shown(_ rect: CGRect, in view: NSView) -> CGRect {
+                    var shown = view.convert(rect, to: nil)
+                    var next: NSView? = view
+                    while let clip = next {
+                        if clip.layer?.masksToBounds == true {
+                            shown = shown.intersection(clip.convert(clip.bounds, to: nil))
+                        }
+                        next = clip.superview
+                    }
+                    return shown
+                }
+                func all(_ l: CALayer) -> [CALayer] { [l] + (l.sublayers ?? []).flatMap(all) }
+                for zoom in [ZoomMode.fit, .points(2)] {
+                    display.zoom = zoom
+                    window.layoutIfNeeded()
+                    for _ in 0..<3 { display.step() }
+                    window.layoutIfNeeded()
+                    for frame in 0..<10 {
+                        // Never ordered in, the window draws nothing: what was marked before the frame stays marked.
+                        window.layoutIfNeeded()
+                        let before = Set(all(content.layer!).filter { $0.needsDisplay() }.map(ObjectIdentifier.init))
+                        display.step()
+                        let tag = "\(bezel) sidebar \(sidebarCollapsed ? "collapsed" : "shown") \(zoom) frame \(frame)"
+                        #expect(!display.needsLayout && !content.needsLayout, "\(tag): the frame laid the pane out")
+                        let marked = all(content.layer!).filter {
+                            $0.needsDisplay() && !before.contains(ObjectIdentifier($0))
+                        }
+                        #expect(marked.isEmpty, "\(tag): the frame marked \(marked) for display")
+                        var live: [(String, CGRect)] = []
+                        if !display.shellLayer.isHidden, !display.contentLayer.isHidden {
+                            let screen = display.contentLayer.convert(display.contentLayer.bounds, to: display.layer!)
+                            live.append(("screen", shown(screen, in: display)))
+                        }
+                        if let model = model() { live.append(("3D model", shown(model.bounds, in: model))) }
+                        #expect(!live.isEmpty, "\(tag): something shows the frames")
+                        for (name, rect) in live where rect.intersects(toolbar) {
+                            Issue.record(
+                                "\(tag): the \(name) shows under the toolbar: \(rect), toolbar from y \(toolbar.minY)"
+                            )
+                        }
+                    }
+                }
+                display.applyBezel(.off)
+            }
+        }
     }
 }

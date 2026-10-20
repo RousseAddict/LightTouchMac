@@ -186,14 +186,17 @@ extension DisplayView {
         let diameter: CGFloat = 44
         CATransaction.begin()
         CATransaction.setDisableActions(true)
-        touchOverlayLayer.frame = layer?.bounds ?? bounds
+        // Called with every frame: set only what changed, so a still overlay sends Core Animation nothing.
+        let overlay = layer?.bounds ?? bounds
+        if touchOverlayLayer.frame != overlay { touchOverlayLayer.frame = overlay }
         for touch in touches {
             let dot: CALayer
             if let existing = touchLayers[touch.slot] {
                 dot = existing
             } else {
                 dot = CALayer()
-                dot.actions = ["opacity": NSNull(), "position": NSNull(), "bounds": NSNull(), "shadowPath": NSNull()]
+                dot.actions = ["opacity": NSNull(), "position": NSNull()]
+                dot.bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
                 let gradient = CAGradientLayer()
                 gradient.colors = [
                     NSColor.white.withAlphaComponent(0.95).cgColor,
@@ -202,20 +205,20 @@ extension DisplayView {
                 gradient.startPoint = CGPoint(x: 0.5, y: 0)
                 gradient.endPoint = CGPoint(x: 0.5, y: 1)
                 gradient.masksToBounds = true
+                gradient.frame = dot.bounds
+                gradient.cornerRadius = diameter / 2
                 dot.addSublayer(gradient)
                 dot.shadowColor = NSColor.black.cgColor
                 dot.shadowOpacity = 0.22
+                dot.shadowRadius = 5
+                dot.shadowOffset = CGSize(width: 0, height: 2)
+                // Made once: a new path each frame would have the shadow rendered again each frame.
+                dot.shadowPath = CGPath(ellipseIn: dot.bounds, transform: nil)
                 touchOverlayLayer.addSublayer(dot)
                 touchLayers[touch.slot] = dot
             }
-            dot.bounds = CGRect(x: 0, y: 0, width: diameter, height: diameter)
             dot.position = projectedPanelPoint(touch.point)
             dot.opacity = Float(touch.opacity)
-            dot.shadowRadius = 5
-            dot.shadowOffset = CGSize(width: 0, height: 2)
-            dot.shadowPath = CGPath(ellipseIn: dot.bounds, transform: nil)
-            dot.sublayers?.first?.frame = dot.bounds
-            dot.sublayers?.first?.cornerRadius = diameter / 2
         }
         CATransaction.commit()
     }
