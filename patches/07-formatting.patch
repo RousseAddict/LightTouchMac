@@ -1,0 +1,83 @@
+FormatStyle is macOS 12. The bug report, the catalog's release line, the free-form size limit and the event log
+format through BigSurCompat's CompatFormat, the formatters that give the same text (compat-checks compares them
+with FormatStyle on CI).
+
+diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceRow.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceRow.swift
+index 2f3a8ce2..85cf629d 100644
+--- a/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceRow.swift
++++ b/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceRow.swift
+@@ -357,11 +357,11 @@ public nonisolated struct DeviceRow: Equatable, Sendable {
+ 
+     /// "Released June 7, 2011", from the catalog's `released` date.
+     public var releaseLine: String? {
+-        guard let released = entry.released, let date = try? Date(released + "T12:00:00Z", strategy: .iso8601) else {
++        guard let released = entry.released, let date = CompatFormat.parseISO8601(released + "T12:00:00Z") else {
+             return nil
+         }
+         return "Released "
+-            + date.formatted(Date.FormatStyle(date: .long, time: .omitted, timeZone: .compatGMT))
++            + CompatFormat.longDate(date, timeZone: .compatGMT)
+     }
+ 
+     /// Before a download or preparation, when `available` bytes can't hold it: the copy's words; nil when there is room.
+diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
+index 779229b7..400911fa 100644
+--- a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
++++ b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
+@@ -157,7 +157,7 @@ public nonisolated enum BugReportInfo {
+     ) -> String {
+         var lines = system.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
+         if let freeSpace {
+-            lines.append("Free space: \(freeSpace.formatted(.byteCount(style: .file))) on the library's volume")
++            lines.append("Free space: \(CompatFormat.fileBytes(freeSpace)) on the library's volume")
+         }
+         if let bezel { lines.append("Device bezels: \(bezel)") }
+         if refresh120 { lines.append("120 Hz refresh: on") }
+@@ -181,7 +181,7 @@ public nonisolated enum BugReportInfo {
+                 let jailbreak = d.jailbreak.map { $0 ? ", Jailbreak" : ", stock" } ?? ""
+                 facts.append(
+                     "Prepared base: recipe \(recipe)"
+-                        + (d.prepared.map { ", \($0.formatted(.iso8601.year().month().day()))" } ?? "")
++                        + (d.prepared.map { ", \(CompatFormat.iso8601Day($0))" } ?? "")
+                         + (d.skipSetup == true ? ", Skip Setup" : "") + jailbreak
+                         + (d.sandboxPatch.map { " (sandbox patch \($0))" } ?? "")
+                 )
+diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Transport/AppEventLog.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Transport/AppEventLog.swift
+index 8cf5e217..e88079d0 100644
+--- a/Packages/LightTouchCore/Sources/LightTouchCore/Transport/AppEventLog.swift
++++ b/Packages/LightTouchCore/Sources/LightTouchCore/Transport/AppEventLog.swift
+@@ -1,3 +1,4 @@
++import BigSurCompat
+ import Foundation
+ import OSLog
+ 
+@@ -18,7 +19,7 @@ public nonisolated final class AppEventLog: Sendable {
+ 
+     public func append(_ message: String) {
+         let bounded = String(decoding: message.utf8.prefix(32_000), as: UTF8.self)
+-        let line = "\(Date().ISO8601Format()) \(bounded)\n"
++        let line = "\(CompatFormat.iso8601(Date())) \(bounded)\n"
+         queue.async { [log] in log?.append(Data(line.utf8)) }
+     }
+ 
+diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/UI/FreeFormResize.swift b/Packages/LightTouchCore/Sources/LightTouchCore/UI/FreeFormResize.swift
+index ee44e178..0c0f8da3 100644
+--- a/Packages/LightTouchCore/Sources/LightTouchCore/UI/FreeFormResize.swift
++++ b/Packages/LightTouchCore/Sources/LightTouchCore/UI/FreeFormResize.swift
+@@ -2,6 +2,7 @@
+ // both move), and the size snaps only to what the board's panel= takes (DeviceInfo, the emulator's limits). At a
+ // limit the edge stops and `limit` says why. No minimum beyond the emulator's own, and wider than tall is allowed.
+ 
++import BigSurCompat
+ import CoreGraphics
+ import Foundation
+ import HostRuntime
+@@ -55,7 +56,7 @@ nonisolated public struct FreeFormResize: Sendable {
+             } else {
+                 h = (maxPixels / w).rounded(.down)
+             }
+-            limit = "The \(board.shortName)’s screen can have at most \(Int(maxPixels).formatted()) pixels."
++            limit = "The \(board.shortName)’s screen can have at most \(CompatFormat.decimal(Int(maxPixels))) pixels."
+         }
+         return Snapped(size: board.scan(upright: CGSize(width: w, height: h)), limit: limit)
+     }

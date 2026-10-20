@@ -1,0 +1,117 @@
+Locale.Language, Locale.region and Locale.identifier(.icu, from:) are macOS 13. ClockRegion, FinishedSetup and
+Keyboards (the prepared device's language, region and keyboards) use BigSurCompat's stand-ins: the language code,
+the region honoring an @rg= override as Locale.region does, ICU's identifier conversion and likely subtags.
+compat-checks compares them with macOS 13's API on CI.
+
+diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift
+index da7e1cd9..4cc17fd2 100644
+--- a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift
++++ b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift
+@@ -7,6 +7,7 @@
+ // write anyway (lockdown's zone and clock, it_prefs, caches) is left to them. The language and region are
+ // seedLanguage's, which every prepared device gets.
+ 
++import BigSurCompat
+ import Foundation
+ 
+ extension SystemEdits {
+@@ -92,7 +93,7 @@ extension SystemEdits {
+     ) -> (language: String, locale: String) {
+         let language = Bundle.preferredLocalizations(from: supported, forPreferences: preferred).first ?? "en"
+         if let locale, formats?.contains(locale) == true { return (language, locale) }
+-        let code = Locale(identifier: language).language.languageCode?.identifier ?? "en"
++        let code = Locale(identifier: language).compatLanguageCode ?? "en"
+         return (language, region.map { "\(code)_\($0)" } ?? code)
+     }
+ 
+@@ -134,7 +135,7 @@ extension SystemEdits {
+         appleLocale: String? = CFPreferencesCopyAppValue("AppleLocale" as CFString, kCFPreferencesAnyApplication)
+             as? String
+     ) -> String {
+-        String(Locale.identifier(.icu, from: tag ?? appleLocale ?? Locale.current.identifier).prefix { $0 != "@" })
++        String(Locale.compatICUIdentifier(from: tag ?? appleLocale ?? Locale.current.identifier).prefix { $0 != "@" })
+     }
+ 
+     /// Sets the device's language and region (`deviceLanguage`, from `tag`, else the Mac's) in each user's
+@@ -152,7 +153,7 @@ extension SystemEdits {
+         formats: Set<String>? = nil
+     ) throws -> (language: String, locale: String, keyboards: [String])? {
+         let preferred = tag.map { [$0] } ?? Locale.preferredLanguages
+-        let region = tag.flatMap { Locale(identifier: $0).region?.identifier } ?? Locale.current.region?.identifier
++        let region = tag.flatMap { Locale(identifier: $0).compatRegionIdentifier } ?? Locale.current.compatRegionIdentifier
+         let locale = deviceLocale(tag: tag)
+         let mac = catalog == nil ? [] : macKeyboards(keyboards)
+         var chosen: (language: String, locale: String, keyboards: [String])?
+diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/Keyboards.swift b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/Keyboards.swift
+index 6b918173..04023fcc 100644
+--- a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/Keyboards.swift
++++ b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/Keyboards.swift
+@@ -1,6 +1,7 @@
+ // Keyboards: a prepared device's AppleKeyboards, the iOS keyboards for its language and the Mac's enabled keyboard
+ // layouts and input modes, as the firmware's own TextInput bundles name them (seedLanguage).
+ 
++import BigSurCompat
+ import Carbon
+ import Foundation
+ 
+@@ -92,8 +93,8 @@ extension SystemEdits {
+         static func squash(_ s: String) -> String { s.lowercased().replacingOccurrences(of: " ", with: "") }
+         /// "zh-Hans", "ja-Jpan": a language with its script, so zh_Hans and zh_TW part.
+         static func script(_ language: String) -> String {
+-            let l = Locale.Language(identifier: Locale.Language(identifier: language).maximalIdentifier)
+-            return [l.languageCode?.identifier, l.script?.identifier].compactMap { $0 }.joined(separator: "-")
++            let l = Locale.compatMaximal(language)
++            return [l.languageCode, l.script].compactMap { $0 }.joined(separator: "-")
+         }
+ 
+         /// The mode as AppleKeyboards stores it: as the firmware's own defaults name it ("fr_FR", "ja_JP-Kana"), iOS
+@@ -123,7 +124,7 @@ extension SystemEdits {
+                 guard let v = m.split(separator: "-").dropFirst().first?.lowercased() else { return false }
+                 return tokens.contains { $0.hasPrefix(v) }
+             }
+-            for r in regions { narrow { Locale(identifier: Self.base($0)).region?.identifier == r } }
++            for r in regions { narrow { Locale(identifier: Self.base($0)).compatRegionIdentifier == r } }
+             return c.first
+         }
+ 
+@@ -131,7 +132,7 @@ extension SystemEdits {
+         /// where it lists them, else its keyboard for the language and region), then the `mac` keyboards it has, each
+         /// as the firmware's keyboard for its language (in the device's region where there is a choice).
+         func keyboards(language: String, locale: String, mac: [MacKeyboard]) -> [String] {
+-            let region = Locale(identifier: locale).region?.identifier
++            let region = Locale(identifier: locale).compatRegionIdentifier
+             let device =
+                 defaults[locale] ?? defaults[language.replacingOccurrences(of: "-", with: "_")]
+                 ?? mode(language: language, regions: [region].compactMap { $0 } + likelyRegion(language)).map { [$0] }
+@@ -160,8 +161,7 @@ extension SystemEdits {
+         }
+ 
+         func likelyRegion(_ language: String) -> [String] {
+-            [Locale.Language(identifier: Locale.Language(identifier: language).maximalIdentifier).region?.identifier]
+-                .compactMap { $0 }
++            [Locale.compatMaximal(language).region].compactMap { $0 }
+         }
+     }
+ }
+diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Services/ClockRegion.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Services/ClockRegion.swift
+index 578bb6ca..27e080a8 100644
+--- a/Packages/LightTouchCore/Sources/LightTouchCore/Services/ClockRegion.swift
++++ b/Packages/LightTouchCore/Sources/LightTouchCore/Services/ClockRegion.swift
+@@ -1,5 +1,6 @@
+ // The Mac's region and clock format for a device's lockdown (lockdown-tz --locale/--24h).
+ 
++import BigSurCompat
+ import Foundation
+ 
+ /// The Mac's region and clock format, as lockdown takes them: com.apple.international's Locale ("en_GB") and the
+@@ -23,8 +24,8 @@ public nonisolated struct ClockRegion: Equatable, Sendable {
+     /// `locale`'s language and region ("en_GB"; a region override "@rg=chzzzz" gives its region, "de_CH"), and whether its time format
+     /// (the "j" skeleton, which follows System Settings' 24-hour switch) is 24-hour.
+     public init(_ locale: Locale) {
+-        let language = locale.language.languageCode?.identifier ?? "en"
+-        self.locale = locale.region.map { "\(language)_\($0.identifier)" } ?? language
++        let language = locale.compatLanguageCode ?? "en"
++        self.locale = locale.compatRegionIdentifier.map { "\(language)_\($0)" } ?? language
+         let format = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: locale) ?? ""
+         uses24HourClock = format.contains("H") || format.contains("k")
+     }

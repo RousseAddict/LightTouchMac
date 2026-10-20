@@ -1,0 +1,37 @@
+macOS 11's LibreSSL 2.8 openssl req has no -addext (checked on the Mac). Phone Remote's certificate takes its
+subjectAltName and extendedKeyUsage from a config file instead, which every LibreSSL reads; the certificate is
+the same (checked with LibreSSL 2.8.3: both extensions, and the PKCS#12 export).
+
+diff --git a/LightTouchMac/Features/PhoneRemoteController.swift b/LightTouchMac/Features/PhoneRemoteController.swift
+index b0231a72..f1fdb18b 100644
+--- a/LightTouchMac/Features/PhoneRemoteController.swift
++++ b/LightTouchMac/Features/PhoneRemoteController.swift
+@@ -329,11 +329,25 @@ import SystemConfiguration
+         try StorageLocations.privateDirectory(folder)
+         let key = folder.appendingPathComponent("key.pem").path
+         let certificate = folder.appendingPathComponent("certificate.pem").path
+-        defer { for path in [key, certificate] { try? FileManager.default.removeItem(atPath: path) } }
++        // Big Sur port: macOS 11's LibreSSL 2.8 `req` has no -addext; the extensions come from a config file, which
++        // every LibreSSL reads.
++        let config = folder.appendingPathComponent("openssl.cnf").path
++        defer { for path in [key, certificate, config] { try? FileManager.default.removeItem(atPath: path) } }
++        try """
++            [req]
++            distinguished_name = dn
++            x509_extensions = ext
++            prompt = no
++            [dn]
++            CN = \(host)
++            [ext]
++            subjectAltName = DNS:\(host)
++            extendedKeyUsage = serverAuth
++
++            """.write(toFile: config, atomically: true, encoding: .utf8)
+         try openssl([
+             "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "825", "-subj", "/CN=\(host)",
+-            "-addext", "subjectAltName=DNS:\(host)", "-addext", "extendedKeyUsage=serverAuth",
+-            "-keyout", key, "-out", certificate,
++            "-config", config, "-extensions", "ext", "-keyout", key, "-out", certificate,
+         ])
+         try? FileManager.default.removeItem(at: p12)
+         try openssl([

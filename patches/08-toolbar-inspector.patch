@@ -1,0 +1,18 @@
+The inspector toggle is a toolbar item macOS 14 supplies for .toggleInspector. On macOS 11 the toolbar's delegate
+makes it (the identifier is AppKitCompat's .compatToggleInspector): a button for toggleAppInspector, the View
+menu's Show Inspector.
+
+diff --git a/LightTouchMac/UI/MainWindowController+Toolbar.swift b/LightTouchMac/UI/MainWindowController+Toolbar.swift
+index 88ecde05..7499d85d 100644
+--- a/LightTouchMac/UI/MainWindowController+Toolbar.swift
++++ b/LightTouchMac/UI/MainWindowController+Toolbar.swift
+@@ -126,6 +126,9 @@ extension MainWindowController {
+             return item
+         case .zoom:
+             return makeZoomToolbarItem()
++        case .compatToggleInspector:
++            // Big Sur port: macOS 14 supplies this item itself; macOS 11 gets the View menu's toggle as a button.
++            return button(id, "Inspector", "sidebar.right", #selector(toggleAppInspector(_:)), "Show or Hide the Inspector")
+         case .compatInspectorTrackingSeparator:
+             // Must be supplied explicitly with the split view and the divider
+             // it tracks. Listing the identifier alone got it silently dropped,

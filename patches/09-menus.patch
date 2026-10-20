@@ -1,0 +1,67 @@
+macOS 11 shows the device in 2D and has no Live Text. DisplayView.rendersModel is false before macOS 15 (the
+model only loads from 15 on), and the 3D menu item says so; Select Text on Screen and its toolbar button are
+disabled before macOS 13, with the reason as the menu item's tooltip. MainMenu.swift, which tests read, is
+unchanged.
+
+diff --git a/LightTouchMac/UI/DisplayView.swift b/LightTouchMac/UI/DisplayView.swift
+index e54e3d7f..0ee702b2 100644
+--- a/LightTouchMac/UI/DisplayView.swift
++++ b/LightTouchMac/UI/DisplayView.swift
+@@ -164,9 +164,11 @@ final class DisplayView: NSView {
+     /// 3D on Apple's own Metal drivers only. RealityKit starts its engine by uploading textures through the driver,
+     /// and a third-party one (issue 99: a Hackintosh's NVIDIA driver) crashed the app there, with no error to catch;
+     /// such a Mac shows 2D for 3D, as a device without a model does.
+-    static var rendersModel = isAppleMetalDriver(
+-        MTLCreateSystemDefaultDevice().flatMap { Bundle(for: type(of: $0)).bundleIdentifier }
+-    )
++    /// Big Sur port: and on macOS 15 and later, where applyBezel loads the model; macOS 11 shows 2D.
++    static var rendersModel: Bool = {
++        guard #available(macOS 15, *) else { return false }
++        return isAppleMetalDriver(MTLCreateSystemDefaultDevice().flatMap { Bundle(for: type(of: $0)).bundleIdentifier })
++    }()
+     nonisolated static func isAppleMetalDriver(_ bundleIdentifier: String?) -> Bool {
+         bundleIdentifier?.hasPrefix("com.apple.") == true
+     }
+diff --git a/LightTouchMac/UI/MainWindowController+MenuValidation.swift b/LightTouchMac/UI/MainWindowController+MenuValidation.swift
+index b9e016db..bd88fcbb 100644
+--- a/LightTouchMac/UI/MainWindowController+MenuValidation.swift
++++ b/LightTouchMac/UI/MainWindowController+MenuValidation.swift
+@@ -69,8 +69,9 @@ extension MainWindowController: NSMenuItemValidation {
+             menuItem.state = menuItem.tag == shown.rawValue ? .on : .off
+             // Free-form shows this device's screen alone; the setting still applies to the others and comes back here.
+             let freeForm = deviceVC?.screen.isFreeForm == true
+-            let noModel =
++            var noModel =
+                 DisplayView.rendersModel ? "This device has no 3D model." : "3D needs Apple’s graphics drivers."
++            if #unavailable(macOS 15) { noModel = "3D needs macOS 15 or later." }
+             menuItem.toolTip =
+                 freeForm
+                 ? "Free-Form Screen shows this device’s screen without its bezel."
+@@ -192,6 +193,11 @@ extension MainWindowController: NSMenuItemValidation {
+             return true
+         case #selector(showLiveText(_:)):
+             menuItem.title = deviceVC.screen.isShowingLiveText ? "Done Selecting Text" : "Select Text on Screen"
++            // Big Sur port: Live Text (VisionKit) is macOS 13.
++            guard #available(macOS 13, *) else {
++                menuItem.toolTip = "Selecting text on the screen needs macOS 13 or later."
++                return false
++            }
+             return !recording.isActive && (deviceVC.screen.isShowingLiveText || canTakeScreenshot)
+         case #selector(openScreenshot(_:)):
+             menuItem.title = "Open Screenshot in \(capturePreferences.openInApplicationName)"
+diff --git a/LightTouchMac/UI/MainWindowController+Toolbar.swift b/LightTouchMac/UI/MainWindowController+Toolbar.swift
+index 7499d85d..c25e1d12 100644
+--- a/LightTouchMac/UI/MainWindowController+Toolbar.swift
++++ b/LightTouchMac/UI/MainWindowController+Toolbar.swift
+@@ -327,6 +327,11 @@ extension MainWindowController: NSToolbarItemValidation {
+                 (item.view as? NSButton)?.toolTip = label
+                 (item.view as? NSButton)?.setAccessibilityLabel(label)
+             }
++            // Big Sur port: Live Text (VisionKit) is macOS 13.
++            guard #available(macOS 13, *) else {
++                (item.view as? NSButton)?.isEnabled = false
++                return false
++            }
+             let enabled = !recording.isActive && (deviceVC.screen.isShowingLiveText || canTakeScreenshot)
+             (item.view as? NSButton)?.isEnabled = enabled
+             return enabled

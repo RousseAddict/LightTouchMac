@@ -33,12 +33,25 @@ SWIFT_ROOTS = [
     "tests/offline",
 ]
 # The port's own code (apply.sh adds it first), which the rules leave alone.
-OWN = ["Packages/BigSurCompat", "Packages/ObservationCompat", "Packages/BigSur", "LightTouchMac/BigSur"]
+OWN = [
+    "Packages/BigSurCompat",
+    "Packages/ObservationCompat",
+    "Packages/BigSur",
+    "LightTouchMac/BigSur",
+    "Packages/LightTouchCore/Sources/LightTouchCore/BigSur",
+]
+MEDIA = [
+    "Packages/LightTouchCore/Sources/LightTouchCore/Features/MediaSong.swift",
+    "Packages/LightTouchCore/Sources/LightTouchCore/Features/MediaVideo.swift",
+]
 # Packages whose platform drops to macOS 11 (they ship); the test and tooling packages keep theirs.
 SHIPPED = ["HostRuntime", "DeviceRuntime", "DeviceServices", "FirmwareKit", "LightTouchCore"]
 COMPAT_PACKAGES = {"BigSurCompat": "Packages/BigSurCompat", "ObservationCompat": "Packages/ObservationCompat"}
 PROJECT = "LightTouchMac.xcodeproj/project.pbxproj"
 SWIFT = "swift"
+APP = "app"  # the Swift files of the app target (LightTouchMac/)
+# The app's own compat file (add/LightTouchMac/BigSur), linked into each tests/offline target that compiles app files.
+APP_COMPAT = "LightTouchMac/BigSur/AppKitCompat.swift"
 
 
 @dataclass
@@ -73,6 +86,12 @@ RULES = [
     Rule("project: objectVersion 77", [PROJECT], r"objectVersion = 1\d\d;", "objectVersion = 77;"),
     local_package("swift-subprocess", "swift-subprocess", "Packages/BigSur/swift-subprocess"),
     local_package("Sparkle", "sparkle-project/Sparkle", "Packages/BigSur/Sparkle"),
+    # AppKit (macOS 14), in the app: LightTouchMac/BigSur/AppKitCompat.swift.
+    Rule("app: .inspectorTrackingSeparator", APP, r"\.inspectorTrackingSeparator\b", ".compatInspectorTrackingSeparator"),
+    Rule("app: .toggleInspector", APP, r"\.toggleInspector\b", ".compatToggleInspector"),
+    Rule("app: sectionHeader(title:)", APP, r"\.sectionHeader\(title:", ".compatSectionHeader(title:"),
+    Rule("app: loadViewIfNeeded()", APP, r"\bloadViewIfNeeded\(\)", "compatLoadViewIfNeeded()"),
+    Rule("app: NSColor.systemFill", APP, r"\bNSColor\.systemFill\b", "NSColor.compatSystemFill"),
     # macOS 13 time and lock APIs.
     Rule("swift: Duration", SWIFT, r"\bDuration\b", "CompatDuration", "BigSurCompat"),
     Rule("swift: ContinuousClock", SWIFT, r"\bContinuousClock\b", "CompatContinuousClock", "BigSurCompat"),
@@ -81,6 +100,14 @@ RULES = [
     Rule("swift: OSAllocatedUnfairLock", SWIFT, r"\bOSAllocatedUnfairLock\b", "CompatUnfairLock", "BigSurCompat"),
     Rule("swift: firstRange(of:)", SWIFT, r"\.firstRange\(of:", ".compatFirstRange(of:", "BigSurCompat"),
     Rule("swift: TimeZone.gmt", SWIFT, r"(?<=[\s(:,=])\.gmt\b", ".compatGMT", "BigSurCompat"),
+    # URLSession's async calls (macOS 12): BigSurCompat's URLSessionCompat.
+    Rule("swift: URLSession data(for:)", SWIFT, r"\bURLSession\.shared\.data\(for:", "URLSession.shared.compatData(for:",
+         "BigSurCompat"),
+    Rule("swift: URLSession download(for:delegate:)", SWIFT, r"\bURLSession\.shared\.download\((\s*)for:",
+         r"URLSession.shared.compatDownload(\1for:", "BigSurCompat"),
+    # AVFoundation's async loading (macOS 12): LightTouchCore's BigSur/AVAssetCompat.swift.
+    Rule("media: load(.property)", MEDIA, r"\.load\(\.", ".compatLoad(."),
+    Rule("media: loadTracks(withMediaType:)", MEDIA, r"\.loadTracks\(withMediaType:", ".compatLoadTracks(withMediaType:"),
     # Observation (macOS 14): Swift 6.2's own, ported for macOS 11 as ObservationCompat.
     Rule("swift: import Observation", SWIFT, r"^import Observation$", "import ObservationCompat"),
     Rule("swift: @Observable", SWIFT, r"@Observable\b", "@CompatObservable", "ObservationCompat"),
@@ -203,7 +230,13 @@ def run(root):
     failed = []
     for rule in RULES:
         total = 0
-        for rel in files if rule.files == SWIFT else rule.files:
+        if rule.files == SWIFT:
+            paths = files
+        elif rule.files == APP:
+            paths = [f for f in files if f.startswith("LightTouchMac/")]
+        else:
+            paths = rule.files
+        for rel in paths:
             path = os.path.join(root, rel)
             if not os.path.exists(path):
                 continue
@@ -235,6 +268,21 @@ def run(root):
         owner = target_of(link)
         if owner and real in imported:
             needs[owner[0]][owner[1]] |= imported[real]
+
+    # tests/offline compiles app files through symlinks; the ones it compiles may use AppKitCompat's members.
+    linked = 0
+    app = os.path.realpath(os.path.join(root, "LightTouchMac")) + os.sep
+    targets = {os.path.dirname(link) for link in links if os.path.realpath(os.path.join(root, link)).startswith(app)}
+    for target in sorted(targets):
+        # Hand patches add BigSurCompat imports to app files after this runs, so every such target gets the module.
+        owner = target_of(os.path.join(target, "x.swift"))
+        if owner:
+            needs[owner[0]][owner[1]].add("BigSurCompat")
+        destination = os.path.join(root, target, "BigSurAppKitCompat.swift")
+        if not os.path.lexists(destination):
+            os.symlink(os.path.relpath(os.path.join(root, APP_COMPAT), os.path.join(root, target)), destination)
+            linked += 1
+    print(f"{linked:5d}  tests/offline: AppKitCompat linked into the targets that compile app files")
 
     for package_dir in [f"Packages/{p}" for p in SHIPPED] + ["tests/offline"]:
         manifest = os.path.join(root, package_dir, "Package.swift")
