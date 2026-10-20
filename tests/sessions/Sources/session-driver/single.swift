@@ -186,13 +186,16 @@ nonisolated enum WiFiProbe {
     /// boot wrote any, they are copied into the device directory (crash-<generation>/, through libimobiledevice's
     /// idevicecrashreport on PATH where there is one) to read.
     var poweredOn = Date()
+    /// The reports the base already carries (baseCrashReports), read once: none of them is this run's.
+    var inBase: Set<String>?
     func crashReports(_ generation: Int, _ when: String) async {
         guard GuestFaults.listsCrashReports(version: lock?.productVersion ?? "3.1") else { return }
+        if inBase == nil { inBase = baseCrashReports(base: b, work: d.dir.appendingPathComponent("data-volume")) ?? [] }
         var event: [String: Any] = ["device": d.name, "generation": generation, "when": when]
         for attempt in 0..<3 {
             if attempt > 0 { try? await Task.sleep(for: .seconds(10)) }
             do {
-                let ages = try await d.services.crashReports()
+                let ages = try await d.services.crashReports().filter { !(inBase ?? []).contains($0.key) }
                 let uptime = Date().timeIntervalSince(poweredOn)
                 event = event.merging(["ages": ages, "uptime": uptime]) { $1 }
                 event["error"] = nil
