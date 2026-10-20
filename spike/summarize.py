@@ -50,7 +50,8 @@ for path, line, _, message in errors:
 
 general = []
 for l in lines:
-    if "error:" in l and not error_line.match(l) and l.strip() not in general:
+    # lstat failures only echo targets that couldn't build; the real error is elsewhere in the log.
+    if "error:" in l and "lstat(" not in l and not error_line.match(l) and l.strip() not in general:
         general.append(l.strip())
 
 result = next((l.strip() for l in reversed(lines) if l.startswith("** BUILD")), "no BUILD line")

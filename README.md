@@ -18,9 +18,17 @@ Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
   - `NSSplitViewItem(inspectorWithViewController:)` is available from 11.0.
   - `CGWindowListCreateImage` is deprecated in 14 and obsoleted in 15, so it still works when targeting 11.
 - **Project format:** Xcode 26 can't open upstream's objectVersion 110 (Xcode 27); with 77 it opens and builds.
-- **Compiler:** Swift 6.2.4 rejects one upstream line that Xcode 27's Swift 6.4 accepts
-  (`HostServiceWorkers.swift:177`, a `sending` closure). The spike now also builds with swift.org's 6.4.1
-  toolchain to settle which compiler to use.
+- **Compiler gap:** upstream builds with Xcode 27 (Swift 6.4); GitHub's newest is Xcode 26.6 (Swift 6.3.3).
+  - On Swift 6.2.4, unmodified upstream stops on about 20 errors the newer compiler accepts:
+    - type-checker timeouts (`BootRecipe.swift:284,341`, `N45NOR.swift:177`);
+    - an ambiguous `init` (`K48Recipe.swift:205`);
+    - closure capture order (`DeviceLink.swift:268`);
+    - region-isolation checks (`HostServiceWorkers.swift:177`, `MediaSong.swift:188`).
+  - They become small compiler-compatibility patches.
+  - swift.org's 6.4.1 toolchain was tried and dropped. Xcode can't link package manifests with it, it ships no
+    back-deployed concurrency library, and its standard library is built for macOS 13.
+- **Next:** the spike runs on macos-15, macos-26 and the Intel macos-26-intel. Full results go to the `ci-results`
+  branch; read them with `spike/fetch-results.sh RUN_ID`.
 
 - `spike/probe-toolchain.sh` records:
   - the Xcode version and its SDK's deployment-target range;

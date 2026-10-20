@@ -1,12 +1,13 @@
-# Publishes text files as workflow notice annotations, which anyone can read through the public API for a public
-# repository (logs and artifacts need a signed-in account). Each file is split into chunks on line boundaries and
-# titled "LABEL file (i/n)". A step keeps at most 10 notices, so the total is capped there.
+# Publishes text files as workflow notice annotations: a short overview anyone can read through the public API (the
+# full results are on the ci-results branch). GitHub keeps 4096 bytes of each message and 10 notices per step, so
+# each file is split on line boundaries into chunks under 4000 bytes, titled "LABEL file (i/n)", and the total is
+# capped at 10.
 #
 #   annotate.py LABEL FILE...
 import os
 import sys
 
-CHUNK = 30000
+CHUNK = 4000
 LIMIT = 10
 
 
@@ -20,10 +21,11 @@ notices = []
 for path in paths:
     chunks, current = [], ""
     for line in open(path, errors="replace").read().splitlines(keepends=True):
-        if current and len(current) + len(line) > CHUNK:
+        line = line.encode()[: CHUNK // 2].decode(errors="ignore")
+        if current and len(escape(current + line).encode()) > CHUNK:
             chunks.append(current)
             current = ""
-        current += line[:CHUNK]
+        current += line
     chunks.append(current)
     for i, chunk in enumerate(chunks, 1):
         notices.append((f"{label} {os.path.basename(path)} ({i}/{len(chunks)})", chunk))

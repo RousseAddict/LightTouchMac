@@ -1,8 +1,9 @@
 #!/bin/bash
-# Phase 0: compile upstream's LightTouchMac scheme (Debug, arm64, unsigned) with optional extra build settings, then
-# summarize the errors by module and by API. Availability errors don't depend on the architecture, so arm64 with
-# Homebrew's libimobiledevice and a stub vendor directory is enough. A project in a format this Xcode can't open is
-# retried once with objectVersion lowered, and the summary says so. It never fails the job; the summary is the result.
+# Phase 0: compile upstream's LightTouchMac scheme (Debug, the runner's architecture, unsigned) with optional extra
+# build settings, then summarize the errors by module and by API. Availability errors don't depend on the
+# architecture, so the runner's own, with Homebrew's libimobiledevice and a stub vendor directory, is enough. A
+# project in a format this Xcode can't open is retried once with objectVersion lowered, and the summary says so. It
+# never fails the job; the summary is the result.
 #
 #   compile.sh UPSTREAM_CHECKOUT NAME [SETTING=VALUE ...]
 set -u
@@ -22,7 +23,7 @@ build() {
     xcodebuild -workspace "$SRC/LightTouchMac.xcworkspace" -scheme LightTouchMac -configuration Debug \
         -destination 'generic/platform=macOS' -derivedDataPath "$TMP/dd-$NAME" \
         -skipMacroValidation -skipPackagePluginValidation \
-        ARCHS=arm64 ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO "$@" build > "$OUT/$NAME.log" 2>&1
+        ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO "$@" build > "$OUT/$NAME.log" 2>&1
 }
 
 start=$(date +%s)

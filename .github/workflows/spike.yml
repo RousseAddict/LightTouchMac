@@ -1,10 +1,11 @@
-# Phase 0 of the Big Sur port: which compiler builds upstream on a GitHub-hosted Mac, and can it target macOS 11? Runs
-# by hand. Results are in the job summaries, in each job's notice annotations (spike/read-results.py reads them
-# without signing in) and in the spike-* artifacts.
+# Phase 0 of the Big Sur port: how far each GitHub-hosted Xcode gets with upstream, and what targeting macOS 11 breaks.
+# Runs by hand. Full results go to the ci-results branch (spike/fetch-results.sh RUN_ID reads them with any clone),
+# with an overview in the job summaries and notice annotations, and everything in the spike-* artifacts.
 #
-# Upstream builds with Xcode 27 (Swift 6.4), which GitHub's runners don't have. Each job pairs a runner's newest Xcode
-# with either its own compiler or swift.org's Swift 6.4.1 toolchain. The macos-26 job (Xcode 26.6, Swift 6.3.3) often
-# waits for capacity; the macos-15 jobs carry the answer.
+# Upstream builds with Xcode 27 (Swift 6.4), which GitHub's runners don't have. swift.org's 6.4.1 toolchain was tried
+# and dropped: Xcode couldn't link package manifests with it, and it ships no back-deployed concurrency library. Each
+# job uses its runner's newest Xcode: 26.3 (Swift 6.2.4) on macos-15, 26.6 (Swift 6.3.3) on macos-26 and on the Intel
+# macos-26-intel, which is also the Big Sur Mac's architecture.
 name: Phase 0 spike
 
 on:
@@ -16,26 +17,20 @@ on:
         default: ""
 
 permissions:
-  contents: read
+  # save-results.sh commits to the ci-results branch.
+  contents: write
 
 jobs:
   spike:
-    name: spike (${{ matrix.runner }}, ${{ matrix.toolchain }})
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - runner: macos-15
-            toolchain: xcode
-          - runner: macos-15
-            toolchain: swift-6.4.1-RELEASE
-          - runner: macos-26
-            toolchain: xcode
+        runner: [macos-15, macos-26, macos-26-intel]
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 180
     env:
       OUT: ${{ github.workspace }}/spike-out
-      LABEL: ${{ matrix.runner }} ${{ matrix.toolchain }}
+      LABEL: ${{ matrix.runner }}
     steps:
       - name: Check out the port layer
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -66,10 +61,6 @@ jobs:
           xcode=$(python3 -I -c 'import glob, re; print(max(glob.glob("/Applications/Xcode_*.app"), key=lambda p: [int(n) for n in re.findall(r"\d+", p)]))')
           sudo xcode-select -s "$xcode"
           echo "Selected $xcode"
-
-      - name: Install the swift.org toolchain
-        if: matrix.toolchain != 'xcode'
-        run: bash port/spike/install-toolchain.sh "${{ matrix.toolchain }}"
 
       - name: Prepare Xcode
         run: |
@@ -103,9 +94,17 @@ jobs:
         if: always()
         run: python3 -I port/spike/annotate.py "$LABEL" "$OUT/probe.txt" "$OUT"/summary-*.md
 
+      - name: Save the results to the ci-results branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          JOB: ${{ matrix.runner }}
+        run: bash port/spike/save-results.sh
+
       - name: Upload the spike results
         if: always()
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: spike-${{ matrix.runner }}-${{ matrix.toolchain }}
+          name: spike-${{ matrix.runner }}
           path: spike-out/
