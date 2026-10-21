@@ -1,0 +1,2 @@
+            switch object.statusOfValue(forKey: key, error: &error) {
+Internal Error: DecodingError.dataCorrupted: Data was corrupted. Debug description: Corrupted JSON. Underlying error: unexpected end of file
