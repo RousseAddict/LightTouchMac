@@ -1,0 +1,1 @@
+            switch object.statusOfValue(forKey: key, error: &error) {
