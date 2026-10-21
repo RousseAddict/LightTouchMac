@@ -53,6 +53,21 @@ Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
 - **Results:** in the `ci-results` branch (`spike/fetch-results.sh RUN_ID`).
 - **On the Big Sur Mac:** `check/compat.sh --display` runs the same compat checks there, the real target.
 
+## Getting a build onto the Mac
+
+1. **Package.** Run the Package workflow from the Actions tab (blank tag for the newest upstream release).
+   - Its `vendor` job builds the host binaries for macOS 11 from upstream's pins: `scripts/vendor` with
+     `LTM_VENDOR_HOST_ONLY=1`, cached per pin key, so it takes hours only when the pins move.
+   - Its `package` job archives the app for x86_64, signed ad hoc, and uploads `LightTouch-bigsur-<tag>`.
+2. **Install.** Download that artifact (it needs a signed-in GitHub account), then run
+   `./install.sh ~/Downloads/LightTouch-bigsur-<tag>.zip` in this worktree.
+   - It fetches the official release of the same tag and verifies it: `SHA256SUMS`, GitHub's digest, and the
+     Developer ID signature (team SM75355Y6R) with its notarization.
+   - It copies that release's guest files into the build, signs it ad hoc and runs `check/bundle.sh`.
+   - Only then does it install to `/Applications`. `--to DIR` installs elsewhere; `--replace` moves an existing
+     app to the Trash first.
+3. **Check by hand.** `check/bundle.sh APP [SYMBOLS]` re-checks an installed app against this Mac at any time.
+
 ## Applying the port
 
 `apply.sh UPSTREAM_CHECKOUT` turns a fresh upstream checkout into the Big Sur tree, on a new
@@ -71,8 +86,9 @@ Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
 | `add/` | New packages and files: BigSurCompat, ObservationCompat, the swift-subprocess and Sparkle stand-ins |
 | `forks/` | Big Sur replacements for whole upstream files, each with the upstream blob it mirrors |
 | `patches/` | Small hand patches, one topic each, written against the tree after the steps above |
-| `check/` | Run on the Big Sur Mac against a built app. Checks every imported symbol and every Objective-C selector against the live system. |
-| `install.sh` | On the Mac: graft the guest files from the official release of the same tag, sign ad hoc, run `check/` |
+| `check/` | `compat.sh` runs the compat checks on the Mac. `bundle.sh` checks a built app against the live system: imported symbols, minimum versions, bundled libraries, SF Symbols, the signature, and (reported only) Objective-C selectors. |
+| `install.sh` | On the Mac: verify the official release of the same tag, graft its guest files, sign ad hoc, run `check/bundle.sh`, install |
+| `.github/workflows/` | `port.yml` checks every push (compat packages, compile for macOS 11); `package.yml` builds an installable artifact on demand |
 
 The guest files are the guest tools, SecureROMs and built-in iPod. CI never builds or ships them; `install.sh`
 copies them from the official release on the Mac.

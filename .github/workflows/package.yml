@@ -1,0 +1,266 @@
+# A Big Sur build of an upstream release, for install.sh. Run by hand (Actions, Package, Run workflow); it also runs
+# when a push changes this file, which is how changes to it get tried.
+# - vendor: the host binaries for macOS 11 from upstream's pins (scripts/vendor with LTM_VENDOR_HOST_ONLY, patch 17):
+#   the native dependencies, usbmuxd, QEMU's dylib, iBoot32Patcher and ipod-helper, universal, held to minos 11.0
+#   with no weak imports. Cached per vendor pin key, so a release with the same pins reuses them.
+# - package: xcodebuild archive for x86_64 against them, signed ad hoc; the artifact holds Light Touch.app,
+#   bigsur-build.json (the release it was built from) and bigsur-symbols.txt (the SF Symbols it names). Its Guest,
+#   Device and licenses are empty: install.sh copies them from the official release on the Mac.
+# Results go to the ci-results branch (spike/fetch-results.sh RUN_ID).
+name: Package
+
+on:
+  push:
+    branches: [bigsur]
+    paths: [.github/workflows/package.yml]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Upstream release tag (blank for the newest)
+        required: false
+        default: ""
+
+permissions:
+  # spike/save-results.sh commits to the ci-results branch.
+  contents: write
+
+concurrency:
+  group: package
+  cancel-in-progress: false
+
+jobs:
+  vendor:
+    runs-on: macos-26
+    timeout-minutes: 360
+    outputs:
+      tag: ${{ steps.tag.outputs.tag }}
+    env:
+      OUT: ${{ github.workspace }}/spike-out
+      LTM_VENDOR_ROOT: ${{ github.workspace }}/vendor-root
+      LTM_VENDOR_HOST_ONLY: "1"
+    steps:
+      - name: Check out the port layer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: port
+
+      - name: Pick the upstream tag
+        id: tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          WANTED: ${{ inputs.tag }}
+        run: |
+          tag="$WANTED"
+          [ -n "$tag" ] || tag=$(gh release view --repo samhenrigold/LightTouchMac --json tagName --jq .tagName)
+          echo "Upstream tag: $tag"
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+
+      - name: Check out upstream at the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: samhenrigold/LightTouchMac
+          ref: ${{ steps.tag.outputs.tag }}
+          path: src
+
+      - name: Select Xcode 26.6 and the build tools
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
+          brew install meson ninja pkgconf autoconf automake libtool
+
+      - name: Apply the port
+        run: |
+          mkdir -p "$OUT"
+          bash port/apply.sh src 2>&1 | tee "$OUT/apply.txt"
+
+      - name: Check out qemu-ios and usbmuxd at their pins
+        run: |
+          read -r qemu_repo qemu_commit usb_repo usb_branch usb_commit < <(python3 -I -c '
+          import json, sys
+          p = json.load(open(sys.argv[1]))
+          q, u = p["qemu-ios"], p["usbmuxd"]
+          print(q["repository"], q["commit"], u["repository"], u["branch"], u["commit"])
+          ' src/build-support/sources.json)
+          git clone --quiet --filter=blob:none "$qemu_repo" "$RUNNER_TEMP/qemu-ios"
+          git -C "$RUNNER_TEMP/qemu-ios" merge-base --is-ancestor "$qemu_commit" origin/HEAD
+          git -C "$RUNNER_TEMP/qemu-ios" checkout --quiet --detach "$qemu_commit"
+          git clone --quiet --branch "$usb_branch" "$usb_repo" "$RUNNER_TEMP/usbmuxd"
+          git -C "$RUNNER_TEMP/usbmuxd" merge-base --is-ancestor "$usb_commit" HEAD
+          echo "QEMU_IOS_DIR=$RUNNER_TEMP/qemu-ios" >> "$GITHUB_ENV"
+          echo "USBMUXD_SOURCE_DIR=$RUNNER_TEMP/usbmuxd" >> "$GITHUB_ENV"
+          echo "qemu-ios $qemu_commit on $qemu_repo; usbmuxd $usb_commit on $usb_repo $usb_branch"
+
+      - name: The vendor pin key
+        id: key
+        run: |
+          key=$(basename "$(src/scripts/vendor --print)")
+          echo "Vendor key: $key"
+          echo "key=$key" >> "$GITHUB_OUTPUT"
+
+      - name: Restore the host binaries of these pins
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: |
+            vendor-root/${{ steps.key.outputs.key }}
+            !vendor-root/${{ steps.key.outputs.key }}/work
+          key: vendor-host-${{ steps.key.outputs.key }}
+
+      - name: Build the host binaries
+        run: |
+          set -o pipefail
+          src/scripts/vendor 2>&1 | tee "$OUT/vendor.txt"
+
+      - name: Check and pack them
+        run: |
+          vendor="$LTM_VENDOR_ROOT/${{ steps.key.outputs.key }}"
+          {
+            echo "## Host binaries (${{ steps.key.outputs.key }})"
+            echo '| File | Architectures | minos |'
+            echo '|---|---|---|'
+            for file in "$vendor"/Frameworks/* "$vendor"/MacOS/*; do
+              minos=$(otool -arch x86_64 -l "$file" | awk '/LC_BUILD_VERSION/ {b = 1} b && $1 == "minos" {print $2; exit}')
+              echo "| $(basename "$file") | $(lipo -archs "$file") | $minos |"
+            done
+          } > "$OUT/summary-vendor.md"
+          cat "$OUT/summary-vendor.md" >> "$GITHUB_STEP_SUMMARY"
+          tar -C "$vendor" -czf "$RUNNER_TEMP/vendor.tgz" Frameworks MacOS include Resources vendor.json
+
+      - name: Upload them for the package job
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: vendor
+          path: ${{ runner.temp }}/vendor.tgz
+          retention-days: 3
+
+      - name: Save the results to the ci-results branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          JOB: vendor
+        run: |
+          cp "$OUT/apply.txt" "$OUT/summary-apply.md" 2>/dev/null || true
+          tail -c 20000 "$OUT/vendor.txt" > "$OUT/summary-vendor-log.md" 2>/dev/null || true
+          # A failed build's logs: scripts/vendor names them as it goes.
+          for log in "$LTM_VENDOR_ROOT"/*/work/logs/*.log; do
+            [ -e "$log" ] && cp "$log" "$OUT/vendor-$(basename "$log")"
+          done
+          touch "$OUT/probe.txt"
+          bash port/spike/save-results.sh
+
+  package:
+    needs: vendor
+    runs-on: macos-26
+    timeout-minutes: 120
+    env:
+      OUT: ${{ github.workspace }}/spike-out
+      TAG: ${{ needs.vendor.outputs.tag }}
+    steps:
+      - name: Check out the port layer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: port
+
+      - name: Check out upstream at the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: samhenrigold/LightTouchMac
+          ref: ${{ needs.vendor.outputs.tag }}
+          fetch-depth: 0  # the Build Number phase counts commits
+          path: src
+
+      - name: Select Xcode 26.6
+        run: |
+          sudo xcode-select -s /Applications/Xcode_26.6.app
+          xcodebuild -version
+
+      - name: Apply the port
+        run: |
+          mkdir -p "$OUT"
+          bash port/apply.sh src 2>&1 | tee "$OUT/apply.txt"
+
+      - name: Download the host binaries
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: vendor
+          path: ${{ runner.temp }}
+
+      - name: Point the project at them
+        run: |
+          mkdir -p "$RUNNER_TEMP/vendor"
+          tar -C "$RUNNER_TEMP/vendor" -xzf "$RUNNER_TEMP/vendor.tgz"
+          echo "VENDOR_DIR = $RUNNER_TEMP/vendor" > src/Configuration/Vendor.xcconfig
+
+      - name: Archive for x86_64, signed ad hoc
+        run: |
+          set -o pipefail
+          xcodebuild archive -workspace src/LightTouchMac.xcworkspace -scheme LightTouchMac -configuration Release \
+            -destination 'generic/platform=macOS' \
+            -archivePath "$RUNNER_TEMP/LightTouch.xcarchive" -derivedDataPath "$RUNNER_TEMP/dd" \
+            -skipMacroValidation -skipPackagePluginValidation \
+            ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO CODE_SIGN_IDENTITY=- CODE_SIGN_STYLE=Manual DEVELOPMENT_TEAM= \
+            ENABLE_HARDENED_RUNTIME=NO 2>&1 | tee "$OUT/archive.log" | grep -E 'error:|warning: .*availab|ARCHIVE' || true
+          grep -q '\*\* ARCHIVE SUCCEEDED \*\*' "$OUT/archive.log"
+
+      - name: Stage the app, what it was built from and the SF Symbols it names
+        run: |
+          stage="$RUNNER_TEMP/stage"
+          mkdir -p "$stage"
+          ditto "$RUNNER_TEMP/LightTouch.xcarchive/Products/Applications/Light Touch.app" "$stage/Light Touch.app"
+          clang -O2 -fobjc-arc -framework AppKit -o "$RUNNER_TEMP/symbols" port/check/symbols.m
+          python3 -I port/check/symbol-candidates.py src > "$RUNNER_TEMP/candidates.tsv"
+          cut -f1 "$RUNNER_TEMP/candidates.tsv" | "$RUNNER_TEMP/symbols" --present > "$RUNNER_TEMP/present.txt"
+          awk -F'\t' 'NR == FNR {present[$1]; next} $1 in present' "$RUNNER_TEMP/present.txt" \
+            "$RUNNER_TEMP/candidates.tsv" > "$stage/bigsur-symbols.txt"
+          python3 -I -c '
+          import json, sys
+          tag, commit, port, xcode = sys.argv[1:5]
+          json.dump({"upstream_tag": tag, "upstream_commit": commit, "port_commit": port, "xcode": xcode},
+                    open(sys.argv[5], "w"), indent=1)
+          ' "$TAG" "$(git -C src rev-parse HEAD)" "$(git -C port rev-parse HEAD)" \
+            "$(xcodebuild -version | tr '\n' ' ')" "$stage/bigsur-build.json"
+          cat "$stage/bigsur-build.json"
+
+      - name: Check what macOS 11 needs
+        run: |
+          app="$RUNNER_TEMP/stage/Light Touch.app"
+          {
+            echo "## Light Touch $TAG for macOS 11"
+            echo "- Info.plist LSMinimumSystemVersion: $(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist")"
+            echo "- Concurrency back-deployed: $(ls "$app/Contents/Frameworks" | grep -c '^libswift_Concurrency.dylib$')"
+            echo "- SF Symbols named: $(wc -l < "$RUNNER_TEMP/stage/bigsur-symbols.txt" | tr -d ' ')"
+            echo '| Mach-O | minos | frameworks loaded strongly that macOS 11 lacks |'
+            echo '|---|---|---|'
+            python3 -I port/check/machos.py "$app" | while IFS= read -r rel; do
+              minos=$(otool -arch x86_64 -l "$app/$rel" | awk '/LC_BUILD_VERSION/ {b = 1} b && $1 == "minos" {print $2; exit}')
+              newer=$(otool -arch x86_64 -l "$app/$rel" | awk '$1 == "cmd" {cmd = $2} $1 == "name" && cmd == "LC_LOAD_DYLIB" {print $2}' \
+                | grep -E '/(VisionKit|ScreenCaptureKit|RealityFoundation|RealityKit|_RealityKit_SwiftUI|_MapKit_SwiftUI)\.framework/' \
+                | xargs -n1 basename 2>/dev/null | tr '\n' ' ')
+              echo "| $rel | $minos | $newer |"
+            done
+          } > "$OUT/summary-package.md"
+          cat "$OUT/summary-package.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Zip it
+        run: |
+          cd "$RUNNER_TEMP/stage"
+          ditto -c -k --sequesterRsrc . "$RUNNER_TEMP/LightTouch-bigsur-$TAG.zip"
+          ls -l "$RUNNER_TEMP/LightTouch-bigsur-$TAG.zip"
+
+      - name: Upload the build
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: LightTouch-bigsur-${{ needs.vendor.outputs.tag }}
+          path: ${{ runner.temp }}/LightTouch-bigsur-${{ needs.vendor.outputs.tag }}.zip
+          retention-days: 30
+
+      - name: Save the results to the ci-results branch
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RUN_ID: ${{ github.run_id }}
+          JOB: package
+        run: |
+          cp "$OUT/apply.txt" "$OUT/summary-apply.md" 2>/dev/null || true
+          touch "$OUT/probe.txt"
+          bash port/spike/save-results.sh
