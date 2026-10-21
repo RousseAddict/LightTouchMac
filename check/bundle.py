@@ -2,7 +2,7 @@
 # runs it (through bundle.sh, which builds the tools) after it grafts the resources in. Failures:
 # - a minimum macOS above this one: the app's LSMinimumSystemVersion, or any x86_64 Mach-O's minos;
 # - a symbol a Mach-O imports strongly from a system library that this system's library lacks (dyld stops on it);
-# - an @rpath, @loader_path or @executable_path library a Mach-O loads that isn't in the bundle;
+# - an @rpath, @loader_path or @executable_path library a Mach-O loads that neither the bundle nor this system has;
 # - an SF Symbol the app names (SYMBOLS, from symbol-candidates.py) that this system can't draw;
 # - a code signature that doesn't verify.
 # Reported only: weak imports this system lacks, and the Objective-C selectors a binary sends that neither the
@@ -10,7 +10,7 @@
 # safeAreaRect, show up there).
 #
 #   python3 -I bundle.py APP TOOLS_DIR [SYMBOLS]
-import os, plistlib, re, subprocess, sys
+import ctypes, os, plistlib, re, subprocess, sys
 
 app, tools = sys.argv[1], sys.argv[2]
 symbols_file = sys.argv[3] if len(sys.argv) > 3 else ""
@@ -38,22 +38,60 @@ build_version = re.compile(r"cmd LC_BUILD_VERSION\n\s*cmdsize \d+\n\s*platform (
 version_min = re.compile(r"cmd LC_VERSION_MIN_MACOSX\n\s*cmdsize \d+\n\s*version (\S+)")
 for rel in machos:
     load = run(["otool", "-arch", "x86_64", "-l", os.path.join(app, rel)])
-    # A zippered library (the back-deployed Swift concurrency one) has a record per platform: macOS's is platform 1.
+    # A zippered library (the back-deployed Swift concurrency one) has a record per platform. macOS's is platform 1, or
+    # the older LC_VERSION_MIN_MACOSX.
     platforms = dict(build_version.findall(load))
     old = version_min.search(load)
     minos = platforms.get("1") or (old.group(1) if old else None)
-    if platforms and "1" not in platforms:
+    if platforms and not minos:
         problems.append(f"{rel}: built for platform {', '.join(platforms)}, not macOS")
     elif minos and version(minos) > version(os_version):
         problems.append(f"{rel}: minos {minos}")
 
-# Libraries the bundle carries.
-names = {name for _, _, files in os.walk(app) for name in files}
+# Libraries the bundle carries, or this system does (an @rpath can be /usr/lib/swift, whose libraries are in the
+# shared cache rather than on disk, so those are tried with dlopen).
+def loadable(path):
+    if os.path.exists(path):
+        return True
+    if path.startswith(("/usr/lib/", "/System/")):
+        try:
+            ctypes.CDLL(path)
+            return True
+        except OSError:
+            return False
+    return False
+
+
+executable_dir = os.path.join(app, "Contents/MacOS")
+rpath = re.compile(r"cmd LC_RPATH\n\s*cmdsize \d+\n\s*path (\S+)")
+# A library without rpaths of its own resolves @rpath through the executable that loads it: take every executable's.
+executable_rpaths = [
+    r.replace("@loader_path", executable_dir).replace("@executable_path", executable_dir)
+    for rel in machos if rel.startswith("Contents/MacOS/")
+    for r in rpath.findall(run(["otool", "-arch", "x86_64", "-l", os.path.join(app, rel)]))
+]
 for rel in machos:
-    for line in run(["otool", "-arch", "x86_64", "-L", os.path.join(app, rel)]).splitlines()[1:]:
+    path = os.path.join(app, rel)
+    load = run(["otool", "-arch", "x86_64", "-l", path])
+    rpaths = rpath.findall(load) + executable_rpaths
+    own = run(["otool", "-arch", "x86_64", "-D", path]).splitlines()[1:]  # a library's own install name
+
+    def expand(text):
+        return text.replace("@loader_path", os.path.dirname(path)).replace("@executable_path", executable_dir)
+
+    for line in run(["otool", "-arch", "x86_64", "-L", path]).splitlines()[1:]:
         library = line.strip().split(" (")[0]
-        if library.startswith("@") and os.path.basename(library) not in names:
-            problems.append(f"{rel}: loads {library}, which isn't in the bundle")
+        if library in own:
+            continue
+        if library.startswith("@rpath/"):
+            rest = library[len("@rpath/"):]
+            found = any(loadable(os.path.join(expand(r), rest)) for r in rpaths)
+        elif library.startswith("@"):
+            found = loadable(expand(library))
+        else:
+            continue
+        if not found:
+            problems.append(f"{rel}: loads {library}, which neither the bundle nor this system has")
 
 # System symbols.
 listing = os.path.join(tools, "machos.txt")
@@ -62,7 +100,8 @@ imports = run([sys.executable, "-I", os.path.join(here, "imports.py"), app, list
 weak_missing = 0
 for line in run([os.path.join(tools, "symcheck")], stdin=imports).splitlines():
     status, binary, library, symbol, strength = line.split("\t")
-    if status == "ok":
+    # dyld_stub_binder is dyld's own, which dlsym never finds.
+    if status == "ok" or symbol == "dyld_stub_binder":
         continue
     if strength == "strong":
         problems.append(f"{binary}: {symbol} from {library} ({status})")

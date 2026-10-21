@@ -1,7 +1,8 @@
 #!/bin/bash
 # Installs a Big Sur build of Light Touch on this Mac.
-# 1. The build: the Port workflow's package artifact (the zip GitHub gives you, or the zip inside it). It holds
-#    Light Touch.app, bigsur-build.json (the upstream release it was built from) and bigsur-symbols.txt.
+# 1. The build: the Package workflow's artifact (the zip GitHub gives you, the zip inside it, or the folder a browser
+#    unpacks it to). It holds Light Touch.app, bigsur-build.json (the upstream release it was built from) and
+#    bigsur-symbols.txt.
 # 2. That official release: downloaded (or --official ZIP), checked against the release's SHA256SUMS and GitHub's
 #    digest of the asset, and its app's signature verified: Developer ID SM75355Y6R, notarized. The signature seals
 #    the app's resources, so what step 3 copies is what the developer shipped.
@@ -12,7 +13,10 @@
 # 5. It loses the quarantine flag and goes to DIRECTORY (default /Applications). An app already there is moved to
 #    the Trash only with --replace.
 #
-#   install.sh BUILD_ZIP [--to DIRECTORY] [--replace] [--official ZIP]
+# The first time a new build runs, macOS may block it without a word: System Preferences, Security & Privacy, General,
+# then Open Anyway.
+#
+#   install.sh BUILD [--to DIRECTORY] [--replace] [--official ZIP]     BUILD: the artifact's zip or its folder
 set -euo pipefail
 HERE=$(cd "$(dirname "$0")" && pwd)
 REPO=samhenrigold/LightTouchMac
@@ -27,18 +31,23 @@ while [ $# -gt 0 ]; do
         --to) DEST=${2:?--to needs a directory}; shift 2 ;;
         --replace) REPLACE=1; shift ;;
         --official) OFFICIAL=${2:?--official needs a zip}; shift 2 ;;
-        -*) echo "usage: install.sh BUILD_ZIP [--to DIRECTORY] [--replace] [--official ZIP]" >&2; exit 2 ;;
+        -*) echo "usage: install.sh BUILD [--to DIRECTORY] [--replace] [--official ZIP]" >&2; exit 2 ;;
         *) [ -z "$BUILD" ] || { echo "install: one build at a time" >&2; exit 2; }; BUILD=$1; shift ;;
     esac
 done
-[ -n "$BUILD" ] || { echo "usage: install.sh BUILD_ZIP [--to DIRECTORY] [--replace] [--official ZIP]" >&2; exit 2; }
+[ -n "$BUILD" ] || { echo "usage: install.sh BUILD [--to DIRECTORY] [--replace] [--official ZIP]" >&2; exit 2; }
 [ -d "$DEST" ] || { echo "install: no directory $DEST" >&2; exit 1; }
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
-# 1. The build. GitHub zips an artifact, so the port's own zip may be inside the one downloaded.
+# 1. The build. GitHub zips an artifact, so the port's own zip may be inside the one downloaded; a browser may have
+# unpacked both.
 mkdir "$WORK/build"
-ditto -x -k "$BUILD" "$WORK/build"
+if [ -d "$BUILD" ]; then
+    ditto --noextattr "$BUILD" "$WORK/build"
+else
+    ditto -x -k "$BUILD" "$WORK/build"
+fi
 INNER=$(find "$WORK/build" -maxdepth 1 -name '*.zip' | head -1)
 if [ ! -d "$WORK/build/Light Touch.app" ] && [ -n "$INNER" ]; then
     mkdir "$WORK/build/inner"
