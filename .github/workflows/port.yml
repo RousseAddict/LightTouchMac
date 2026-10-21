@@ -24,7 +24,8 @@ concurrency:
 
 jobs:
   compat:
-    runs-on: macos-26
+    # Intel: neither job needs Apple Silicon, and GitHub's macos-26 (arm64) runners are often short.
+    runs-on: macos-26-intel
     timeout-minutes: 60
     env:
       OUT: ${{ github.workspace }}/spike-out
@@ -67,7 +68,8 @@ jobs:
         run: python3 -I spike/annotate.py compat "$OUT/summary-compat.md" "$OUT/summary-swiftpm.md"
 
   compile:
-    runs-on: macos-26
+    # Intel: neither job needs Apple Silicon, and GitHub's macos-26 (arm64) runners are often short.
+    runs-on: macos-26-intel
     timeout-minutes: 120
     env:
       OUT: ${{ github.workspace }}/spike-out

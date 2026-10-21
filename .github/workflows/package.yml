@@ -22,24 +22,25 @@ on:
         default: ""
 
 permissions:
-  # spike/save-results.sh commits to the ci-results branch.
+  # spike/save-results.sh commits to the ci-results branch; the plan job reads the Actions cache's keys.
   contents: write
+  actions: read
 
 concurrency:
   group: package
   cancel-in-progress: false
 
 jobs:
-  vendor:
-    runs-on: macos-26
-    timeout-minutes: 360
+  plan:
+    # The Mac the vendor job needs. Building the host binaries takes Apple Silicon (the native scripts cross-build
+    # x86_64 from arm64); restoring them from the cache doesn't, and GitHub's macos-26 (arm64) runners are often
+    # short. So the vendor job runs on macos-26-intel when this release's binaries are cached, and on macos-26 when
+    # they have to be built.
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     outputs:
       tag: ${{ steps.tag.outputs.tag }}
-      key: ${{ steps.key.outputs.key }}
-    env:
-      OUT: ${{ github.workspace }}/spike-out
-      LTM_VENDOR_ROOT: ${{ github.workspace }}/vendor-root
-      LTM_VENDOR_HOST_ONLY: "1"
+      runner: ${{ steps.runner.outputs.runner }}
     steps:
       - name: Check out the port layer
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -65,6 +66,54 @@ jobs:
         with:
           repository: samhenrigold/LightTouchMac
           ref: ${{ steps.tag.outputs.tag }}
+          path: src
+
+      - name: Check that the release and its pins are reviewed
+        run: python3 -I port/check/reviewed.py check port/reviewed.json src
+
+      - name: Apply the port
+        run: bash port/apply.sh src
+
+      - name: Pick the vendor job's Mac
+        id: runner
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          # The vendor pin key (upstream's scripts/vendor-check, from v1.0-2026.10.21; Vendor.swift gives the same).
+          # Without a key (an older release, or the script failing here) it is macos-26, which can build them.
+          key=""
+          [ ! -f src/scripts/vendor-check ] || key=$(bash src/scripts/vendor-check --key) || key=""
+          runner=macos-26
+          if [ -n "$key" ]; then
+            cached=$(gh api "repos/$GITHUB_REPOSITORY/actions/caches?key=vendor-host-$key" \
+              --jq "[.actions_caches[] | select(.key == \"vendor-host-$key\")] | length")
+            [ "$cached" = 0 ] || runner=macos-26-intel
+          fi
+          echo "Vendor key ${key:-unknown}: the vendor job runs on $runner"
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+
+  vendor:
+    needs: plan
+    runs-on: ${{ needs.plan.outputs.runner }}
+    timeout-minutes: 360
+    outputs:
+      tag: ${{ needs.plan.outputs.tag }}
+      key: ${{ steps.key.outputs.key }}
+    env:
+      OUT: ${{ github.workspace }}/spike-out
+      LTM_VENDOR_ROOT: ${{ github.workspace }}/vendor-root
+      LTM_VENDOR_HOST_ONLY: "1"
+    steps:
+      - name: Check out the port layer
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: port
+
+      - name: Check out upstream at the tag
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: samhenrigold/LightTouchMac
+          ref: ${{ needs.plan.outputs.tag }}
           path: src
 
       - name: Check that the release and its pins are reviewed
@@ -163,8 +212,9 @@ jobs:
           bash port/spike/save-results.sh
 
   package:
-    needs: vendor
-    runs-on: macos-26
+    # Any Mac builds the archive (universal, the macro plugin for the host): the Intel ones are slower but less short.
+    needs: [plan, vendor]
+    runs-on: macos-26-intel
     timeout-minutes: 120
     env:
       OUT: ${{ github.workspace }}/spike-out
