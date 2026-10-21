@@ -1,0 +1,59 @@
+The web proxy's egress on macOS 11. From v1.0-2026.10.21 every request the proxy's URLSession makes, plain HTTP too,
+is a CONNECT to its loopback egress, which resolves the destination and lets NetworkPolicy refuse this Mac and the
+local networks. It is set through URLSessionConfiguration.proxyConfigurations (macOS 14). On macOS 11 the session
+gets a SOCKS proxy instead (connectionProxyDictionary). macOS 11's URLSession sends every connection to it as SOCKS5,
+with the same credential (RFC 1929) and the destination by name. The egress hands a connection that starts with
+SOCKS's version byte to SOCKSEgress.swift, which takes only that credential (upstream's constant-time comparison)
+and connects through the same resolve and NetworkPolicy.connect as a CONNECT. Checked on the Big Sur Mac with its
+URLSession: an allowed host gets the page, a refused one and a wrong password get nothing.
+
+diff --git a/LightTouchDevice/WebProxy.swift b/LightTouchDevice/WebProxy.swift
+index 7da3d450..605fae73 100644
+--- a/LightTouchDevice/WebProxy.swift
++++ b/LightTouchDevice/WebProxy.swift
+@@ -111,10 +111,19 @@ final class WebProxy: @unchecked Sendable {
+         let secret = (0..<4).map { _ in String(format: "%08x", arc4random()) }.joined()
+         egressAuthorization = "Basic " + Data("\(Self.egressUser):\(secret)".utf8).base64EncodedString()
+         let (egress, port) = Self.egressSocket()
+-        if let port = NWEndpoint.Port(rawValue: port) {
++        if #available(macOS 14, *), let port = NWEndpoint.Port(rawValue: port) {
+             var proxy = ProxyConfiguration(httpCONNECTProxy: .hostPort(host: "127.0.0.1", port: port))
+             proxy.applyCredential(username: Self.egressUser, password: secret)
+             configuration.proxyConfigurations = [proxy]
++        } else if port != 0 {
++            // Big Sur port: no proxyConfigurations before macOS 14. A SOCKS proxy sends every connection, plain HTTP
++            // too, to the egress as SOCKS5 with this credential (SOCKSEgress.swift), naming the host for
++            // NetworkPolicy.
++            configuration.connectionProxyDictionary = [
++                kCFNetworkProxiesSOCKSEnable as String: 1, kCFNetworkProxiesSOCKSProxy as String: "127.0.0.1",
++                kCFNetworkProxiesSOCKSPort as String: Int(port),
++                kCFStreamPropertySOCKSUser as String: Self.egressUser, kCFStreamPropertySOCKSPassword as String: secret,
++            ]
+         }
+         egressReady = egress >= 0
+         let queue = OperationQueue()
+@@ -677,6 +686,24 @@ final class WebProxy: @unchecked Sendable {
+         setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
+         let client = Guest(fd: fd)
+         defer { client.finish() }
++        // Big Sur port: macOS 11's URLSession reaches the egress through SOCKS5 (the session's SOCKS proxy), with the
++        // same credential, and NetworkPolicy decides where it goes as for a CONNECT.
++        if SOCKSEgress.isSOCKS(fd) {
++            do {
++                try SOCKSEgress.serve(
++                    fd,
++                    authorized: { user, password in
++                        Self.sameSecret(
++                            "Basic " + Data("\(user):\(password)".utf8).base64EncodedString(), egressAuthorization)
++                    },
++                    connect: { host, port in NetworkPolicy.connect(try resolve(host, port)) },
++                    relay: Self.relay
++                )
++            } catch {
++                if Self.trace { writeStandardError("web-proxy egress: SOCKS \(error)\n") }
++            }
++            return
++        }
+         do {
+             let (method, target, headers) = try readHead(client)
+             let offered = headers.first { $0.0.lowercased() == "proxy-authorization" }?.1 ?? ""
