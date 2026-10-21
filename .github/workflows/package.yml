@@ -119,7 +119,7 @@ jobs:
             echo '| File | Architectures | minos |'
             echo '|---|---|---|'
             for file in "$vendor"/Frameworks/* "$vendor"/MacOS/*; do
-              minos=$(otool -arch x86_64 -l "$file" | awk '/LC_BUILD_VERSION/ {b = 1} b && $1 == "minos" {print $2; exit}')
+              minos=$(otool -arch x86_64 -l "$file" | awk '$1 == "platform" {p = $2} $1 == "minos" && p == 1 {print $2; exit}')
               echo "| $(basename "$file") | $(lipo -archs "$file") | $minos |"
             done
           } > "$OUT/summary-vendor.md"
@@ -239,12 +239,14 @@ jobs:
             echo "- Info.plist LSMinimumSystemVersion: $(/usr/libexec/PlistBuddy -c 'Print :LSMinimumSystemVersion' "$app/Contents/Info.plist")"
             echo "- Concurrency back-deployed: $(ls "$app/Contents/Frameworks" | grep -c '^libswift_Concurrency.dylib$')"
             echo "- SF Symbols named: $(wc -l < "$RUNNER_TEMP/stage/bigsur-symbols.txt" | tr -d ' ')"
+            # Frameworks absent from macOS 11.7 (checked on the Big Sur Mac); RealityKit and _MapKit_SwiftUI are there.
             echo '| Mach-O | minos | frameworks loaded strongly that macOS 11 lacks |'
             echo '|---|---|---|'
             python3 -I port/check/machos.py "$app" | while IFS= read -r rel; do
-              minos=$(otool -arch x86_64 -l "$app/$rel" | awk '/LC_BUILD_VERSION/ {b = 1} b && $1 == "minos" {print $2; exit}')
+              # macOS's record (platform 1): a zippered library also has Mac Catalyst's
+              minos=$(otool -arch x86_64 -l "$app/$rel" | awk '$1 == "platform" {p = $2} $1 == "minos" && p == 1 {print $2; exit}')
               newer=$(otool -arch x86_64 -l "$app/$rel" | awk '$1 == "cmd" {cmd = $2} $1 == "name" && cmd == "LC_LOAD_DYLIB" {print $2}' \
-                | grep -E '/(VisionKit|ScreenCaptureKit|RealityFoundation|RealityKit|_RealityKit_SwiftUI|_MapKit_SwiftUI)\.framework/' \
+                | grep -E '/(VisionKit|ScreenCaptureKit|RealityFoundation|_RealityKit_SwiftUI|_AppKit_SwiftUI|_SwiftUI_AppKit|Observation)\.framework/' \
                 | xargs -n1 basename 2>/dev/null | tr '\n' ' ')
               echo "| $rel | $minos | $newer |"
             done
