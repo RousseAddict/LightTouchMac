@@ -1,5 +1,5 @@
 # A Big Sur build of an upstream release, for install.sh. Run by hand (Actions, Package, Run workflow); it also runs
-# when a push changes this file, which is how changes to it get tried.
+# when a push changes this file or what the vendor build takes from the port, which is how changes to them get tried.
 # - vendor: the host binaries for macOS 11 from upstream's pins (scripts/vendor with LTM_VENDOR_HOST_ONLY, patch 17):
 #   the native dependencies, usbmuxd, QEMU's dylib, iBoot32Patcher and ipod-helper, universal, held to minos 11.0
 #   with no weak imports. Cached per vendor pin key, so a release with the same pins reuses them.
@@ -12,7 +12,7 @@ name: Package
 on:
   push:
     branches: [bigsur]
-    paths: [.github/workflows/package.yml]
+    paths: [.github/workflows/package.yml, "add/build-support/**", "patches/*vendor*.patch"]
   workflow_dispatch:
     inputs:
       tag:

@@ -1,0 +1,20 @@
+scripts/vendor applies the port's build-support/patches/bigsur-qemu-*.patch to the qemu-ios worktree when it makes
+it. The tree's HEAD stays the pinned commit, which is what qemuTree checks. A changed patch changes the vendor pin
+key, since that covers build-support/patches, and so makes a new tree.
+
+diff --git a/Packages/BuildTools/Sources/BuildTools/Vendor.swift b/Packages/BuildTools/Sources/BuildTools/Vendor.swift
+index d3470996..6509d286 100644
+--- a/Packages/BuildTools/Sources/BuildTools/Vendor.swift
++++ b/Packages/BuildTools/Sources/BuildTools/Vendor.swift
+@@ -161,6 +161,11 @@ public struct Vendor {
+             try run([
+                 "/usr/bin/git", "-C", checkout("qemu-ios").path, "worktree", "add", "--detach", "-q", tree.path, commit,
+             ])
++            // Big Sur port: its patches to the pinned tree, once, as the tree is made (they are in the pin key).
++            for patch in try entries(root.appendingPathComponent("build-support/patches"))
++            where patch.lastPathComponent.hasPrefix("bigsur-qemu-") {
++                try run(["/usr/bin/git", "-C", tree.path, "apply", "--whitespace=nowarn", patch.path])
++            }
+         }
+         guard try output(["git", "-C", tree.path, "rev-parse", "HEAD"]) == commit else {
+             throw ToolError("vendor: \(tree.path) is not at the pinned qemu-ios \(commit)")

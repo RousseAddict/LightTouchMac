@@ -1,0 +1,49 @@
+Big Sur port: qemu-ios at its pin, for a dylib that loads on macOS 11. Vendor.swift (patch 18) applies every
+build-support/patches/bigsur-qemu-*.patch to the pinned tree when it makes it; they are part of the vendor pin key.
+- block/file-posix.c: IOMainPort (macOS 12) is IOMasterPort, the same call under its macOS 11 name. It made the only
+  weak import, which the vendor build's Mach-O check rejects (only the host optical-drive path calls it).
+- ui/cocoa.m: NSScreen.safeAreaInsets is macOS 12; before it, no insets (QEMU's own Cocoa window, which Light Touch
+  doesn't show).
+- contrib/macos-app/make-dylib-macos.sh: the app-facing files build for macOS 11.0, not 12.0, like the rest.
+
+--- a/block/file-posix.c
++++ b/block/file-posix.c
+@@ -4040,9 +4040,10 @@
+     const char *matching_array[] = {kIODVDMediaClass, kIOCDMediaClass};
+     char *mediaType = NULL;
+ 
+-    kernResult = IOMainPort(MACH_PORT_NULL, &mainPort);
++    /* Big Sur port: IOMainPort is macOS 12; IOMasterPort is the same call under its macOS 11 name. */
++    kernResult = IOMasterPort(MACH_PORT_NULL, &mainPort);
+     if ( KERN_SUCCESS != kernResult ) {
+-        printf("IOMainPort returned %d\n", kernResult);
++        printf("IOMasterPort returned %d\n", kernResult);
+     }
+ 
+     int index;
+--- a/contrib/macos-app/make-dylib-macos.sh
++++ b/contrib/macos-app/make-dylib-macos.sh
+@@ -38,7 +38,7 @@
+     -iquote "$SRC/host/include/$HOST_CPU" -iquote "$SRC/host/include/generic" \
+     -iquote "$SRC/tcg/$TCG_HOST" \
+     -D_GNU_SOURCE -D_FILE_OFFSET_BITS=64 -D_LARGEFILE_SOURCE -std=gnu11 -O2 \
+-    -mmacosx-version-min=12.0
++    -mmacosx-version-min=11.0
+ done
+ 
+ # Take ninja's own link line so this cannot drift from the real build.
+--- a/ui/cocoa.m
++++ b/ui/cocoa.m
+@@ -616,7 +616,11 @@
+ - (NSSize) screenSafeAreaSize
+ {
+     NSSize size = [[[self window] screen] frame].size;
+-    NSEdgeInsets insets = [[[self window] screen] safeAreaInsets];
++    NSEdgeInsets insets = NSEdgeInsetsZero;
++    /* Big Sur port: NSScreen.safeAreaInsets is macOS 12; macOS 11's screens have no notch to leave out. */
++    if (@available(macOS 12.0, *)) {
++        insets = [[[self window] screen] safeAreaInsets];
++    }
+     size.width -= insets.left + insets.right;
+     size.height -= insets.top + insets.bottom;
+     return size;
