@@ -166,17 +166,29 @@ jobs:
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
       - name: Restore the host binaries of these pins
+        id: cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
+          # The binaries, not the build trees under work/ (a worktree there points at the runner that made it).
           path: |
             vendor-root/${{ steps.key.outputs.key }}
             !vendor-root/${{ steps.key.outputs.key }}/work
+            !vendor-root/${{ steps.key.outputs.key }}/work/**
           key: vendor-host-${{ steps.key.outputs.key }}
 
       - name: Build the host binaries
+        if: steps.cache.outputs.cache-hit != 'true'
         run: |
           set -o pipefail
           src/scripts/vendor 2>&1 | tee "$OUT/vendor.txt"
+
+      - name: Use the cached host binaries
+        # The cache key is the pin key, which covers every input of the host binaries. scripts/vendor would compare
+        # its stamp, which also covers sources a host-only build doesn't use (the built-in iPod's), and build again.
+        if: steps.cache.outputs.cache-hit == 'true'
+        run: |
+          rm -rf "$LTM_VENDOR_ROOT/${{ steps.key.outputs.key }}/work"
+          echo "The host binaries of pins ${{ steps.key.outputs.key }} come from the cache" | tee "$OUT/vendor.txt"
 
       - name: Check and pack them
         run: |
@@ -209,7 +221,7 @@ jobs:
         run: |
           cp "$OUT/apply.txt" "$OUT/summary-apply.md" 2>/dev/null || true
           tail -c 20000 "$OUT/vendor.txt" > "$OUT/summary-vendor-log.md" 2>/dev/null || true
-          # A failed build's logs: scripts/vendor names them as it goes.
+          # A failed build's logs: scripts/vendor names them as it goes (none when the binaries came from the cache).
           for log in "$LTM_VENDOR_ROOT"/*/work/logs/*.log; do
             [ -e "$log" ] && cp "$log" "$OUT/vendor-$(basename "$log")"
           done
