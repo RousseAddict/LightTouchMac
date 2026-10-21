@@ -380,7 +380,6 @@ extension View {
             self
         }
     }
-}
 
     /// `.badge(_:)` with a count (macOS 12), on a list row: on macOS 11 the count at the row's trailing edge, none
     /// when it is 0.
