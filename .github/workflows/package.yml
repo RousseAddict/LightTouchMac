@@ -169,12 +169,18 @@ jobs:
         id: cache
         uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
         with:
-          # The binaries, not the build trees under work/ (a worktree there points at the runner that made it).
+          # Keep these lines as they are: the cache's version is a hash of them, and an entry saved under other lines
+          # doesn't match its own key. (The !work line doesn't keep the build trees out; a hit removes them below.)
           path: |
             vendor-root/${{ steps.key.outputs.key }}
             !vendor-root/${{ steps.key.outputs.key }}/work
-            !vendor-root/${{ steps.key.outputs.key }}/work/**
           key: vendor-host-${{ steps.key.outputs.key }}
+
+      - name: An Intel runner needs the cache
+        if: steps.cache.outputs.cache-hit != 'true' && runner.arch != 'ARM64'
+        run: |
+          echo "::error::The host binaries of pins ${{ steps.key.outputs.key }} aren't in the cache, and building them takes Apple Silicon (macos-26)."
+          exit 1
 
       - name: Build the host binaries
         if: steps.cache.outputs.cache-hit != 'true'
