@@ -1,0 +1,7 @@
+            switch object.statusOfValue(forKey: key, error: &error) {
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/BigSur/SwiftUICompat.swift:421:1: error: extraneous '}' at top level
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/BigSur/SwiftUICompat.swift:421:1: error: Extraneous '}' at top level
+error: The file “Light_Touch.abi.json” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftdoc” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftmodule” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
