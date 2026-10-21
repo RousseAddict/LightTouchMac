@@ -105,8 +105,16 @@ def foreground_style(text):
         i = k
 
 
-# SF Symbols missing on macOS 11.7 (checked on the Big Sur Mac), and stand-ins it has.
-SYMBOLS = {"document.on.document": "doc.on.doc", "inset.filled.bottomthird.square": "rectangle.bottomthird.inset.fill"}
+# SF Symbols missing on macOS 11.7 (checked on the Big Sur Mac with check/symbols.m), and stand-ins it has: the
+# SF Symbols 2 names of the same glyph where one exists.
+SYMBOLS = {
+    "document.on.document": "doc.on.doc",
+    "inset.filled.bottomthird.square": "rectangle.bottomthird.inset.fill",
+    "line.3.horizontal.decrease.circle": "line.horizontal.3.decrease.circle",
+    "line.3.horizontal.decrease.circle.fill": "line.horizontal.3.decrease.circle.fill",
+    "location.north.circle": "location.north",
+    "text.viewfinder": "doc.text.viewfinder",
+}
 
 RULES = [
     Rule("xcconfig: macOS 11", ["Configuration/Shared.xcconfig"],

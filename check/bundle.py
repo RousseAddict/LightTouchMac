@@ -3,7 +3,7 @@
 # - a minimum macOS above this one: the app's LSMinimumSystemVersion, or any x86_64 Mach-O's minos;
 # - a symbol a Mach-O imports strongly from a system library that this system's library lacks (dyld stops on it);
 # - an @rpath, @loader_path or @executable_path library a Mach-O loads that isn't in the bundle;
-# - an SF Symbol the app names (SYMBOLS, one per line) that this system can't draw;
+# - an SF Symbol the app names (SYMBOLS, from symbol-candidates.py) that this system can't draw;
 # - a code signature that doesn't verify.
 # Reported only: weak imports this system lacks, and the Objective-C selectors a binary sends that neither the
 # bundle nor this system implements (optional delegate methods, and methods added lazily, such as NSView's
@@ -90,12 +90,17 @@ for rel in machos:
     if missing:
         notes.append(f"{rel}: sends {len(missing)} selectors nothing here implements: {' '.join(missing)}")
 
-# SF Symbols.
+# SF Symbols: "name" or "name\tkind" lines (symbol-candidates.py); a weak name may not be a symbol at all.
 if symbols_file:
-    wanted = open(symbols_file).read()
-    for name in run([os.path.join(tools, "symbols")], stdin=wanted).split():
-        problems.append(f"SF Symbol {name} doesn't exist on this system")
-    print(f"== {len(wanted.split())} SF Symbols named")
+    kinds = dict((line.split("\t") + ["strong"])[:2] for line in open(symbols_file).read().splitlines() if line)
+    missing = run([os.path.join(tools, "symbols")], stdin="\n".join(kinds) + "\n").split()
+    for name in missing:
+        if kinds[name] == "strong":
+            problems.append(f"SF Symbol {name} doesn't exist on this system")
+    weak = [name for name in missing if kinds[name] != "strong"]
+    if weak:
+        notes.append(f"{len(weak)} words the app uses are SF Symbols on the build's macOS but not here: {' '.join(weak)}")
+    print(f"== {len(kinds)} SF Symbol names")
 
 # Signature.
 signature = subprocess.run(["codesign", "--verify", "--deep", "--strict", app], capture_output=True, text=True)
