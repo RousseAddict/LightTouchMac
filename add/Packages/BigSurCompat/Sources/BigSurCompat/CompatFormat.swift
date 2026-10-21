@@ -20,6 +20,9 @@ public enum CompatFormat {
     /// `try? Date(string, strategy: .iso8601)`.
     public static func parseISO8601(_ string: String) -> Date? { internetDateTime.date(from: string) }
 
+    /// `try? Date(string, strategy: .iso8601.year().month().day())`: "2011-06-07" as that day's start in UTC.
+    public static func parseISO8601Day(_ string: String) -> Date? { fullDate.date(from: string) }
+
     /// `count.formatted(.byteCount(style: .file))`: "12.3 GB".
     public static func fileBytes<T: BinaryInteger>(_ count: T) -> String {
         ByteCountFormatter.string(fromByteCount: Int64(count), countStyle: .file)
@@ -37,5 +40,45 @@ public enum CompatFormat {
         formatter.timeStyle = .none
         formatter.timeZone = timeZone
         return formatter.string(from: date)
+    }
+}
+
+extension BinaryInteger {
+    /// `formatted(.byteCount(style: .file))`.
+    public func compatFileBytes() -> String { CompatFormat.fileBytes(self) }
+}
+
+/// The date and time styles of `Date.formatted(date:time:)`.
+public enum CompatDateStyle: Sendable {
+    case omitted, numeric, abbreviated, long, complete
+
+    var style: DateFormatter.Style {
+        switch self {
+        case .omitted: return .none
+        case .numeric: return .short
+        case .abbreviated: return .medium
+        case .long: return .long
+        case .complete: return .full
+        }
+    }
+}
+
+public enum CompatTimeStyle: Sendable {
+    case omitted, shortened, standard, complete
+
+    var style: DateFormatter.Style {
+        switch self {
+        case .omitted: return .none
+        case .shortened: return .short
+        case .standard: return .medium
+        case .complete: return .full
+        }
+    }
+}
+
+extension Date {
+    /// `formatted(date:time:)`, in the current locale and time zone.
+    public func compatFormatted(date: CompatDateStyle, time: CompatTimeStyle) -> String {
+        DateFormatter.localizedString(from: self, dateStyle: date.style, timeStyle: time.style)
     }
 }

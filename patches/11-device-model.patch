@@ -1,0 +1,25 @@
+DeviceModelView's screen texture and material use RealityKit API from macOS 12 (TextureResource.replace and
+generate, MaterialParameters, UnlitMaterial.color). The view is only made from macOS 15 on (DisplayView+Bezel's
+#available), so updateFrame and updateScreenMaterial return at once before macOS 12, which lets it compile for 11.
+
+diff --git a/LightTouchMac/UI/DeviceModelView.swift b/LightTouchMac/UI/DeviceModelView.swift
+index 8f209541..3ec8e7a0 100644
+--- a/LightTouchMac/UI/DeviceModelView.swift
++++ b/LightTouchMac/UI/DeviceModelView.swift
+@@ -376,6 +376,8 @@ final class DeviceModelView: NSView {
+     }
+     /// A new screen picture.
+     func updateFrame(_ image: CGImage) {
++        // Big Sur port: RealityKit's texture API here is macOS 12; the model only loads from macOS 15.
++        guard #available(macOS 12, *) else { return }
+         noteChange()
+         do {
+             // replace() updates the texture the material already holds; reassigning
+@@ -392,6 +394,7 @@ final class DeviceModelView: NSView {
+         } catch { NSLog("Model framebuffer upload failed: %@", error.localizedDescription) }
+     }
+     private func updateScreenMaterial() {
++        guard #available(macOS 12, *) else { return }
+         if let screenTexture, !screenOff {
+             var sampler = MaterialParameters.Texture.Sampler()
+             sampler.modify { descriptor in

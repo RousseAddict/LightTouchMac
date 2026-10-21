@@ -1,0 +1,68 @@
+The Add Device sheet on macOS 11. AddDeviceSummary parses a release day with CompatFormat (Date's ISO 8601
+strategy is macOS 12), takes the mirror's host from URL.host (host() is macOS 13), and colors a feature's mark
+green or tertiary without AnyShapeStyle (macOS 12). In AddDeviceView, a device's pick count is compatBadge (a
+trailing count before macOS 12), Cancel has no role (macOS 12; Escape is its keyboard shortcut either way), and
+sizingOptions (macOS 13) is set only where it exists: macOS 11's hosting controller already holds the window to the
+view's minimum and lets it grow.
+
+diff --git a/LightTouchMac/UI/AddDeviceSummary.swift b/LightTouchMac/UI/AddDeviceSummary.swift
+index e8ba419f..cf29f0d1 100644
+--- a/LightTouchMac/UI/AddDeviceSummary.swift
++++ b/LightTouchMac/UI/AddDeviceSummary.swift
+@@ -85,13 +85,12 @@ struct AddDeviceSummary: View {
+     }
+ 
+     private func released(_ entry: FirmwareCatalog.Entry) -> String? {
+-        entry.released.flatMap { try? Date($0, strategy: .iso8601.year().month().day()) }?
+-            .compatFormatted(date: .long, time: .omitted)
++        entry.released.flatMap(CompatFormat.parseISO8601Day)?.compatFormatted(date: .long, time: .omitted)
+     }
+ 
+     /// Where the IPSW comes from: Apple, or the mirror's host (archive.org).
+     private func source(_ entry: FirmwareCatalog.Entry) -> String? {
+-        guard entry.bundled == nil, let host = entry.source.url?.host() else { return nil }
++        guard entry.bundled == nil, let host = entry.source.url?.host else { return nil }
+         return host.hasSuffix("apple.com") ? "Apple" : host
+     }
+ 
+@@ -188,7 +187,7 @@ private struct FeatureCell: View {
+                 .lineLimit(1)
+             Spacer(minLength: 2)
+             Image(systemName: feature.supported ? "checkmark" : "minus")
+-                .foregroundStyle(feature.supported ? AnyShapeStyle(.green) : AnyShapeStyle(.tertiary))
++                .compatForegroundStyle(feature.supported ? .green : .compatTertiary)
+         }
+         .accessibilityElement(children: .ignore)
+         .accessibilityLabel(feature.id)
+diff --git a/LightTouchMac/UI/AddDeviceView.swift b/LightTouchMac/UI/AddDeviceView.swift
+index 764c94dc..6a70e1e2 100644
+--- a/LightTouchMac/UI/AddDeviceView.swift
++++ b/LightTouchMac/UI/AddDeviceView.swift
+@@ -103,7 +103,7 @@ struct AddDeviceView: View {
+                         } icon: {
+                             Image(nsImage: group.icon).resizable().scaledToFit()
+                         }
+-                        .badge(group.entries.count { picked.contains($0.id) })
++                        .compatBadge(group.entries.count { picked.contains($0.id) })
+                     }
+                 }
+                 .listStyle(.sidebar)
+@@ -116,7 +116,7 @@ struct AddDeviceView: View {
+                 Toggle("Show experimental", isOn: $showsExperimental)
+                     .toggleStyle(.checkbox)
+                 Spacer()
+-                Button("Cancel", role: .cancel, action: onCancel)
++                Button("Cancel", action: onCancel)
+                     .keyboardShortcut(.cancelAction)
+                 Button("Add") { onAdd(picked) }
+                     .keyboardShortcut(.defaultAction)
+@@ -131,7 +131,8 @@ struct AddDeviceView: View {
+     /// It opens with the versions list focused; left to itself AppKit would focus its first key view, the devices.
+     func makeSheet() -> NSWindow {
+         let hosting = NSHostingController(rootView: self)
+-        hosting.sizingOptions = [.minSize]
++        // macOS 11's hosting controller already holds the window to the view's minimum and lets it grow.
++        if #available(macOS 13, *) { hosting.sizingOptions = [.minSize] }
+         let sheet = NSWindow(contentViewController: hosting)
+         sheet.styleMask = [.titled, .resizable]
+         sheet.setContentSize(NSSize(width: 800, height: 620))

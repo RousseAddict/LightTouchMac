@@ -24,15 +24,6 @@ diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportIn
 index 779229b7..400911fa 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
 +++ b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
-@@ -157,7 +157,7 @@ public nonisolated enum BugReportInfo {
-     ) -> String {
-         var lines = system.split(separator: "\n", omittingEmptySubsequences: false).map(String.init)
-         if let freeSpace {
--            lines.append("Free space: \(freeSpace.formatted(.byteCount(style: .file))) on the library's volume")
-+            lines.append("Free space: \(CompatFormat.fileBytes(freeSpace)) on the library's volume")
-         }
-         if let bezel { lines.append("Device bezels: \(bezel)") }
-         if refresh120 { lines.append("120 Hz refresh: on") }
 @@ -181,7 +181,7 @@ public nonisolated enum BugReportInfo {
                  let jailbreak = d.jailbreak.map { $0 ? ", Jailbreak" : ", stock" } ?? ""
                  facts.append(

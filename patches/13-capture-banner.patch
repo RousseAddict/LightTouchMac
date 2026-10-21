@@ -1,0 +1,94 @@
+The capture banner on macOS 11. Its hosting view has no sizingOptions (macOS 13), so it gets the lowest hugging and
+compression priorities, which leave its size to CaptureStatusView's constraints as sizingOptions [] does. The
+banner's shape is CompatAnyShape (AnyShape is macOS 13), its accessory symbols bold through the font (View.bold() is
+macOS 13), round only from macOS 14 (.circle), and its material is an NSVisualEffectView before macOS 12. A dragged
+thumbnail keeps its preview from macOS 12, and without a file it provides the image's TIFF data before macOS 13,
+where NSImage provides itself. The preview uses URL(fileURLWithPath:) and .background(_:).
+
+diff --git a/LightTouchMac/UI/CaptureStatusView.swift b/LightTouchMac/UI/CaptureStatusView.swift
+index ecd34940..70febc0e 100644
+--- a/LightTouchMac/UI/CaptureStatusView.swift
++++ b/LightTouchMac/UI/CaptureStatusView.swift
+@@ -55,7 +55,16 @@ final class CaptureStatusView: NSView {
+ 
+     init() {
+         super.init(frame: .zero)
+-        hosting.sizingOptions = []
++        if #available(macOS 13, *) {
++            hosting.sizingOptions = []
++        } else {
++            // macOS 11's hosting view takes the banner's ideal size as its intrinsic size; at the lowest priorities,
++            // this view's constraints size it instead.
++            for orientation in [NSLayoutConstraint.Orientation.horizontal, .vertical] {
++                hosting.setContentHuggingPriority(.init(1), for: orientation)
++                hosting.setContentCompressionResistancePriority(.init(1), for: orientation)
++            }
++        }
+         hosting.translatesAutoresizingMaskIntoConstraints = false
+         addSubview(hosting)
+         NSLayoutConstraint.activate([
+@@ -177,8 +186,8 @@ private struct CaptureBanner: View {
+     @Environment(\.accessibilityReduceMotion) private var reduceMotion
+     @State private var accessoryHeight: CGFloat = 24
+ 
+-    private var shape: AnyShape {
+-        state.image == nil ? AnyShape(Capsule()) : AnyShape(RoundedRectangle(cornerRadius: 14))
++    private var shape: CompatAnyShape {
++        state.image == nil ? CompatAnyShape(Capsule()) : CompatAnyShape(RoundedRectangle(cornerRadius: 14))
+     }
+ 
+     var body: some View { CompatObserving { observedBody } }
+@@ -241,10 +250,10 @@ private struct CaptureBanner: View {
+ 
+     private func accessory(_ title: String, symbol: String, action: @escaping () -> Void) -> some View {
+         Button(action: action) {
+-            Image(systemName: symbol).font(.footnote).bold()
++            Image(systemName: symbol).font(.footnote.bold())
+         }
+         .buttonStyle(.bordered)
+-        .buttonBorderShape(.circle)
++        .compatCircleButtonBorder()
+         .compatForegroundStyle(.gray)
+         .controlSize(.small)
+         .accessibilityLabel(title)
+@@ -263,9 +272,12 @@ private struct CaptureBannerThumbnail: View {
+             .frame(width: 28, height: 28)
+             .clipShape(RoundedRectangle(cornerRadius: 5))
+             .padding(2)
+-            .onDrag {
++            .compatOnDrag {
+                 if let fileURL, let provider = NSItemProvider(contentsOf: fileURL) { return provider }
+-                return NSItemProvider(object: image)
++                if #available(macOS 13, *) { return NSItemProvider(object: image) }
++                // NSImage provides itself from macOS 13; before, its TIFF data.
++                return NSItemProvider(
++                    item: image.tiffRepresentation as NSData?, typeIdentifier: NSPasteboard.PasteboardType.tiff.rawValue)
+             } preview: {
+                 Image(nsImage: image).resizable().scaledToFit().frame(width: 160, height: 160)
+             }
+@@ -279,14 +291,14 @@ private struct CaptureBannerThumbnail: View {
+     let _ = {
+         state.title = "Screenshot saved"
+         state.image = NSImage(named: "gradient")
+-        state.fileURL = URL(filePath: "/tmp/Preview.png")
++        state.fileURL = URL(fileURLWithPath: "/tmp/Preview.png")
+         state.dismissible = true
+         state.isPresented = true
+     }()
+     CaptureBanner(state: state, primary: {}, secondary: {}, dismiss: {}, hovering: { _ in })
+         .frame(width: 300, height: 48)
+         .frame(width: 400, height: 160)
+-        .background { Image("gradient").resizable().scaledToFill() }
++        .background(Image("gradient").resizable().scaledToFill())
+         .clipped()
+ }
+ 
+@@ -297,7 +309,7 @@ private struct CaptureGlassSurface<S: Shape>: ViewModifier {
+         if #available(macOS 26.0, *) {
+             content.glassEffect(.regular, in: shape)
+         } else {
+-            content.background(.regularMaterial, in: shape)
++            content.compatRegularMaterialBackground(in: shape)
+         }
+     }
+ }

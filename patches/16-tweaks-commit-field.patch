@@ -1,0 +1,31 @@
+The Tweaks panel's status bar text fields on macOS 11, which has no FocusState, onSubmit or prompts (macOS 12): a
+CommitField is its title beside a CompatTextField whose placeholder is the prompt, and it saves when editing ends,
+which macOS 11 reports both on Return and on leaving the field.
+
+diff --git a/LightTouchMac/UI/TweaksPanel.swift b/LightTouchMac/UI/TweaksPanel.swift
+index 5c2ac934..a01c6ff4 100644
+--- a/LightTouchMac/UI/TweaksPanel.swift
++++ b/LightTouchMac/UI/TweaksPanel.swift
+@@ -162,16 +162,15 @@ private struct CommitField: View {
+     let value: String
+     let commit: (String) -> Void
+     @State private var text = ""
+-    @FocusState private var focused: Bool
+ 
+     var body: some View { CompatObserving { observedBody } }
+     @ViewBuilder var observedBody: some View {
+-        TextField(title, text: $text, prompt: Text(prompt))
+-            .focused($focused)
+-            .onSubmit { save() }
+-            .compatOnChange(of: focused) { if !focused { save() } }
+-            .onAppear { text = value }
+-            .compatOnChange(of: value) { text = value }
++        // macOS 11 has no FocusState or onSubmit: its editing ends on Return and on leaving the field alike.
++        CompatLabeledContent(title) {
++            CompatTextField(title, text: $text, prompt: prompt, onEndEditing: { save() }).labelsHidden()
++        }
++        .onAppear { text = value }
++        .compatOnChange(of: value) { text = value }
+     }
+ 
+     private func save() {

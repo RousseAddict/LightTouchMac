@@ -52,7 +52,11 @@ SWIFT = "swift"
 APP = "app"  # the Swift files of the app target (LightTouchMac/)
 SWIFTUI = "swiftui"  # the app's Swift files that import SwiftUI
 # The app's own compat files (add/LightTouchMac/BigSur), linked into each tests/offline target that compiles app files.
-APP_COMPAT = ["LightTouchMac/BigSur/AppKitCompat.swift", "LightTouchMac/BigSur/SwiftUICompat.swift"]
+APP_COMPAT = [
+    "LightTouchMac/BigSur/AppKitCompat.swift",
+    "LightTouchMac/BigSur/MapKitCompat.swift",
+    "LightTouchMac/BigSur/SwiftUICompat.swift",
+]
 
 
 @dataclass
@@ -130,6 +134,14 @@ RULES = [
     Rule("swiftui: .fileDialogDefaultDirectory", SWIFTUI, r"\.fileDialogDefaultDirectory\(",
          ".compatFileDialogDefaultDirectory("),
     Rule("swiftui: .foregroundStyle", SWIFTUI, r"\.foregroundStyle\(", foreground_style),
+    Rule("swiftui: Grid", SWIFTUI, r"(?<![.\w])Grid\b", "CompatGrid"),
+    Rule("swiftui: GridRow", SWIFTUI, r"(?<![.\w])GridRow\b", "CompatGridRow"),
+    Rule("swiftui: .gridColumnAlignment", SWIFTUI, r"\.gridColumnAlignment\(", ".compatGridColumnAlignment("),
+    Rule("swiftui: .background(.quaternary, in:)", SWIFTUI, r"\.background\(\.quaternary, in:",
+         ".compatBackground(.compatQuaternary, in:"),
+    Rule("swiftui: .selectionDisabled", SWIFTUI, r"\.selectionDisabled\(", ".compatSelectionDisabled("),
+    Rule("swiftui: .contextMenu(forSelectionType:)", SWIFTUI, r"\.contextMenu\((\s*)forSelectionType:",
+         r".compatContextMenu(\1forSelectionType:"),
     # Every view follows ObservationCompat models through CompatObserving (SwiftUI only tracks Observation's).
     Rule("swiftui: views observe ObservationCompat models", SWIFTUI,
          r"^([ \t]*)((?:(?:public|private|fileprivate|internal) )?)var body: some View \{",
@@ -147,6 +159,9 @@ RULES = [
     Rule("swift: SuspendingClock", SWIFT, r"\bSuspendingClock\b", "CompatSuspendingClock", "BigSurCompat"),
     Rule("swift: Task.sleep(for:)", SWIFT, r"\bTask\.sleep\((\s*)for:", r"Task.compatSleep(\1for:", "BigSurCompat"),
     Rule("swift: OSAllocatedUnfairLock", SWIFT, r"\bOSAllocatedUnfairLock\b", "CompatUnfairLock", "BigSurCompat"),
+    Rule("swift: .formatted(.byteCount(style: .file))", SWIFT, r"\.formatted\(\.byteCount\(style: \.file\)\)",
+         ".compatFileBytes()", "BigSurCompat"),
+    Rule("swift: .formatted(date:time:)", SWIFT, r"\.formatted\(date:", ".compatFormatted(date:", "BigSurCompat"),
     Rule("swift: firstRange(of:)", SWIFT, r"\.firstRange\(of:", ".compatFirstRange(of:", "BigSurCompat"),
     Rule("swift: TimeZone.gmt", SWIFT, r"(?<=[\s(:,=])\.gmt\b", ".compatGMT", "BigSurCompat"),
     # URLSession's async calls (macOS 12): BigSurCompat's URLSessionCompat.

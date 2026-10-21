@@ -1,0 +1,87 @@
+The Carrier panel on macOS 11. The Location map is CompatMarkerMap (MapKitCompat.swift), an MKMapView with the
+reported position's pin, showing 1.5 km around the set location whenever that changes, where a click sets the
+location: SwiftUI's Map, Marker, MapCameraPosition and MapReader are macOS 14. The MCC, MNC and message fields are
+CompatTextFields (prompts are macOS 12): the prompt is the placeholder, and Return in the message sends it, as
+onSubmit does. The message is one line, as macOS 11 has no vertical text field (axis: and lineLimit ranges are
+macOS 13).
+
+diff --git a/LightTouchMac/UI/CarrierPanel.swift b/LightTouchMac/UI/CarrierPanel.swift
+index cd94591e..4e4a64dc 100644
+--- a/LightTouchMac/UI/CarrierPanel.swift
++++ b/LightTouchMac/UI/CarrierPanel.swift
+@@ -15,7 +15,6 @@ extension EmulatorController: CarrierBackend {}
+ 
+ struct CarrierPanel: View {
+     @CompatBindable var model: CarrierPanelModel
+-    @State private var camera = MapCameraPosition.automatic
+     @State private var macLocation = MacLocation()
+ 
+     var body: some View { CompatObserving { observedBody } }
+@@ -25,9 +24,9 @@ struct CarrierPanel: View {
+                 TextField("Carrier", text: $model.carrierName)
+                 CompatLabeledContent("MCC / MNC") {
+                     HStack {
+-                        TextField("MCC", text: $model.mcc, prompt: Text("001")).labelsHidden().frame(width: 56)
++                        CompatTextField("MCC", text: $model.mcc, prompt: "001").labelsHidden().frame(width: 56)
+                         Text("/").compatForegroundStyle(.secondary)
+-                        TextField("MNC", text: $model.mnc, prompt: Text("01")).labelsHidden().frame(width: 56)
++                        CompatTextField("MNC", text: $model.mnc, prompt: "01").labelsHidden().frame(width: 56)
+                         Button("Apply") { model.applyNetwork() }
+                             .disabled(!model.networkEdited || !model.networkValid)
+                     }
+@@ -87,8 +86,11 @@ struct CarrierPanel: View {
+             Section(header: Text("SMS")) {
+                 TextField("From", text: $model.smsNumber)
+                 HStack(alignment: .bottom) {
+-                    TextField("Message", text: $model.smsText, prompt: Text("Type your SMS…"), axis: .vertical)
+-                        .labelsHidden().lineLimit(3...6).onSubmit { model.sendSMS() }
++                    // One line on macOS 11, which has no vertical text field: Return sends.
++                    CompatTextField(
++                        "Message", text: $model.smsText, prompt: "Type your SMS…", onSubmit: { model.sendSMS() }
++                    )
++                    .labelsHidden()
+                     Button("Send") { model.sendSMS() }.disabled(!model.smsValid)
+                 }
+                 if model.sent.isEmpty {
+@@ -104,17 +106,16 @@ struct CarrierPanel: View {
+             }
+             if model.status?.hasGPS == true {
+                 Section(header: Text("Location")) {
+-                    MapReader { map in
+-                        Map(position: $camera) { Marker("GPS", coordinate: model.reportedLocation.coordinate) }
+-                            .frame(height: 180)
+-                            .onTapGesture(coordinateSpace: .local) { point in
+-                                if let c = map.convert(point, from: .local) {
+-                                    model.set(location: GPSLocation(latitude: c.latitude, longitude: c.longitude))
+-                                }
+-                            }
++                    // The map shows 1.5 km around the set location whenever it changes; a click sets it.
++                    CompatMarkerMap(
++                        title: "GPS",
++                        marker: model.reportedLocation.coordinate,
++                        center: model.settings.location.coordinate,
++                        meters: 1500
++                    ) { c in
++                        model.set(location: GPSLocation(latitude: c.latitude, longitude: c.longitude))
+                     }
+-                    .onAppear { center(on: model.settings.location) }
+-                    .compatOnChange(of: model.settings.location) { center(on: model.settings.location) }
++                    .frame(height: 180)
+                     CompatLabeledContent("Coordinates") {
+                         HStack {
+                             TextField("Latitude", text: $model.latitude).labelsHidden()
+@@ -158,14 +159,6 @@ struct CarrierPanel: View {
+     }
+ }
+ 
+-extension CarrierPanel {
+-    fileprivate func center(on location: GPSLocation) {
+-        camera = .region(
+-            MKCoordinateRegion(center: location.coordinate, latitudinalMeters: 1500, longitudinalMeters: 1500)
+-        )
+-    }
+-}
+-
+ extension GPSLocation {
+     fileprivate var coordinate: CLLocationCoordinate2D {
+         CLLocationCoordinate2D(latitude: latitude, longitude: longitude)

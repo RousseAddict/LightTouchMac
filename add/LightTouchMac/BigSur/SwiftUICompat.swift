@@ -3,6 +3,8 @@
 // bridge that makes views follow ObservationCompat models, which SwiftUI doesn't know: codemod.py wraps every view's
 // body in CompatObserving. The app compiles this file; codemod.py links it into the tests/offline targets that compile
 // app files.
+import AppKit
+import Combine
 import ObservationCompat
 import SwiftUI
 
@@ -311,5 +313,176 @@ extension View {
         } else {
             frame(minWidth: min, idealWidth: ideal, maxWidth: max)
         }
+    }
+}
+
+// MARK: - Layout and interaction
+
+/// `Grid` (macOS 13) for a few rows of facts: on every system a column of rows, each an HStack; a cell given
+/// `compatGridColumnAlignment` gets a minimum width so the rows' second cells line up.
+struct CompatGrid<Content: View>: View {
+    private let alignment: Alignment
+    private let verticalSpacing: CGFloat?
+    private let content: Content
+
+    init(
+        alignment: Alignment = .center,
+        horizontalSpacing: CGFloat? = nil,
+        verticalSpacing: CGFloat? = nil,
+        @ViewBuilder content: () -> Content
+    ) {
+        self.alignment = alignment
+        self.verticalSpacing = verticalSpacing
+        self.content = content()
+    }
+
+    var body: some View {
+        VStack(alignment: alignment.horizontal, spacing: verticalSpacing) { content }
+    }
+}
+
+struct CompatGridRow<Content: View>: View {
+    private let content: Content
+
+    init(@ViewBuilder content: () -> Content) {
+        self.content = content()
+    }
+
+    var body: some View {
+        HStack(alignment: .firstTextBaseline, spacing: 8) { content }
+    }
+}
+
+extension View {
+    func compatGridColumnAlignment(_ alignment: HorizontalAlignment) -> some View {
+        frame(minWidth: 64, alignment: Alignment(horizontal: alignment, vertical: .center))
+    }
+
+    /// `.background(_:in:)` with a color (`.compatQuaternary` for `.quaternary`).
+    @ViewBuilder func compatBackground<S: Shape>(_ color: Color, in shape: S) -> some View {
+        if #available(macOS 12, *) { background(color, in: shape) } else { background(shape.fill(color)) }
+    }
+
+    @ViewBuilder func compatSelectionDisabled(_ disabled: Bool = true) -> some View {
+        if #available(macOS 14, *) { selectionDisabled(disabled) } else { self }
+    }
+
+    /// `.contextMenu(forSelectionType:menu:primaryAction:)` (macOS 13): on macOS 11 neither the menu nor the primary
+    /// action (double-click or Return); the view's own buttons stay.
+    @ViewBuilder func compatContextMenu<I: Hashable, M: View>(
+        forSelectionType itemType: I.Type = I.self,
+        @ViewBuilder menu: @escaping (Set<I>) -> M,
+        primaryAction: ((Set<I>) -> Void)? = nil
+    ) -> some View {
+        if #available(macOS 13, *) {
+            contextMenu(forSelectionType: itemType, menu: menu, primaryAction: primaryAction)
+        } else {
+            self
+        }
+    }
+}
+
+    /// `.badge(_:)` with a count (macOS 12), on a list row: on macOS 11 the count at the row's trailing edge, none
+    /// when it is 0.
+    @ViewBuilder func compatBadge(_ count: Int) -> some View {
+        if #available(macOS 12, *) {
+            badge(count)
+        } else {
+            HStack {
+                self
+                Spacer(minLength: 4)
+                if count != 0 { Text("\(count)").foregroundColor(.secondary) }
+            }
+        }
+    }
+
+    /// `.onDrag(_:preview:)` (macOS 12): on macOS 11 the drag shows the system's picture of the view.
+    @ViewBuilder func compatOnDrag<Preview: View>(
+        _ data: @escaping () -> NSItemProvider,
+        @ViewBuilder preview: () -> Preview
+    ) -> some View {
+        if #available(macOS 12, *) { onDrag(data, preview: preview) } else { onDrag(data) }
+    }
+
+    /// `.buttonBorderShape(.circle)` (macOS 14); macOS 11's bordered buttons keep their rounded rectangle.
+    @ViewBuilder func compatCircleButtonBorder() -> some View {
+        if #available(macOS 14, *) { buttonBorderShape(.circle) } else { self }
+    }
+
+    /// `.background(.regularMaterial, in:)` (macOS 12): on macOS 11 an NSVisualEffectView in the shape, blending
+    /// with the window's content behind it.
+    @ViewBuilder func compatRegularMaterialBackground<S: Shape>(in shape: S) -> some View {
+        if #available(macOS 12, *) {
+            background(.regularMaterial, in: shape)
+        } else {
+            background(CompatVisualEffect().clipShape(shape))
+        }
+    }
+}
+
+/// `AnyShape` (macOS 13).
+nonisolated struct CompatAnyShape: Shape {
+    private let makePath: @Sendable (CGRect) -> Path
+
+    init<S: Shape & Sendable>(_ shape: S) {
+        makePath = { shape.path(in: $0) }
+    }
+
+    func path(in rect: CGRect) -> Path { makePath(rect) }
+}
+
+private struct CompatVisualEffect: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        view.material = .popover
+        view.blendingMode = .withinWindow
+        view.state = .followsWindowActiveState
+        return view
+    }
+
+    func updateNSView(_ view: NSVisualEffectView, context: Context) {}
+}
+
+// MARK: - Text fields
+
+/// `TextField(_:text:prompt:)` with `.onSubmit` (macOS 12), for macOS 11: `prompt` is the placeholder and `title`
+/// the accessibility label (as with macOS 12's labelsHidden fields, it doesn't show); `onSubmit` runs on Return or
+/// Enter only, where macOS 11's onCommit also runs when the field loses focus; `onEndEditing` runs when editing ends
+/// either way.
+struct CompatTextField: View {
+    private let title: String
+    @Binding private var text: String
+    private let prompt: String
+    private let onSubmit: () -> Void
+    private let onEndEditing: () -> Void
+
+    init(
+        _ title: String,
+        text: Binding<String>,
+        prompt: String,
+        onSubmit: @escaping () -> Void = {},
+        onEndEditing: @escaping () -> Void = {}
+    ) {
+        self.title = title
+        _text = text
+        self.prompt = prompt
+        self.onSubmit = onSubmit
+        self.onEndEditing = onEndEditing
+    }
+
+    var body: some View {
+        TextField(
+            prompt,
+            text: $text,
+            onEditingChanged: { editing in if !editing { onEndEditing() } },
+            onCommit: { if Self.returnPressed { onSubmit() } }
+        )
+        .accessibilityLabel(title)
+    }
+
+    /// Whether the event being handled is Return or Enter, the keys that submit a field.
+    static var returnPressed: Bool {
+        guard let event = NSApp.currentEvent, event.type == .keyDown else { return false }
+        return event.keyCode == 36 || event.keyCode == 76
     }
 }
