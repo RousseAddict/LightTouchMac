@@ -1,0 +1,1 @@
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift:136:35: error: 'region' is only available in macOS 13 or newer
