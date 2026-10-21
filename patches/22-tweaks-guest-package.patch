@@ -1,0 +1,48 @@
+Tweaks on the boards whose guest agent comes in a guest package (the iPhone 4 among them), not only the iPod touch
+2G. DeviceTweaks.guestTools is documented as "the board runs Light Touch's guest tools (the agent): no iPhone OS 1.x",
+and the panel's commit (dbc6fc98) checked it on an iPhone 3GS 6.1.6 and an iPhone 4 4.2.1, Developer Settings
+included. Both places that make it pass the board's own fact, though, which only the iPod touch 2G has (its image
+carries the agent from preparation). So on an iPhone 4 every tweak showed "Needs the guest tools" and stayed off,
+while its agent ran from the guest package ("SpringBoard answers through the guest agent"). They now also count a
+bundled guest package with the agent for the device's board and build, as DeviceFeatures.guestTools does. Upstream's
+main, 49 commits past v1.0-2026.10.21, still passes the board's fact only.
+
+diff --git a/LightTouchMac/Device/EmulatorController.swift b/LightTouchMac/Device/EmulatorController.swift
+index 3e23e22c..fcef4ff1 100644
+--- a/LightTouchMac/Device/EmulatorController.swift
++++ b/LightTouchMac/Device/EmulatorController.swift
+@@ -285,7 +285,14 @@ final class EmulatorController {
+     @CompatObservationIgnored private(set) lazy var tweaks = DeviceTweaks(
+         settings: settingsFile,
+         version: iosVersion,
+-        guestTools: hasGuestTools,
++        // Big Sur port: the agent from a guest package counts too (DeviceFeatures.guestTools), so the boards that take
++        // it at boot (the iPhone 4 among them) aren't left with every tweak "Needs the guest tools".
++        guestTools: hasGuestTools
++            || FirmwareCatalog.bundled.entry(id: instance.firmware).map { entry in
++                GuestPackage.packaged([entry]) {
++                    GuestPackage.bundledPack(arch: $0, filesRoot: Bundled.filesRoot, guestRoot: Bundled.guestRoot)
++                }.contains(entry.id)
++            } == true,
+         clockPinned: lock?.pinsClock == true,
+         cellular: profile.hasCellular
+     )
+diff --git a/LightTouchMac/UI/TweaksPanel.swift b/LightTouchMac/UI/TweaksPanel.swift
+index a01c6ff4..4c07fe0b 100644
+--- a/LightTouchMac/UI/TweaksPanel.swift
++++ b/LightTouchMac/UI/TweaksPanel.swift
+@@ -220,7 +220,13 @@ extension DeviceTweaks {
+         DeviceTweaks(
+             settings: DeviceSettingsFile(directory: instance.paths.directory),
+             version: FirmwareCatalog.bundled.entry(id: instance.firmware)?.version ?? "3.1.3",
+-            guestTools: instance.profile?.hasGuestTools ?? false,
++            // Big Sur port: the agent from a guest package counts too, as on a running device (EmulatorController).
++            guestTools: (instance.profile?.hasGuestTools ?? false)
++                || FirmwareCatalog.bundled.entry(id: instance.firmware).map { entry in
++                    GuestPackage.packaged([entry]) {
++                        GuestPackage.bundledPack(arch: $0, filesRoot: Bundled.filesRoot, guestRoot: Bundled.guestRoot)
++                    }.contains(entry.id)
++                } == true,
+             clockPinned: (try? DeviceLock.read(base: instance.paths.base))??.pinsClock == true,
+             cellular: instance.profile?.hasCellular ?? true
+         )
