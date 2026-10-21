@@ -66,7 +66,8 @@ jobs:
         run: |
           sudo xcode-select -s /Applications/Xcode_26.6.app
           xcodebuild -version
-          brew install meson ninja pkgconf autoconf automake libtool
+          # nasm: FFmpeg's x86_64 slice (its configure stops without it, and the native script goes on without FFmpeg)
+          brew install meson ninja pkgconf autoconf automake libtool nasm
 
       - name: Apply the port
         run: |
