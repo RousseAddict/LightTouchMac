@@ -227,7 +227,7 @@ jobs:
           tag, commit, port, xcode = sys.argv[1:5]
           json.dump({"upstream_tag": tag, "upstream_commit": commit, "port_commit": port, "xcode": xcode},
                     open(sys.argv[5], "w"), indent=1)
-          ' "$TAG" "$(git -C src rev-parse HEAD)" "$(git -C port rev-parse HEAD)" \
+          ' "$TAG" "$(git -C src rev-parse "$TAG^{commit}")" "$(git -C port rev-parse HEAD)" \
             "$(xcodebuild -version | tr '\n' ' ')" "$stage/bigsur-build.json"
           cat "$stage/bigsur-build.json"
 
