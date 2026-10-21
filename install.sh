@@ -37,6 +37,10 @@ while [ $# -gt 0 ]; do
 done
 [ -n "$BUILD" ] || { echo "usage: install.sh BUILD [--to DIRECTORY] [--replace] [--official ZIP]" >&2; exit 2; }
 [ -d "$DEST" ] || { echo "install: no directory $DEST" >&2; exit 1; }
+if [ "$REPLACE" = 1 ] && pgrep -f "$DEST/Light Touch.app/Contents/MacOS/" > /dev/null; then
+    echo "install: $DEST/Light Touch.app is running; quit it (its devices stop with it), then run install.sh again" >&2
+    exit 1
+fi
 WORK=$(mktemp -d)
 trap 'rm -rf "$WORK"' EXIT
 
@@ -103,6 +107,11 @@ xattr -dr com.apple.quarantine "$APP" 2>/dev/null || true
 TARGET="$DEST/Light Touch.app"
 if [ -e "$TARGET" ]; then
     [ "$REPLACE" = 1 ] || { echo "install: $TARGET exists; --replace moves it to the Trash first" >&2; exit 1; }
+    # Not while it runs: its devices' helpers run from inside it.
+    if pgrep -f "$TARGET/Contents/MacOS/" > /dev/null; then
+        echo "install: $TARGET is running; quit it (its devices stop with it), then run install.sh again" >&2
+        exit 1
+    fi
     mv "$TARGET" "$HOME/.Trash/Light Touch $(date +%Y-%m-%d-%H%M%S).app"
     echo "install: the old $TARGET is in the Trash"
 fi
