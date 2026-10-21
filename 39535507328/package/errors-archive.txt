@@ -1,0 +1,2 @@
+error: Build input file cannot be found: '/Users/runner/work/_temp/dd/Build/Intermediates.noindex/ArchiveIntermediates/LightTouchMac/IntermediateBuildFilesPath/UninstalledProducts/macosx/ObservationCompatMacros'. Did you forget to declare this file as an output of a script phase or custom build rule which produces it? (in target 'ObservationCompat' from project 'ObservationCompat')
+error: The file “ObservationCompat.swiftmodule” couldn’t be opened because there is no such file. (in target 'ObservationCompat' from project 'ObservationCompat')
