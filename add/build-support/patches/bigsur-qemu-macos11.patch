@@ -3,7 +3,7 @@ build-support/patches/bigsur-qemu-*.patch to the pinned tree when it makes it; t
 - block/file-posix.c: IOMainPort (macOS 12) is IOMasterPort, the same call under its macOS 11 name. It made the only
   weak import, which the vendor build's Mach-O check rejects (only the host optical-drive path calls it).
 - ui/cocoa.m: NSScreen.safeAreaInsets is macOS 12; before it, no insets (QEMU's own Cocoa window, which Light Touch
-  doesn't show).
+  doesn't show). respondsToSelector:, not @available, which brings the runtime's version check and its weak imports.
 - contrib/macos-app/make-dylib-macos.sh: the app-facing files build for macOS 11.0, not 12.0, like the rest.
 
 --- a/block/file-posix.c
@@ -34,15 +34,20 @@ build-support/patches/bigsur-qemu-*.patch to the pinned tree when it makes it; t
  # Take ninja's own link line so this cannot drift from the real build.
 --- a/ui/cocoa.m
 +++ b/ui/cocoa.m
-@@ -616,7 +616,11 @@
+@@ -616,7 +616,16 @@
  - (NSSize) screenSafeAreaSize
  {
      NSSize size = [[[self window] screen] frame].size;
 -    NSEdgeInsets insets = [[[self window] screen] safeAreaInsets];
 +    NSEdgeInsets insets = NSEdgeInsetsZero;
-+    /* Big Sur port: NSScreen.safeAreaInsets is macOS 12; macOS 11's screens have no notch to leave out. */
-+    if (@available(macOS 12.0, *)) {
-+        insets = [[[self window] screen] safeAreaInsets];
++    NSScreen *safeAreaScreen = [[self window] screen];
++    /* Big Sur port: NSScreen.safeAreaInsets is macOS 12; macOS 11's screens have no notch to leave out. Asked with
++       respondsToSelector:, since @available links the runtime's version check, which imports libSystem weakly. */
++    if ([safeAreaScreen respondsToSelector:@selector(safeAreaInsets)]) {
++#pragma clang diagnostic push
++#pragma clang diagnostic ignored "-Wunguarded-availability-new"
++        insets = [safeAreaScreen safeAreaInsets];
++#pragma clang diagnostic pop
 +    }
      size.width -= insets.left + insets.right;
      size.height -= insets.top + insets.bottom;

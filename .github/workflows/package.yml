@@ -145,6 +145,11 @@ jobs:
           for log in "$LTM_VENDOR_ROOT"/*/work/logs/*.log; do
             [ -e "$log" ] && cp "$log" "$OUT/vendor-$(basename "$log")"
           done
+          # The weak imports of what it built: the Mach-O check names only their libraries.
+          for file in "$LTM_VENDOR_ROOT"/*/work/native/*/qemu-build/libqemu-arm.dylib \
+                      "$LTM_VENDOR_ROOT"/*/work/native/*/prefix/lib/*.dylib; do
+            [ -e "$file" ] && nm -m "$file" | grep 'weak external' | sed "s#^ *#${file#$LTM_VENDOR_ROOT/}: #"
+          done > "$OUT/summary-weak-imports.md" 2>/dev/null || true
           touch "$OUT/probe.txt"
           bash port/spike/save-results.sh
 
