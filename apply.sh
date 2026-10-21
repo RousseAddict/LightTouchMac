@@ -60,10 +60,15 @@ commit -m "Big Sur port: add, forks and codemod (bigsur/apply.sh)"
 
 echo "== 4. patches"
 failed=""
+threeway=""
 for patch in "$PORT"/patches/*.patch; do
     [ -e "$patch" ] || continue
-    if git -C "$SRC" apply --3way --whitespace=nowarn "$patch" 2> /tmp/bigsur-apply.$$; then
+    if git -C "$SRC" apply --whitespace=nowarn "$patch" 2> /tmp/bigsur-apply.$$; then
         echo "  $(basename "$patch")"
+    elif git -C "$SRC" apply --3way --whitespace=nowarn "$patch" 2> /tmp/bigsur-apply.$$; then
+        # It needed upstream's earlier blob: a shallow checkout (the vendor and plan jobs') has none, and fails.
+        echo "  $(basename "$patch")  3-WAY: regenerate it against this release, or a shallow checkout fails it"
+        threeway="$threeway $(basename "$patch")"
     else
         echo "  $(basename "$patch")  FAILED"
         sed 's/^/      /' /tmp/bigsur-apply.$$
@@ -79,4 +84,5 @@ if ! git -C "$SRC" diff --cached --quiet; then
 fi
 
 [ "$drift" -eq 0 ] || echo "Forks with upstream drift: $drift (see above; the forks may need updating)"
+[ -z "$threeway" ] || echo "Patches that needed a 3-way merge:$threeway (regenerate them against this release)"
 echo "Done: $SRC is the Big Sur tree on $branch."
