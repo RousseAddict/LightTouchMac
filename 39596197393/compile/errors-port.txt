@@ -1,0 +1,37 @@
+            switch object.statusOfValue(forKey: key, error: &error) {
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/WebProxy.swift:115:25: error: 'ProxyConfiguration' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/WebProxy.swift:117:27: error: 'proxyConfigurations' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/main.swift:2:8: error: unable to resolve module dependency: 'LightTouchCore'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/main.swift:2:8: error: Unable to resolve module dependency: 'LightTouchCore'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DisplayView.swift:186:2: error: source control conflict marker in source file
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DisplayView.swift:186:2: error: Source control conflict marker in source file
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DisplayView.swift:373:2: error: source control conflict marker in source file
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/DisplayView.swift:373:2: error: Source control conflict marker in source file
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift:257:2: error: source control conflict marker in source file
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift:257:2: error: Source control conflict marker in source file
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift:647:2: error: source control conflict marker in source file
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift:647:2: error: Source control conflict marker in source file
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKitCLI/main.swift:17:8: error: unable to resolve module dependency: 'FirmwareKit'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKitCLI/main.swift:17:8: error: Unable to resolve module dependency: 'FirmwareKit'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift:136:35: error: 'region' is only available in macOS 13 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Features/ClipboardSync.swift:72:22: error: 'now' is only available in macOS 12 or newer
+error: no complete vendor directory for the current pins (VENDOR_DIR /Users/runner/work/_temp/vendor-stub is not 436db51bc410; drop the override or point it there): run scripts/vendor (about 15 minutes)
+error: The file “firmwarekit” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “FirmwareKit.abi.json” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftdoc” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftmodule” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKitCLI.abi.json” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftdoc” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftmodule” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “Light_Touch.abi.json” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftdoc” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftmodule” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “LightTouchCore.abi.json” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftdoc” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftmodule” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchDevice” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+Internal Error: DecodingError.dataCorrupted: Data was corrupted. Debug description: Corrupted JSON. Underlying error: unexpected end of file
