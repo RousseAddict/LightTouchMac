@@ -1,0 +1,100 @@
+
+== host
+ProductName:		macOS
+ProductVersion:		26.6.2
+BuildVersion:		25G83
+arm64
+3
+7516192768
+/dev/disk2s1s1   320Gi    12Gi    96Gi    11%    459k  1.0G    0%   /
+
+== xcode
+/Applications/Xcode_26.6.app/Contents/Developer
+Xcode 26.6
+Build version 17F113
+TOOLCHAINS=default
+/Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc
+swift-driver version: 1.148.6 Apple Swift version 6.3.3 (swiftlang-6.3.3.1.3 clang-2100.1.1.101)
+Target: arm64-apple-macosx26.0
+SDK: /Applications/Xcode_26.6.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.5.sdk
+
+== SDK deployment targets
+10.13
+["10.13","10.14","10.15","11.0","11.1","11.2","11.3","11.4","11.5","12.0","12.2","12.3","12.4","13.0","13.1","13.2","13.3","13.4","13.5","14.0","14.1","14.2","14.3","14.4","14.5","14.6","15.0","15.1","15.2","15.3","15.4","15.5","15.6","26.0","26.1","26.2","26.3","26.4","26.5"]
+== back-deployed Swift concurrency
+toolchain: /Applications/Xcode_26.6.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain
+swift
+swift_static
+swift-5.0
+swift-5.5
+swift-6.2
+SwiftSourceKitClientPlugin.framework
+SwiftSourceKitPlugin.framework
+total 656
+drwxr-xr-x  3 runner  staff       96 Oct 13 04:59 .
+drwxr-xr-x  9 runner  staff      288 Oct 13 04:58 ..
+-rwxr-xr-x  1 runner  staff  1124496 Oct 13 04:59 libswift_Concurrency.dylib
+
+== async hello at x86_64-apple-macos11.0
+/var/folders/n6/hn37q6pj7sj_9dmqqc2113800000gn/T/tmp.qADdHQjqZE/hello:
+	/usr/lib/libSystem.B.dylib (compatibility version 1.0.0, current version 1356.0.0)
+	/usr/lib/libc++.1.dylib (compatibility version 1.0.0, current version 2100.43.0)
+	/usr/lib/swift/libswiftCore.dylib (compatibility version 0.0.0, current version 0.0.0)
+	@rpath/libswift_Concurrency.dylib (compatibility version 0.0.0, current version 0.0.0, weak)
+    minos 11.0
+      sdk 26.5
+         path /usr/lib/swift (offset 12)
+
+== availability in this SDK
+-- NSLocking.withLock (every Foundation interface in the SDK)
+System/Library/Frameworks/Foundation.framework/Versions/C/Modules/Foundation.swiftmodule/arm64e-apple-macos.swiftinterface: 20685-@available(macOS 10.10, iOS 8.0, watchOS 2.0, tvOS 9.0, *)
+System/Library/Frameworks/Foundation.framework/Versions/C/Modules/Foundation.swiftmodule/arm64e-apple-macos.swiftinterface: 20686-extension Foundation.NSLocking {
+System/Library/Frameworks/Foundation.framework/Versions/C/Modules/Foundation.swiftmodule/arm64e-apple-macos.swiftinterface: 20687:  @_alwaysEmitIntoClient @_disfavoredOverload public func withLock<R>(_ body: () throws -> R) rethrows -> R {
+-- NSSplitViewItem inspectorWithViewController
+88:+ (instancetype)inspectorWithViewController:(NSViewController *)viewController API_AVAILABLE(macos(11.0));
+-- NSView displayLinkWithTarget
+616:- (CADisplayLink *)displayLinkWithTarget:(id)target selector:(SEL)selector NS_SWIFT_NAME(displayLink(target:selector:));
+-- CGWindowListCreateImage
+271:CG_EXTERN CGImageRef __nullable CGWindowListCreateImage(CGRect screenBounds,
+272-    CGWindowListOption listOption, CGWindowID windowID,
+273-    CGWindowImageOption imageOption)
+274-    SCREEN_CAPTURE_OBSOLETE(10.5,14.0,15.0);
+-- CVDisplayLinkCreateWithActiveCGDisplays
+94:    @function   CVDisplayLinkCreateWithActiveCGDisplays
+95-    @abstract   Convenience function to create a CVDisplayLink capable of being used with all active CGDisplays
+96-    @param      displayLinkOut The newly created CVDisplayLink
+--
+
+== project format
+	objectVersion = 77;
+				LastUpgradeCheck = 2700;
+Command line invocation:
+    /Applications/Xcode_26.6.app/Contents/Developer/usr/bin/xcodebuild -list -workspace src/LightTouchMac.xcworkspace
+
+Resolve Package Graph
+
+Fetching from https://github.com/p-x9/swift-binary-parse-support.git
+
+Fetching from https://github.com/p-x9/swift-fileio.git
+
+Fetching from https://github.com/p-x9/MachOKit.git
+
+Fetching from https://github.com/mtgto/Unrar.swift.git
+
+Fetching from https://github.com/p-x9/ObjectArchiveKit.git
+
+Fetching from https://github.com/apple/swift-crypto.git
+
+Fetching from https://github.com/apple/swift-argument-parser.git
+
+Fetching from https://github.com/apple/swift-system
+
+Fetching from https://github.com/weichsel/ZIPFoundation.git
+
+Fetching from https://github.com/p-x9/swift-fileio-extra.git
+
+Fetching from https://github.com/apple/swift-asn1.git
+
+Fetching from https://github.com/swiftlang/swift-syntax.git
+
+Creating working copy of package ‘Unrar.swift’
