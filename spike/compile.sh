@@ -15,8 +15,13 @@ OUT=${OUT:-spike-out}
 TMP=${RUNNER_TEMP:-/tmp}
 mkdir -p "$OUT"
 
-STUB="$TMP/vendor-stub"
+# From v1.0-2026.10.21 the build's first phase (scripts/vendor-check) wants VENDOR_DIR named by the vendor pin key and
+# holding a vendor.json.
+KEY=stub
+[ ! -f "$SRC/scripts/vendor-check" ] || KEY=$(bash "$SRC/scripts/vendor-check" --key)
+STUB="$TMP/vendor-stub/$KEY"
 mkdir -p "$STUB/Resources/Guest" "$STUB/Frameworks" "$STUB/include"
+touch "$STUB/vendor.json"
 printf 'VENDOR_DIR = %s\n' "$STUB" > "$SRC/Configuration/Local.xcconfig"
 
 build() {

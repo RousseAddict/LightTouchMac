@@ -71,11 +71,12 @@ for patch in "$PORT"/patches/*.patch; do
     fi
 done
 rm -f /tmp/bigsur-apply.$$
+# A patch that failed may leave conflict markers: the tree stays uncommitted, to be looked at, not built.
+[ -z "$failed" ] || die "patches that didn't apply:$failed (the tree is left uncommitted, conflicts and all)"
 git -C "$SRC" add -A
 if ! git -C "$SRC" diff --cached --quiet; then
     commit -m "Big Sur port: hand patches (bigsur/apply.sh)"
 fi
 
 [ "$drift" -eq 0 ] || echo "Forks with upstream drift: $drift (see above; the forks may need updating)"
-[ -z "$failed" ] || die "patches that didn't apply:$failed"
 echo "Done: $SRC is the Big Sur tree on $branch."
