@@ -1,0 +1,2 @@
+            switch object.statusOfValue(forKey: key, error: &error) {
+error: The file “build-inputs.json” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
