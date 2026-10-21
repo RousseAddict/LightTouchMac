@@ -68,6 +68,9 @@ Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
      app to the Trash first.
 3. **Check by hand.** `check/bundle.sh APP [SYMBOLS]` re-checks an installed app against this Mac at any time.
 
+To reach a running device from scripts (a host and port for it, its logs, installing an app), see
+[docs/programmatic-access.md](docs/programmatic-access.md) and `tools/lt-device.py`.
+
 ## Applying the port
 
 `apply.sh UPSTREAM_CHECKOUT` turns a fresh upstream checkout into the Big Sur tree, on a new
