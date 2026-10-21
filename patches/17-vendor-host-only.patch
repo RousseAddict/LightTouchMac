@@ -1,0 +1,50 @@
+scripts/vendor with LTM_VENDOR_HOST_ONLY=1 builds only the host binaries: the native dependencies, usbmuxd, QEMU's
+dylib, iBoot32Patcher and ipod-helper into Frameworks/ and MacOS/ (with include/ and dSYMs/), checked against
+macOS 11 by codemod.py's native rules, and leaves Resources/Guest, Device, licenses and usbmuxd-conf empty. The
+Big Sur build takes its resources from the official release (install.sh), so it needs neither the SecureROMs, the
+armv6 SDK, the guest tools, the developer tools nor the built-in iPod's IPSW. The stamp records host-only, so a
+full run afterwards builds the rest.
+
+diff --git a/Packages/BuildTools/Sources/BuildTools/Vendor.swift b/Packages/BuildTools/Sources/BuildTools/Vendor.swift
+index 2c321d82..d3470996 100644
+--- a/Packages/BuildTools/Sources/BuildTools/Vendor.swift
++++ b/Packages/BuildTools/Sources/BuildTools/Vendor.swift
+@@ -28,6 +28,10 @@ public struct Vendor {
+         SecureROMs, default ~/Developer/qemu-ios-files), the n72ap-7E18 IPSW in the app's IPSW cache (or
+         LTM_BUILT_IN_IPSW), network for the pinned source archives. LTM_VENDOR_ROOT moves the cache (default
+         ~/Developer/ltm-vendor.noindex, which Spotlight leaves alone).
++
++        LTM_VENDOR_HOST_ONLY=1 builds Frameworks/, MacOS/, include/ and dSYMs/ only, with Resources/Guest, Device,
++        licenses and usbmuxd-conf left empty: for a build whose resources come from an official release. It needs
++        neither the SecureROMs, the armv6 SDK nor the IPSW.
+         """
+ 
+     let root: URL
+@@ -674,11 +678,26 @@ public struct Vendor {
+         defer { close(lock) }
+         let vendor = try directory()
+         let work = vendor.appendingPathComponent("work")
+-        let stamp = ["recipe": try treeHash(Self.tools), "device": try treeHash(Self.deviceSources)]
++        let hostOnly = environment["LTM_VENDOR_HOST_ONLY"] == "1"
++        var stamp = ["recipe": try treeHash(Self.tools), "device": try treeHash(Self.deviceSources)]
++        if hostOnly { stamp["host-only"] = "1" }
+         let done = vendor.appendingPathComponent("vendor.json")
+         let previous = ((try? readJSON(done)) ?? [:]).compactMapValues { $0 as? String }
+         try writeXCConfig(vendor)
+         if previous == stamp { return vendor }
++        if hostOnly {
++            try files.createDirectory(at: work, withIntermediateDirectories: true)
++            let qemu = try qemuTree(work)
++            try binaries(vendor, universal: try native(work, qemu: qemu), qemu: qemu, work: work)
++            for name in ["Guest", "Device", "licenses", "usbmuxd-conf"] {
++                let directory = vendor.appendingPathComponent("Resources/\(name)")
++                remove(directory)
++                try files.createDirectory(at: directory, withIntermediateDirectories: true)
++            }
++            remove(vendor.appendingPathComponent("Resources/build-inputs.json"))
++            try writeJSON(stamp, to: done)
++            return vendor
++        }
+         for name in Self.bootROMs where !files.fileExists(atPath: assets.appendingPathComponent(name).path) {
+             throw ToolError("vendor: no SecureROM \(assets.appendingPathComponent(name).path) (LTM_ASSETS)")
+         }

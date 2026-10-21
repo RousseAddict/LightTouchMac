@@ -1,9 +1,10 @@
-# Prints "binary\tlibpath\tsymbol\tweak" for every undefined symbol of each x86_64 Mach-O listed.
+# Prints "binary\tlibpath\tsymbol\tweak" for every undefined symbol of each x86_64 Mach-O listed (paths relative
+# to the bundle, one per line, as machos.py prints them).
 import re, subprocess, sys, os
 
 app, listing = sys.argv[1], sys.argv[2]
 for line in open(listing):
-    rel = line.split()[2]
+    rel = line.rstrip("\n")
     path = os.path.join(app, rel)
     libs = {}
     for l in subprocess.run(["otool", "-arch", "x86_64", "-L", path], capture_output=True, text=True).stdout.splitlines()[1:]:

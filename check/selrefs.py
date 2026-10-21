@@ -31,6 +31,8 @@ for _ in range(ncmds):
             addr, sz, off = struct.unpack("<QQI", data[q + 32: q + 52])
             sections[sect] = (addr, sz, off)
     p += size
+if "__objc_selrefs" not in sections:
+    raise SystemExit(0)  # sends no Objective-C messages
 ref_addr, ref_size, ref_off = sections["__objc_selrefs"]
 mn_addr, mn_size, mn_off = sections["__objc_methname"]
 for i in range(ref_size // 8):

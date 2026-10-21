@@ -116,6 +116,19 @@ RULES = [
     Rule("project: objectVersion 77", [PROJECT], r"objectVersion = 1\d\d;", "objectVersion = 77;"),
     local_package("swift-subprocess", "swift-subprocess", "Packages/BigSur/swift-subprocess"),
     local_package("Sparkle", "sparkle-project/Sparkle", "Packages/BigSur/Sparkle"),
+    # The native build (scripts/vendor): every host binary built for macOS 11, and checked against it (minos, no weak
+    # imports), as the release build holds them to 14.
+    Rule("native: compiler and linker minimums",
+         ["scripts/build-package-native.sh", "scripts/build-static-deps.sh", "scripts/build-iboot32patcher.sh"],
+         r"(-mmacosx-version-min=|MACOSX_DEPLOYMENT_TARGET=)14\.0\b", r"\g<1>11.0"),
+    Rule("native: iBoot32Patcher's Mach-O check", ["scripts/build-iboot32patcher.sh"], r"--minos 14\.0\b", "--minos 11.0"),
+    Rule("native: the vendor build's Mach-O check", ["Packages/BuildTools/Sources/BuildTools/Vendor.swift"],
+         r'\bminos = "14\.4"', 'minos = "11.0"'),
+    Rule("native: check-macho's default", ["Packages/BuildTools/Sources/ltm-build/main.swift"],
+         r'@Option var minos = "14\.0"', '@Option var minos = "11.0"'),
+    Rule("native: the recorded deployment target",
+         ["Packages/BuildTools/Sources/BuildTools/Records.swift", "build-support/dependencies.json"],
+         r'(\["deployment_target"\] = |"macos_deployment_target": )"14\.0"', r'\g<1>"11.0"'),
     # SwiftUI 3-5 (macOS 12-14), in the app's views: LightTouchMac/BigSur/SwiftUICompat.swift.
     Rule("swiftui: @Bindable", SWIFTUI, r"@Bindable\b", "@CompatBindable"),
     Rule("swiftui: .textSelection(.enabled)", SWIFTUI, r"\.textSelection\(\.enabled\)", ".compatTextSelectionEnabled()"),
