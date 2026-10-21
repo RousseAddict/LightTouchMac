@@ -1,6 +1,7 @@
 Locale.Language, Locale.region and Locale.identifier(.icu, from:) are macOS 13. ClockRegion, FinishedSetup and
-Keyboards (the prepared device's language, region and keyboards) use BigSurCompat's stand-ins: the language code,
-the region honoring an @rg= override as Locale.region does, ICU's identifier conversion and likely subtags.
+Keyboards (the prepared device's language, region and keyboards), and PreparedDeviceBoot's Wi-Fi country (the
+Mac's region, from v1.0-2026.10.21), use BigSurCompat's stand-ins: the language code, the region honoring an @rg=
+override as Locale.region does, ICU's identifier conversion and likely subtags.
 compat-checks compares them with macOS 13's API on CI.
 
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift
@@ -115,3 +116,21 @@ index 578bb6ca..27e080a8 100644
          let format = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: locale) ?? ""
          uses24HourClock = format.contains("H") || format.contains("k")
      }
+diff --git a/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift b/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
+index 2b81c991..4680e5c9 100644
+--- a/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
++++ b/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
+@@ -1,3 +1,4 @@
++import BigSurCompat
+ import Darwin
+ import Foundation
+ 
+@@ -133,7 +134,7 @@ public struct PreparedDeviceBoot {
+     /// Welcome animation; with no country it lists every language and no Welcome. Nil (the emulator's US) for a
+     /// region that is not a country ("001").
+     static func wifiCountry(_ locale: Locale = .current) -> String? {
+-        guard let region = locale.region?.identifier, region.count == 2, region.allSatisfy(\.isLetter) else {
++        guard let region = locale.compatRegionIdentifier, region.count == 2, region.allSatisfy(\.isLetter) else {
+             return nil
+         }
+         return region

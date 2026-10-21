@@ -1,0 +1,29 @@
+Date.now is macOS 12. v1.0-2026.10.21 writes it .now where a Date is expected, which codemod.py's rule can't tell
+from a clock's .now: the clipboard's last interaction and ClipboardSync's default time are Date().
+
+diff --git a/LightTouchMac/Features/ClipboardSharing.swift b/LightTouchMac/Features/ClipboardSharing.swift
+index bb6020d9..1057727e 100644
+--- a/LightTouchMac/Features/ClipboardSharing.swift
++++ b/LightTouchMac/Features/ClipboardSharing.swift
+@@ -65,7 +65,7 @@ import LightTouchCore
+     }
+ 
+     /// A touch or key from the user on `emulator`'s screen.
+-    func userInteracted(with emulator: EmulatorController) { interactions[ObjectIdentifier(emulator)] = .now }
++    func userInteracted(with emulator: EmulatorController) { interactions[ObjectIdentifier(emulator)] = Date() }
+ 
+     /// A copy on `emulator`'s device: onto the Mac's pasteboard when the user was at it, and the other devices' when
+     /// their windows come to the front.
+diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Features/ClipboardSync.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Features/ClipboardSync.swift
+index 0a8512ef..182d8264 100644
+--- a/Packages/LightTouchCore/Sources/LightTouchCore/Features/ClipboardSync.swift
++++ b/Packages/LightTouchCore/Sources/LightTouchCore/Features/ClipboardSync.swift
+@@ -69,7 +69,7 @@ public struct ClipboardSync: Sendable, Equatable {
+         _ text: String,
+         focused: Bool,
+         lastInteraction: Date?,
+-        now: Date = .now
++        now: Date = Date()
+     ) -> GuestCopy {
+         guard Self.fits(text), text != shared else { return .ignored }
+         guard focused, let lastInteraction, now.timeIntervalSince(lastInteraction) <= Self.interactionWindow,
