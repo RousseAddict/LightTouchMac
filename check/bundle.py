@@ -38,10 +38,12 @@ build_version = re.compile(r"cmd LC_BUILD_VERSION\n\s*cmdsize \d+\n\s*platform (
 version_min = re.compile(r"cmd LC_VERSION_MIN_MACOSX\n\s*cmdsize \d+\n\s*version (\S+)")
 for rel in machos:
     load = run(["otool", "-arch", "x86_64", "-l", os.path.join(app, rel)])
-    found = build_version.search(load)
-    minos = found.group(2) if found else (version_min.search(load) or [None, None])[1]
-    if found and found.group(1) != "1":
-        problems.append(f"{rel}: built for platform {found.group(1)}, not macOS")
+    # A zippered library (the back-deployed Swift concurrency one) has a record per platform: macOS's is platform 1.
+    platforms = dict(build_version.findall(load))
+    old = version_min.search(load)
+    minos = platforms.get("1") or (old.group(1) if old else None)
+    if platforms and "1" not in platforms:
+        problems.append(f"{rel}: built for platform {', '.join(platforms)}, not macOS")
     elif minos and version(minos) > version(os_version):
         problems.append(f"{rel}: minos {minos}")
 
