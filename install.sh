@@ -61,7 +61,10 @@ else
     BUILT="$WORK/build"
 fi
 APP="$BUILT/Light Touch.app"
-[ -d "$APP" ] || { echo "install: $BUILD holds no Light Touch.app" >&2; exit 1; }
+[ -d "$APP" ] || {
+    echo "install: $BUILD holds no Light Touch.app (moved out of it? pass the artifact's zip instead)" >&2
+    exit 1
+}
 TAG=$(python3 -I -c 'import json, sys; print(json.load(open(sys.argv[1]))["upstream_tag"])' "$BUILT/bigsur-build.json")
 echo "install: a Big Sur build of Light Touch $TAG"
 
