@@ -75,7 +75,9 @@ jobs:
         run: |
           # On failure its last lines become annotations, which the API shows without a signed-in account.
           if ! bash port/apply.sh src > apply.txt 2>&1; then
-            tail -n 12 apply.txt | while IFS= read -r line; do echo "::error title=apply.sh::$line"; done
+            # One annotation (a step shows at most 10), its lines joined by an encoded newline.
+            message=$(tail -n 15 apply.txt | sed 's/%/%25/g' | awk '{printf "%s%%0A", $0}')
+            echo "::error title=apply.sh::$message"
             exit 1
           fi
           tail -n 3 apply.txt
