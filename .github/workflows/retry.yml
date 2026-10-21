@@ -1,0 +1,39 @@
+# GitHub cancels a macos-26 job it found no runner for in about 15 minutes, before it runs a step. When a Port or
+# Package run ends with every unsuccessful job cancelled that way, this re-runs those jobs, up to a third attempt.
+# A job that got a runner and failed, or was cancelled while running, leaves the run alone.
+name: Retry
+
+on:
+  workflow_run:
+    workflows: [Port, Package]
+    types: [completed]
+
+permissions:
+  actions: write
+
+jobs:
+  retry:
+    if: >-
+      github.event.workflow_run.run_attempt < 3
+      && (github.event.workflow_run.conclusion == 'failure' || github.event.workflow_run.conclusion == 'cancelled')
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RUN: ${{ github.event.workflow_run.id }}
+      ATTEMPT: ${{ github.event.workflow_run.run_attempt }}
+      NAME: ${{ github.event.workflow_run.name }}
+    steps:
+      - name: Re-run the jobs that never got a runner
+        run: |
+          jobs=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$RUN/attempts/$ATTEMPT/jobs" \
+            --jq '[.jobs[] | select(.conclusion != "success" and .conclusion != "skipped")]')
+          echo "$jobs" | jq -r '.[] | "\(.name): \(.conclusion), runner \(.runner_name // "none")"'
+          unplaced=$(echo "$jobs" | jq '[.[] | select(.conclusion == "cancelled" and (.runner_name // "") == "")] | length')
+          total=$(echo "$jobs" | jq 'length')
+          if [ "$total" -gt 0 ] && [ "$unplaced" -eq "$total" ]; then
+            echo "$NAME run $RUN attempt $ATTEMPT: $total jobs got no runner; running them again"
+            gh run rerun "$RUN" --failed --repo "$GITHUB_REPOSITORY"
+          else
+            echo "$NAME run $RUN attempt $ATTEMPT: not a runner shortage ($unplaced of $total unplaced); left alone"
+          fi

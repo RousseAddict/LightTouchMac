@@ -6,7 +6,8 @@
 # - package: xcodebuild archive against them, universal as upstream ships it, signed ad hoc; the artifact holds
 #   Light Touch.app, bigsur-build.json (the release it was built from) and bigsur-symbols.txt (the SF Symbols it
 #   names). Its Guest, Device and licenses are empty: install.sh copies them from the official release on the Mac.
-# Results go to the ci-results branch (spike/fetch-results.sh RUN_ID).
+# Results go to the ci-results branch (spike/fetch-results.sh RUN_ID). GitHub cancels a macos-26 job it finds no runner
+# for in about 15 minutes; retry.yml runs those again, up to a third attempt.
 name: Package
 
 on:
