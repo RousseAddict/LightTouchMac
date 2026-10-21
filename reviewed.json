@@ -1,0 +1,42 @@
+{
+ "comment": "Upstream releases and the pins they build from, reviewed for compromise before CI builds them (the organization's rule for open-source code). check/reviewed.py enforces it: the Port and Package workflows default to the newest release here and stop on a commit or pin that isn't listed. To add a release: review its changes since the last one and any pin it moves, then add its commit (tag) and pins (check/reviewed.py pins CHECKOUT prints them).",
+ "releases": [
+  {
+   "tag": "v1.0-2026.10.20c",
+   "commit": "1b67552471c260abf023029171d27db948ff458a",
+   "reviewed": "2026-10-21",
+   "scope": "Light Touch in full, qemu-ios d563917e01, usbmuxd 5cb9089, the native archives, the Swift packages and swift-syntax's prebuilt: all clean"
+  }
+ ],
+ "pins": {
+  "qemu-ios": [
+   "d563917e016c84c08f73a3c1230678560d262683"
+  ],
+  "usbmuxd": [
+   "5cb90897479b9021a69db9698fea071ef7b2eceb"
+  ],
+  "dependencies.json": [
+   "508b9cc4f712ebc536b1ae1c37390c98ac17f1c9f23ec25aa502e751f406067f"
+  ],
+  "developer-disk-images.json": [
+   "eacdec6192e1124a2c62e6cd05fc9426bcfa63c443bae1d47ed7c4e877805de8"
+  ],
+  "swiftpm": [
+   "machokit@ff82e37c37b17e3508e150f8a03adae8a6cc4a3e",
+   "objectarchivekit@96d782a576273b73b277b577943a2a25b00b919e",
+   "swift-argument-parser@6a52f3251125d74daf04fcbd5e6f08a75d074382",
+   "swift-asn1@3b6410f7dee09eb33cdd26260c5fd47fda19b0e2",
+   "swift-binary-parse-support@b4042df3819fde93ce952a111607ec8ffc4ee704",
+   "swift-crypto@95ba0316a9b733e92bb6b071255ff46263bbe7dc",
+   "swift-fileio-extra@8e7d47436bd3b2d73ddd4e0be0c689b3c8aa1b87",
+   "swift-fileio@13a83389fb4844f279b43012c4b8d7a3f95773bf",
+   "swift-system@869129b7bf4ecc57b97d0193ad29690ca2134750",
+   "unrar.swift@7216007a38ac122dbdeae26cfdaf7f10775c868f",
+   "zipfoundation@22787ffb59de99e5dc1fbfe80b19c97a904ad48d"
+  ]
+ },
+ "swiftpm_replaced": [
+  "sparkle",
+  "swift-subprocess"
+ ]
+}

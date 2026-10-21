@@ -83,8 +83,11 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           WANTED: ${{ inputs.tag }}
         run: |
+          # The newest release reviewed for compromise (reviewed.json); a newer one is only announced.
           tag="$WANTED"
-          [ -n "$tag" ] || tag=$(gh release view --repo samhenrigold/LightTouchMac --json tagName --jq .tagName)
+          [ -n "$tag" ] || tag=$(python3 -I port/check/reviewed.py newest port/reviewed.json)
+          newest=$(gh release view --repo samhenrigold/LightTouchMac --json tagName --jq .tagName)
+          [ "$newest" = "$tag" ] || echo "::notice::Upstream's newest release is $newest. This run builds $tag, the newest reviewed one: review $newest before CI builds it."
           echo "Upstream tag: $tag"
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
 
@@ -95,6 +98,9 @@ jobs:
           ref: ${{ steps.tag.outputs.tag }}
           fetch-depth: 0
           path: src
+
+      - name: Check that the release and its pins are reviewed
+        run: python3 -I port/check/reviewed.py check port/reviewed.json src
 
       - name: Select Xcode 26.6
         run: |
