@@ -72,7 +72,13 @@ jobs:
         run: python3 -I port/check/reviewed.py check port/reviewed.json src
 
       - name: Apply the port
-        run: bash port/apply.sh src
+        run: |
+          # On failure its last lines become annotations, which the API shows without a signed-in account.
+          if ! bash port/apply.sh src > apply.txt 2>&1; then
+            tail -n 12 apply.txt | while IFS= read -r line; do echo "::error title=apply.sh::$line"; done
+            exit 1
+          fi
+          tail -n 3 apply.txt
 
       - name: Pick the vendor job's Mac
         id: runner
