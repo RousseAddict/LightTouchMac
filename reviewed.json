@@ -6,11 +6,25 @@
    "commit": "1b67552471c260abf023029171d27db948ff458a",
    "reviewed": "2026-10-21",
    "scope": "Light Touch in full, qemu-ios d563917e01, usbmuxd 5cb9089, the native archives, the Swift packages and swift-syntax's prebuilt: all clean"
+  },
+  {
+   "tag": "v1.0-2026.10.20d",
+   "commit": "660c4a5565d9cca4da0d1641987bf7899e90366d",
+   "reviewed": "2026-10-21",
+   "scope": "Light Touch 1b675524..660c4a55 (8 commits) and qemu-ios d563917e01..ce1db2df (4 commits), every changed line: clean"
+  },
+  {
+   "tag": "v1.0-2026.10.21",
+   "commit": "717e9795cd948690c1685e1dbd003827d30cb564",
+   "reviewed": "2026-10-21",
+   "scope": "Light Touch 660c4a55..717e9795 (35 commits) and qemu-ios ce1db2df..0abf6376 (12 commits), every changed line of shipped code and build tooling, tests by pattern: clean"
   }
  ],
  "pins": {
   "qemu-ios": [
-   "d563917e016c84c08f73a3c1230678560d262683"
+   "d563917e016c84c08f73a3c1230678560d262683",
+   "ce1db2dfc5aefb0a5a8dbd76bb6c6cf8cef54902",
+   "0abf6376534a380bf807ac75ba0776eb105a387f"
   ],
   "usbmuxd": [
    "5cb90897479b9021a69db9698fea071ef7b2eceb"
