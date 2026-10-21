@@ -50,9 +50,9 @@ final class CanvasCapture {
     }
 
     func start() async throws {
-        let region = try region()
-        outputSize = region.size
-        frames.start(region)
+        let first = try region()
+        outputSize = first.size
+        frames.start(first)
         // Wait for an actual frame; none is no recording.
         for _ in 0..<120 {
             try Task.checkCancellation()
