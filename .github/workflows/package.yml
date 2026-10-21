@@ -308,6 +308,8 @@ jobs:
           stage="$RUNNER_TEMP/stage"
           mkdir -p "$stage"
           ditto "$RUNNER_TEMP/LightTouch.xcarchive/Products/Applications/Light Touch.app" "$stage/Light Touch.app"
+          # The vendor tools come signed with the hardened runtime, whose library validation refuses ad-hoc libraries.
+          bash port/check/resign-adhoc.sh "$stage/Light Touch.app"
           clang -O2 -fobjc-arc -framework AppKit -o "$RUNNER_TEMP/symbols" port/check/symbols.m
           python3 -I port/check/symbol-candidates.py src > "$RUNNER_TEMP/candidates.tsv"
           cut -f1 "$RUNNER_TEMP/candidates.tsv" | "$RUNNER_TEMP/symbols" --present > "$RUNNER_TEMP/present.txt"

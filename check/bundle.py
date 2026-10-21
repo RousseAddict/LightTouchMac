@@ -4,7 +4,7 @@
 # - a symbol a Mach-O imports strongly from a system library that this system's library lacks (dyld stops on it);
 # - an @rpath, @loader_path or @executable_path library a Mach-O loads that neither the bundle nor this system has;
 # - an SF Symbol the app names (SYMBOLS, from symbol-candidates.py) that this system can't draw;
-# - a code signature that doesn't verify.
+# - a code signature that doesn't verify, or ad-hoc code whose hardened runtime refuses the bundle's own libraries.
 # Reported only: weak imports this system lacks, and the Objective-C selectors a binary sends that neither the
 # bundle nor this system implements (optional delegate methods, and methods added lazily, such as NSView's
 # safeAreaRect, show up there).
@@ -92,6 +92,26 @@ for rel in machos:
             continue
         if not found:
             problems.append(f"{rel}: loads {library}, which neither the bundle nor this system has")
+
+# Ad-hoc code with the hardened runtime: its library validation refuses the bundle's own libraries, which have no
+# Team ID, so dyld stops it at launch (check/resign-adhoc.sh signs such code again without the runtime).
+for rel in machos:
+    path = os.path.join(app, rel)
+    details = subprocess.run(["codesign", "-dv", path], capture_output=True, text=True).stderr
+    found = re.search(r"^CodeDirectory .*flags=0x[0-9a-f]+\(([^)]*)\)", details, re.M)
+    flags = found.group(1).split(",") if found else []
+    if "runtime" not in flags or "adhoc" not in flags:
+        continue
+    # Library validation is the loading process's: only an executable's flags count.
+    if " EXECUTE " not in run(["otool", "-arch", "x86_64", "-hv", path]):
+        continue
+    own = run(["otool", "-arch", "x86_64", "-D", path]).splitlines()[1:]
+    loads = [line.strip().split(" (")[0] for line in run(["otool", "-arch", "x86_64", "-L", path]).splitlines()[1:]]
+    if not any(library.startswith("@") and library not in own for library in loads):
+        continue
+    entitlements = subprocess.run(["codesign", "-d", "--entitlements", ":-", path], capture_output=True, text=True).stdout
+    if "com.apple.security.cs.disable-library-validation" not in entitlements:
+        problems.append(f"{rel}: signed ad hoc with the hardened runtime, which refuses the bundle's own libraries")
 
 # System symbols.
 listing = os.path.join(tools, "machos.txt")

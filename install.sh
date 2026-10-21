@@ -101,8 +101,8 @@ for name in $RESOURCES; do
     ditto "$UPSTREAM/Contents/Resources/$name" "$APP/Contents/Resources/$name"
 done
 
-# 4. Signed again, and checked against this Mac.
-codesign --force --sign - --preserve-metadata=identifier,entitlements,flags "$APP"
+# 4. Signed again (the vendor tools without the hardened runtime, which refuses ad-hoc libraries), and checked.
+"$HERE/check/resign-adhoc.sh" "$APP"
 "$HERE/check/bundle.sh" "$APP" "$BUILT/bigsur-symbols.txt"
 
 # 5. Installed.
