@@ -180,6 +180,10 @@ RULES = [
     Rule("swift: SuspendingClock", SWIFT, r"\bSuspendingClock\b", "CompatSuspendingClock", "BigSurCompat"),
     Rule("swift: Task.sleep(for:)", SWIFT, r"\bTask\.sleep\((\s*)for:", r"Task.compatSleep(\1for:", "BigSurCompat"),
     Rule("swift: OSAllocatedUnfairLock", SWIFT, r"\bOSAllocatedUnfairLock\b", "CompatUnfairLock", "BigSurCompat"),
+    Rule("swift: CAFrameRateRange", SWIFT, r"\bCAFrameRateRange\b", "CompatFrameRateRange", "BigSurCompat"),
+    # Date.now is macOS 12. Upstream mostly writes it .now where a Date is expected, which a rule can't tell from a
+    # clock's .now: those are hand patches (19); this catches the spelled-out form.
+    Rule("swift: Date.now", SWIFT, r"\bDate\.now\b", "Date()", required=False),
     Rule("swift: .formatted(.byteCount(style: .file))", SWIFT, r"\.formatted\(\.byteCount\(style: \.file\)\)",
          ".compatFileBytes()", "BigSurCompat"),
     Rule("swift: .formatted(date:time:)", SWIFT, r"\.formatted\(date:", ".compatFormatted(date:", "BigSurCompat"),

@@ -21,7 +21,7 @@ index 59073a12..a379882a 100644
      }
  
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift b/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
-index bfa7a555..2bb05587 100644
+index f7d35e82..4b1fab70 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
 @@ -1,6 +1,7 @@
@@ -42,7 +42,7 @@ index bfa7a555..2bb05587 100644
              guard unknown.isEmpty else {
                  return Fit(
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift b/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
-index afcb6200..e3d64817 100644
+index a0fc2907..e3902fa3 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
 @@ -24,6 +24,7 @@
@@ -56,7 +56,7 @@ index afcb6200..e3d64817 100644
 @@ -254,9 +255,9 @@ final class N45Board: Board {
              "boot_args": N45NOR.bootArgs,
              "kernel": N72Board.firstMatch(
-                 try Data(contentsOf: c.decFile("kernelcache.mach")),
+                 try Data(contentsOf: c.decFile("kernelcache.mach")),  // host file
 -                /Darwin Kernel Version [^\x00]+/
 +                CompatRegex(#"Darwin Kernel Version [^\x00]+"#)
              ) ?? NSNull(),
@@ -66,7 +66,7 @@ index afcb6200..e3d64817 100644
      }
  
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/N72/N72Recipe.swift b/Packages/FirmwareKit/Sources/FirmwareKit/N72/N72Recipe.swift
-index 215ba5d5..8c33e9ec 100644
+index 6bbf2e10..e9ec17d4 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/N72/N72Recipe.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/N72/N72Recipe.swift
 @@ -151,9 +151,9 @@ final class N72Board: Board {
@@ -81,7 +81,7 @@ index 215ba5d5..8c33e9ec 100644
          ]
          prefix = "Firmware/all_flash/all_flash.\(e.board).production/"
          let img3Members = try ipsw.names().filter { $0.hasPrefix(prefix) && $0.hasSuffix(".img3") }
-@@ -294,8 +294,8 @@ final class N72Board: Board {
+@@ -301,8 +301,8 @@ final class N72Board: Board {
              .first { FileManager.default.fileExists(atPath: $0.path) }
      }
  
@@ -93,7 +93,7 @@ index 215ba5d5..8c33e9ec 100644
  
      /// The volume path the decrypted iBoot loads the kernelcache from (its one kcPrefix string), without the "/".
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
-index 7a5cc010..cc53baf6 100644
+index cbdf8d9c..c515004b 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
 @@ -23,6 +23,7 @@
@@ -104,20 +104,20 @@ index 7a5cc010..cc53baf6 100644
  import Foundation
  
  public enum SystemEdits {
-@@ -655,7 +656,7 @@ public enum SystemEdits {
+@@ -644,7 +645,7 @@ public enum SystemEdits {
              return "no __GLIFunctionDispatchRec @encode in the shared cache: the shim will read OpenGLES's trampolines"
          }
-         let names = (try? String(contentsOf: helpers.appendingPathComponent(Helpers.glesNames), encoding: .utf8)) ?? ""
+         let names = (try? String(contentsOf: helpers.appendingPathComponent(Helpers.glesNames), encoding: .utf8)) ?? ""  // host file
 -        let known = Set(names.matches(of: /(?m)^GLES_FN\(\w+,\s*(\w+),/).map { String($0.1) })
 +        let known = Set(names.compatMatches(of: CompatRegex(#"(?m)^GLES_FN\(\w+,\s*(\w+),"#)).map { String($0[1]) })
          let unknown = have.filter { !known.contains($0) }
          return "GLI dispatch: \(have.count) slots, \(unknown.count) unknown to the name table"
              + (unknown.isEmpty ? "" : " (\(unknown.prefix(8).joined(separator: ", ")))")
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift b/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
-index a5b4887e..355348fe 100644
+index a603d005..e5bb4d06 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
-@@ -176,10 +176,10 @@ public enum VolumeMount {
+@@ -198,10 +198,10 @@ public enum VolumeMount {
          var counts: [UInt32: UInt32] = [:]
          for i in stride(from: 0, to: lines.count, by: 2) {
              guard
@@ -133,7 +133,7 @@ index a5b4887e..355348fe 100644
              counts[id] = n
          }
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
-index acaaf1df..068c1826 100644
+index 06842514..7c5b8b49 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
 +++ b/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
 @@ -5,6 +5,7 @@
@@ -156,18 +156,10 @@ index acaaf1df..068c1826 100644
      }
  }
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
-index 04e88e0d..779229b7 100644
+index f74d4733..c8d85c05 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
 +++ b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
-@@ -2,6 +2,7 @@
- // a Markdown code block, for the bug report form's "Light Touch info" field. Identity is scrubbed
- // (DiagnosticsExport.scrub) before it reaches the clipboard.
- 
-+import BigSurCompat
- import Foundation
- import HostRuntime
- import HostServiceWire
-@@ -212,8 +213,8 @@ public nonisolated enum BugReportInfo {
+@@ -213,8 +213,8 @@ public nonisolated enum BugReportInfo {
      public static func recentErrors(log: URL, limit: Int = 5, width: Int = 200) -> [String] {
          // ponytail: reads the log's last 256 KB; the rotated app.log.1 is left out.
          let text = DiagnosticsExport.tail(of: log, limit: 262_144).text

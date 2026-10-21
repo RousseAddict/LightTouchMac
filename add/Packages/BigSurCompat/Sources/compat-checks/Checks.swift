@@ -291,5 +291,17 @@ struct Checks {
         let after = counter.ticks
         try? await Task.compatSleep(for: .milliseconds(200))
         check(counter.ticks == after, "CompatDisplayLink stops after invalidate()")
+
+        // Half the display's rate preferred: about half the ticks, as a 60 Hz guest gets on a 120 Hz panel.
+        let display = Float(ticks * 2)
+        let half = Counter()
+        let paced = CompatDisplayLink(target: half, selector: #selector(Counter.step(_:)))
+        paced.preferredFrameRateRange = CompatFrameRateRange(minimum: display / 4, maximum: display / 2, preferred: display / 2)
+        paced.add(to: .main, forMode: .common)
+        try? await Task.compatSleep(for: .milliseconds(1000))
+        paced.invalidate()
+        let ratio = Double(half.ticks) / Double(display)
+        check(ratio > 0.35 && ratio < 0.65,
+              "preferredFrameRateRange paces the ticks (\(half.ticks) in 1 s, preferred \(Int(display / 2)), display about \(Int(display)))")
     }
 }

@@ -3,20 +3,15 @@ CompatDisplayLink, a CVDisplayLink that sends step to the view on the main threa
 through followScreen, which NSView's link did by itself.
 
 diff --git a/LightTouchMac/UI/DisplayView.swift b/LightTouchMac/UI/DisplayView.swift
-index 7f8588a7..e54e3d7f 100644
+index f9002d7e..2790a3bc 100644
 --- a/LightTouchMac/UI/DisplayView.swift
 +++ b/LightTouchMac/UI/DisplayView.swift
-@@ -1,3 +1,4 @@
-+import BigSurCompat
- import Cocoa
- import DeviceRuntime
- import HostRuntime
-@@ -182,7 +183,13 @@ final class DisplayView: NSView {
-     let shellLayer = CALayer()
+@@ -184,7 +184,13 @@ final class DisplayView: NSView {
      let homeButton = HomeButton()
      let attitudeIndicator = AttitudeIndicatorButton(frame: .zero)
--    private var displayLink: CADisplayLink?
-+    private var displayLink: CompatDisplayLink?
+     /// Steps the frames and the overlays while the view is in a window.
+-    private(set) var displayLink: CADisplayLink?
++    private(set) var displayLink: CompatDisplayLink?
 +    /// Big Sur port: a CVDisplayLink follows the screen it's given, where NSView's display link follows the window's.
 +    @objc private func followScreen() {
 +        guard let number = window?.screen?.deviceDescription[NSDeviceDescriptionKey("NSScreenNumber")] as? NSNumber
@@ -26,12 +21,16 @@ index 7f8588a7..e54e3d7f 100644
      /// The ring serial on screen, and its surface (captures read it).
      var shownSerial: UInt64 = 0
      var shownSurface: IOSurface?
-@@ -358,9 +365,12 @@ final class DisplayView: NSView {
+@@ -360,13 +366,16 @@ final class DisplayView: NSView {
              object: nil
          )
          bezelPreferenceChanged()
 -        let link = displayLink(target: self, selector: #selector(step))
 +        let link = CompatDisplayLink(target: self, selector: #selector(step))
+         // At the guest's refresh, not the display's: left alone a link runs at the display's highest rate, which
+         // holds a ProMotion panel at 120 Hz and steps twice for each 60 Hz frame (issue 107).
+         let hz = Float(DisplayRefresh.hz)
+         link.preferredFrameRateRange = CompatFrameRateRange(minimum: min(30, hz), maximum: hz, preferred: hz)
          link.add(to: .main, forMode: .common)
          displayLink = link
 +        followScreen()

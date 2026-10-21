@@ -5,6 +5,22 @@
 import CoreVideo
 import Foundation
 
+/// CAFrameRateRange (macOS 12), for CompatDisplayLink.preferredFrameRateRange.
+public struct CompatFrameRateRange: Equatable {
+    public var minimum: Float
+    public var maximum: Float
+    public var preferred: Float?
+
+    public init(minimum: Float, maximum: Float, preferred: Float?) {
+        self.minimum = minimum
+        self.maximum = maximum
+        self.preferred = preferred
+    }
+
+    /// CAFrameRateRange.default: the display's own rate.
+    public static let `default` = CompatFrameRateRange(minimum: 0, maximum: 0, preferred: 0)
+}
+
 public final class CompatDisplayLink: NSObject {
     private var target: NSObject?
     private let selector: Selector
@@ -13,6 +29,11 @@ public final class CompatDisplayLink: NSObject {
 
     /// The host time of the latest refresh, in seconds, as CADisplayLink's `timestamp`.
     public private(set) var timestamp: CFTimeInterval = 0
+
+    /// As CADisplayLink's: on a display faster than `preferred` (a 120 Hz panel for a 60 Hz guest), the target gets
+    /// one refresh in n, n the display's rate over the preferred one, rounded. Main thread only.
+    public var preferredFrameRateRange = CompatFrameRateRange.default
+    private var refreshes = 0
 
     public init(target: NSObject, selector: Selector) {
         self.target = target
@@ -71,10 +92,19 @@ public final class CompatDisplayLink: NSObject {
         DispatchQueue.main.async { [weak self] in
             guard let self = self else { return }
             self.pending.withLock { $0 = false }
-            guard let target = self.target else { return }
+            guard let target = self.target, !self.skipsThisRefresh() else { return }
             self.timestamp = Self.seconds(hostTime: hostTime)
             target.perform(self.selector, with: self)
         }
+    }
+
+    private func skipsThisRefresh() -> Bool {
+        guard let link = link, let preferred = preferredFrameRateRange.preferred, preferred > 0 else { return false }
+        let period = CVDisplayLinkGetActualOutputVideoRefreshPeriod(link)
+        guard period > 0 else { return false }
+        let every = max(1, Int((1 / period / Double(preferred)).rounded()))
+        refreshes &+= 1
+        return refreshes % every != 0
     }
 
     private static let timebase: mach_timebase_info_data_t = {
