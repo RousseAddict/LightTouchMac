@@ -195,6 +195,9 @@ jobs:
         run: |
           mkdir -p "$RUNNER_TEMP/vendor"
           tar -C "$RUNNER_TEMP/vendor" -xzf "$RUNNER_TEMP/vendor.tgz"
+          # The app copies Resources/build-inputs.json, which a host-only vendor build doesn't write (it describes the
+          # guest payload and SecureROMs too); install.sh puts the official release's in its place.
+          printf '{"host_only": true}\n' > "$RUNNER_TEMP/vendor/Resources/build-inputs.json"
           echo "VENDOR_DIR = $RUNNER_TEMP/vendor" > src/Configuration/Vendor.xcconfig
 
       - name: Archive, universal, signed ad hoc
