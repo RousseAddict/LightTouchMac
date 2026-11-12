@@ -134,8 +134,12 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_26.6.app
           xcodebuild -version
           # nasm: FFmpeg's x86_64 slice (its configure stops without it, and the native script goes on without FFmpeg)
-          # python@3.12, jq and ldid: scripts/vendor's checks ask for them from v1.0-2026.11.05.
-          brew install meson ninja pkgconf autoconf automake libtool nasm python@3.12 jq ldid
+          brew install meson ninja pkgconf autoconf automake libtool nasm
+          # scripts/vendor's checks also ask for python3.12, jq and ldid from v1.0-2026.11.05, by name on PATH. Only
+          # the missing ones: the Intel image has its own python3.12 in /usr/local/bin, on which brew's link fails.
+          for pair in python3.12:python@3.12 jq:jq ldid:ldid; do
+            command -v "${pair%%:*}" > /dev/null || brew install "${pair#*:}"
+          done
 
       - name: Apply the port
         run: |
@@ -230,6 +234,7 @@ jobs:
           RUN_ID: ${{ github.run_id }}
           JOB: vendor
         run: |
+          mkdir -p "$OUT"  # a job that stopped before applying the port has none
           cp "$OUT/apply.txt" "$OUT/summary-apply.md" 2>/dev/null || true
           tail -c 20000 "$OUT/vendor.txt" > "$OUT/summary-vendor-log.md" 2>/dev/null || true
           # A failed build's logs: scripts/vendor names them as it goes (none when the binaries came from the cache).
