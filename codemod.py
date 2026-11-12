@@ -6,7 +6,7 @@
 #    a rename changes also gets that module's import.
 # 2. Manifests: a block appended to each Package.swift adjusts the `package` value in Swift:
 #    - the platform becomes macOS 11;
-#    - swift-subprocess resolves to the port's local stand-in;
+#    - swift-subprocess and swift-binary-parsing resolve to the port's local stand-ins (STAND_INS);
 #    - each target with a rewritten file depends on the compat module that file now imports.
 #    Doing this Swift-side survives any formatting upstream gives the manifest.
 #
@@ -46,6 +46,12 @@ MEDIA = [
 ]
 # Packages whose platform drops to macOS 11 (they ship); the test and tooling packages keep theirs.
 SHIPPED = ["HostRuntime", "DeviceRuntime", "DeviceServices", "FirmwareKit", "LightTouchCore"]
+# Packages that need a newer macOS than 11, and the port's stand-ins for them (add/Packages/BigSur): every manifest that
+# names one is pointed at its stand-in, which keeps the package's name and products.
+STAND_INS = {
+    "swift-subprocess": "Packages/BigSur/swift-subprocess",  # 1.0 needs macOS 13: a posix_spawn rewrite
+    "swift-binary-parsing": "Packages/BigSur/swift-binary-parsing",  # 0.0.4 less its macro (macOS 13): from v1.0-2026.11.05
+}
 COMPAT_PACKAGES = {"BigSurCompat": "Packages/BigSurCompat", "ObservationCompat": "Packages/ObservationCompat"}
 PROJECT = "LightTouchMac.xcodeproj/project.pbxproj"
 # The native recipes: under scripts/ until v1.0-2026.10.21, under build-support/recipes/ from v1.0-2026.11.05. ANGLE's
@@ -305,16 +311,16 @@ def target_of(rel):
     return None
 
 
-def manifest_block(package_dir, platform, subprocess, needs):
+def manifest_block(package_dir, platform, stand_ins, needs):
     lines = ["", "// Big Sur port (bigsur/apply.sh): adjusts the package above for macOS 11."]
     if platform:
         lines.append("package.platforms = [.macOS(.v11)]")
-    if subprocess:
+    for name in stand_ins:
         lines += [
             "package.dependencies = package.dependencies.map { dependency in",
-            '    guard case .sourceControl(_, let location, _) = dependency.kind, location.contains("swift-subprocess")',
+            f'    guard case .sourceControl(_, let location, _) = dependency.kind, location.contains("{name}")',
             "    else { return dependency }",
-            '    return .package(path: "' + os.path.relpath("Packages/BigSur/swift-subprocess", package_dir) + '")',
+            '    return .package(path: "' + os.path.relpath(STAND_INS[name], package_dir) + '")',
             "}",
         ]
     for module in sorted({m for modules in needs.values() for m in modules}):
@@ -400,7 +406,7 @@ def run(root):
         manifest = os.path.join(root, package_dir, "Package.swift")
         text = open(manifest).read()
         block = manifest_block(package_dir, package_dir.startswith("Packages/"),
-                               "swift-subprocess" in text, needs.get(package_dir, {}))
+                               [name for name in STAND_INS if name in text], needs.get(package_dir, {}))
         with open(manifest, "w") as out:
             out.write(text.rstrip("\n") + "\n" + block)
         targets = ", ".join(f"{t}: {'+'.join(sorted(m))}" for t, m in sorted(needs.get(package_dir, {}).items()))

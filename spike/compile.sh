@@ -27,8 +27,9 @@ touch "$STUB/vendor.json"
 OPTIONS="$SRC/Packages/HostRuntime/Sources/HostRuntime/MachineOptions.swift"
 [ ! -f "$OPTIONS" ] || cp "$OPTIONS" "$STUB/MachineOptions.swift"
 BREW=$(brew --prefix 2>/dev/null || echo /usr/local)
-cp -R "$BREW/include/libimobiledevice" "$BREW/include/plist" "$STUB/include/" 2>/dev/null
-cp "$BREW"/lib/libimobiledevice-1.0*.dylib "$BREW"/lib/libplist-2.0*.dylib "$STUB/Frameworks/" 2>/dev/null
+# -L: Homebrew's include/ entries are relative symlinks into its Cellar, which a plain copy leaves dangling.
+cp -RL "$BREW/include/libimobiledevice" "$BREW/include/plist" "$STUB/include/"
+cp "$BREW"/lib/libimobiledevice-1.0*.dylib "$BREW"/lib/libplist-2.0*.dylib "$STUB/Frameworks/"
 printf 'VENDOR_DIR = %s\n' "$STUB" > "$SRC/Configuration/Local.xcconfig"
 # The workspace went in v1.0-2026.11.05: the project holds every package itself.
 CONTAINER=(-workspace "$SRC/LightTouchMac.xcworkspace")
