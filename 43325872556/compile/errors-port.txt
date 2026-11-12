@@ -1,0 +1,33 @@
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/main.swift:2:8: error: unable to resolve module dependency: 'LightTouchCore'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/main.swift:2:8: error: Unable to resolve module dependency: 'LightTouchCore'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Lockdown/Lockdown.h:7:10: error: 'libimobiledevice/afc.h' file not found (in target 'LightTouchServices' from project 'LightTouchMac')
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKit/Archive/TarArchive.swift:10:8: error: compiling for macOS 11.0, but module 'BinaryParsing' has a minimum deployment target of macOS 13.0: /Users/runner/work/_temp/dd-port/Build/Products/Debug/BinaryParsing.swiftmodule/x86_64-apple-macos.swiftmodule
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKitCLI/main.swift:18:8: error: unable to resolve module dependency: 'FirmwareKit'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/FirmwareKit/Sources/FirmwareKitCLI/main.swift:18:8: error: Unable to resolve module dependency: 'FirmwareKit'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/Packages/LightTouchCore/Sources/LightTouchCore/Features/MediaIdentity.swift:1:8: error: compiling for macOS 11.0, but module 'BinaryParsing' has a minimum deployment target of macOS 13.0: /Users/runner/work/_temp/dd-port/Build/Products/Debug/BinaryParsing.swiftmodule/x86_64-apple-macos.swiftmodule
+error: bridging header dependency scanning failure: /Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Lockdown/Lockdown.h:7:10: fatal error: 'libimobiledevice/afc.h' file not found
+error: Bridging header dependency scanning failure: /Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchServices/Lockdown/Lockdown.h:7:10: fatal error: 'libimobiledevice/afc.h' file not found
+error: The file “firmwarekit” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “FirmwareKit.abi.json” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftdoc” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftmodule” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKit.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The file “FirmwareKitCLI.abi.json” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftdoc” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftmodule” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “FirmwareKitCLI.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'firmwarekit' from project 'LightTouchMac')
+error: The file “Light_Touch.abi.json” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftdoc” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftmodule” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “LightTouchCore.abi.json” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftdoc” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftmodule” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchCore.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'LightTouchCore' from project 'LightTouchCore')
+error: The file “LightTouchServices” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “LightTouchServices.abi.json” couldn’t be opened because there is no such file. (in target 'LightTouchServices' from project 'LightTouchMac')
+error: The file “LightTouchServices.swiftdoc” couldn’t be opened because there is no such file. (in target 'LightTouchServices' from project 'LightTouchMac')
+error: The file “LightTouchServices.swiftmodule” couldn’t be opened because there is no such file. (in target 'LightTouchServices' from project 'LightTouchMac')
+error: The file “LightTouchServices.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'LightTouchServices' from project 'LightTouchMac')
+error: The package product 'BinaryParsing' requires minimum platform version 13.0 for the macOS platform, but this target supports 11.0 (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The package product 'BinaryParsing' requires minimum platform version 13.0 for the macOS platform, but this target supports 11.0 (in target 'LightTouchCore' from project 'LightTouchCore')
