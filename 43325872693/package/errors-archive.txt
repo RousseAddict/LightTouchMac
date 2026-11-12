@@ -1,0 +1,2 @@
+error: The package product 'BinaryParsing' requires minimum platform version 13.0 for the macOS platform, but this target supports 11.0 (in target 'FirmwareKit' from project 'FirmwareKit')
+error: The package product 'BinaryParsing' requires minimum platform version 13.0 for the macOS platform, but this target supports 11.0 (in target 'LightTouchCore' from project 'LightTouchCore')
