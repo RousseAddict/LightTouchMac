@@ -6,7 +6,7 @@ sizingOptions (macOS 13) is set only where it exists: macOS 11's hosting control
 view's minimum and lets it grow.
 
 diff --git a/LightTouchMac/UI/AddDeviceSummary.swift b/LightTouchMac/UI/AddDeviceSummary.swift
-index e8ba419f..cf29f0d1 100644
+index c67e203c..538c4676 100644
 --- a/LightTouchMac/UI/AddDeviceSummary.swift
 +++ b/LightTouchMac/UI/AddDeviceSummary.swift
 @@ -85,13 +85,12 @@ struct AddDeviceSummary: View {

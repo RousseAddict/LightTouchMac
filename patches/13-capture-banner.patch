@@ -6,7 +6,7 @@ thumbnail keeps its preview from macOS 12, and without a file it provides the im
 where NSImage provides itself. The preview uses URL(fileURLWithPath:) and .background(_:).
 
 diff --git a/LightTouchMac/UI/CaptureStatusView.swift b/LightTouchMac/UI/CaptureStatusView.swift
-index ecd34940..70febc0e 100644
+index 53c06f88..1c2902c0 100644
 --- a/LightTouchMac/UI/CaptureStatusView.swift
 +++ b/LightTouchMac/UI/CaptureStatusView.swift
 @@ -55,7 +55,16 @@ final class CaptureStatusView: NSView {

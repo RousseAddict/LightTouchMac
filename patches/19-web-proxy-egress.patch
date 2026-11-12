@@ -8,7 +8,7 @@ and connects through the same resolve and NetworkPolicy.connect as a CONNECT. Ch
 URLSession: an allowed host gets the page, a refused one and a wrong password get nothing.
 
 diff --git a/LightTouchDevice/WebProxy.swift b/LightTouchDevice/WebProxy.swift
-index 7da3d450..605fae73 100644
+index ad89ed1c..28621c15 100644
 --- a/LightTouchDevice/WebProxy.swift
 +++ b/LightTouchDevice/WebProxy.swift
 @@ -111,10 +111,19 @@ final class WebProxy: @unchecked Sendable {
@@ -32,7 +32,7 @@ index 7da3d450..605fae73 100644
          }
          egressReady = egress >= 0
          let queue = OperationQueue()
-@@ -677,6 +686,24 @@ final class WebProxy: @unchecked Sendable {
+@@ -737,6 +746,24 @@ final class WebProxy: @unchecked Sendable {
          setsockopt(fd, SOL_SOCKET, SO_NOSIGPIPE, &on, socklen_t(MemoryLayout<Int32>.size))
          let client = Guest(fd: fd)
          defer { client.finish() }

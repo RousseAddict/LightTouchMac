@@ -4,10 +4,10 @@ Swift 6.3 (Xcode 26.6) rejects two spots Swift 6.4 (Xcode 27, upstream's) accept
 - K48Recipe.swift: "ambiguous use of 'init'" for .map(Data.init); a closure picks Data's [UInt8] initializer.
 
 diff --git a/Packages/DeviceRuntime/Sources/DeviceRuntime/DeviceLink.swift b/Packages/DeviceRuntime/Sources/DeviceRuntime/DeviceLink.swift
-index acb7fd28..efce336c 100644
+index e25e35e2..496238ae 100644
 --- a/Packages/DeviceRuntime/Sources/DeviceRuntime/DeviceLink.swift
 +++ b/Packages/DeviceRuntime/Sources/DeviceRuntime/DeviceLink.swift
-@@ -268,7 +268,7 @@ nonisolated public final class DeviceLink: @unchecked Sendable {
+@@ -358,7 +358,7 @@ nonisolated public final class DeviceLink: @unchecked Sendable {
          let (id, channel, dead): (UInt64, LinkChannel<HelperMessage, AppMessage>?, Bool) = lock.withLock {
              let id = nextID
              nextID += 1
@@ -17,10 +17,10 @@ index acb7fd28..efce336c 100644
          guard let channel, !dead else { return queue.async { reply(.failure(.closed("not connected"))) } }
          let timer = DispatchWorkItem { [weak self] in
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/K48/K48Recipe.swift b/Packages/FirmwareKit/Sources/FirmwareKit/K48/K48Recipe.swift
-index 0f7717ae..1818a2b8 100644
+index 3a27c91e..33833bb9 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/K48/K48Recipe.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/K48/K48Recipe.swift
-@@ -202,7 +202,7 @@ final class K48Board: Board {
+@@ -205,7 +205,7 @@ final class K48Board: Board {
          var jailbreakKernel: Data?
          if c.cydia != nil {
              try c.fit.check(FitCheck.sandboxPatch(kernel), required: false)

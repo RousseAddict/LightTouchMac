@@ -71,6 +71,18 @@ Established on 2026-10-20 (macos-15, Xcode 26.3, Swift 6.2.4):
 To reach a running device from scripts (a host and port for it, its logs, installing an app), see
 [docs/programmatic-access.md](docs/programmatic-access.md) and `tools/lt-device.py`.
 
+## What the Big Sur build leaves out
+
+- **The 3D device model:** upstream makes it only from macOS 15 (patch 11 lets its view compile for 11).
+- **Live Text:** the InlineLiveTextView fork leaves it out; macOS 11 has no VisionKit.
+- **ANGLE (from v1.0-2026.11.05):** the vendor build doesn't make it and Settings has no ANGLE renderer toggle
+  (patches 17 and 22). Devices draw with OpenGL, as before. ANGLE is a 9 GB checkout to build, and its Metal
+  backend is untried on macOS 11.
+- **The device helper's App Sandbox (from v1.0-2026.11.05):** upstream turns it on by default; the Big Sur build keeps
+  `LTM_HELPER_SANDBOX = NO` (codemod.py), as every build before it ran. Its sandbox extensions and an ad-hoc signed
+  app group are untried on macOS 11.
+- **Sparkle updates:** a stub package; updates come from this branch's Package workflow.
+
 ## Applying the port
 
 `apply.sh UPSTREAM_CHECKOUT` turns a fresh upstream checkout into the Big Sur tree, on a new

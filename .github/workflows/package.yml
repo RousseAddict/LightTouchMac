@@ -134,7 +134,8 @@ jobs:
           sudo xcode-select -s /Applications/Xcode_26.6.app
           xcodebuild -version
           # nasm: FFmpeg's x86_64 slice (its configure stops without it, and the native script goes on without FFmpeg)
-          brew install meson ninja pkgconf autoconf automake libtool nasm
+          # python@3.12, jq and ldid: scripts/vendor's checks ask for them from v1.0-2026.11.05.
+          brew install meson ninja pkgconf autoconf automake libtool nasm python@3.12 jq ldid
 
       - name: Apply the port
         run: |
@@ -161,7 +162,8 @@ jobs:
       - name: The vendor pin key
         id: key
         run: |
-          key=$(basename "$(src/scripts/vendor --print)")
+          # scripts/vendor-check is the pin key's one implementation; without it (before v1.0-2026.10.21), Vendor.swift's.
+          if [ -f src/scripts/vendor-check ]; then key=$(bash src/scripts/vendor-check --key); else key=$(basename "$(src/scripts/vendor --print)"); fi
           echo "Vendor key: $key"
           echo "key=$key" >> "$GITHUB_OUTPUT"
 
@@ -209,7 +211,10 @@ jobs:
             done
           } > "$OUT/summary-vendor.md"
           cat "$OUT/summary-vendor.md" >> "$GITHUB_STEP_SUMMARY"
-          tar -C "$vendor" -czf "$RUNNER_TEMP/vendor.tgz" Frameworks MacOS include Resources vendor.json
+          # MachineOptions.swift: from v1.0-2026.11.05 the build's first phase holds the checkout's copy to it.
+          extra=""
+          [ ! -f "$vendor/MachineOptions.swift" ] || extra=MachineOptions.swift
+          tar -C "$vendor" -czf "$RUNNER_TEMP/vendor.tgz" Frameworks MacOS include Resources vendor.json $extra
 
       - name: Upload them for the package job
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
@@ -289,14 +294,19 @@ jobs:
           # The app copies Resources/build-inputs.json, which a host-only vendor build doesn't write (it describes the
           # guest payload and SecureROMs too); install.sh puts the official release's in its place.
           printf '{"host_only": true}\n' > "$vendor/Resources/build-inputs.json"
+          # Vendor.xcconfig until v1.0-2026.10.21; Local.xcconfig, which the build's first phase checks, from 2026.11.05.
           echo "VENDOR_DIR = $vendor" > src/Configuration/Vendor.xcconfig
+          echo "VENDOR_DIR = $vendor" > src/Configuration/Local.xcconfig
 
       - name: Archive, universal, signed ad hoc
         # No ARCHS override: settings on the command line reach every target, and the ObservationCompat macro, a
         # plugin the compiler runs, builds only for this runner's architecture.
         run: |
           set -o pipefail
-          xcodebuild archive -workspace src/LightTouchMac.xcworkspace -scheme LightTouchMac -configuration Release \
+          # The workspace went in v1.0-2026.11.05: the project holds every package itself.
+          container=(-workspace src/LightTouchMac.xcworkspace)
+          [ -d src/LightTouchMac.xcworkspace ] || container=(-project src/LightTouchMac.xcodeproj)
+          xcodebuild archive "${container[@]}" -scheme LightTouchMac -configuration Release \
             -destination 'generic/platform=macOS' \
             -archivePath "$RUNNER_TEMP/LightTouch.xcarchive" -derivedDataPath "$RUNNER_TEMP/dd" \
             -skipMacroValidation -skipPackagePluginValidation \

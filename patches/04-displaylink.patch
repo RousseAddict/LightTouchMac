@@ -3,7 +3,7 @@ CompatDisplayLink, a CVDisplayLink that sends step to the view on the main threa
 through followScreen, which NSView's link did by itself.
 
 diff --git a/LightTouchMac/UI/DisplayView.swift b/LightTouchMac/UI/DisplayView.swift
-index f9002d7e..2790a3bc 100644
+index 2130f310..9e8632f7 100644
 --- a/LightTouchMac/UI/DisplayView.swift
 +++ b/LightTouchMac/UI/DisplayView.swift
 @@ -184,7 +184,13 @@ final class DisplayView: NSView {

@@ -15,7 +15,7 @@ let package = Package(
     name: "ObservationCompat",
     platforms: [.macOS(.v11)],
     products: [.library(name: "ObservationCompat", type: .static, targets: ["ObservationCompat"])],
-    dependencies: [.package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "602.0.0")],
+    dependencies: [.package(url: "https://github.com/swiftlang/swift-syntax.git", exact: "603.0.2")],
     targets: [
         .macro(
             name: "ObservationCompatMacros",

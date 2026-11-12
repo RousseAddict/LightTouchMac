@@ -22,10 +22,20 @@ KEY=stub
 STUB="$TMP/vendor-stub/$KEY"
 mkdir -p "$STUB/Resources/Guest" "$STUB/Frameworks" "$STUB/include"
 touch "$STUB/vendor.json"
+# From v1.0-2026.11.05 it also holds the checkout's MachineOptions.swift to the vendor directory's, and LightTouchServices
+# finds libimobiledevice and libplist only there: the checkout's copy, and Homebrew's headers and libraries.
+OPTIONS="$SRC/Packages/HostRuntime/Sources/HostRuntime/MachineOptions.swift"
+[ ! -f "$OPTIONS" ] || cp "$OPTIONS" "$STUB/MachineOptions.swift"
+BREW=$(brew --prefix 2>/dev/null || echo /usr/local)
+cp -R "$BREW/include/libimobiledevice" "$BREW/include/plist" "$STUB/include/" 2>/dev/null
+cp "$BREW"/lib/libimobiledevice-1.0*.dylib "$BREW"/lib/libplist-2.0*.dylib "$STUB/Frameworks/" 2>/dev/null
 printf 'VENDOR_DIR = %s\n' "$STUB" > "$SRC/Configuration/Local.xcconfig"
+# The workspace went in v1.0-2026.11.05: the project holds every package itself.
+CONTAINER=(-workspace "$SRC/LightTouchMac.xcworkspace")
+[ -d "$SRC/LightTouchMac.xcworkspace" ] || CONTAINER=(-project "$SRC/LightTouchMac.xcodeproj")
 
 build() {
-    xcodebuild -workspace "$SRC/LightTouchMac.xcworkspace" -scheme LightTouchMac -configuration Debug \
+    xcodebuild "${CONTAINER[@]}" -scheme LightTouchMac -configuration Debug \
         -destination 'generic/platform=macOS' -derivedDataPath "$TMP/dd-$NAME" \
         -skipMacroValidation -skipPackagePluginValidation \
         ARCHS="$(uname -m)" ONLY_ACTIVE_ARCH=NO CODE_SIGNING_ALLOWED=NO "$@" build > "$OUT/$NAME.log" 2>&1

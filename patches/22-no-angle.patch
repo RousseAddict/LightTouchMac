@@ -1,0 +1,51 @@
+The Big Sur build leaves ANGLE out: the vendor build doesn't make it (patch 17), so the app doesn't embed its libEGL
+and libGLESv2, and Settings ▸ General has no ANGLE renderer toggle. Devices draw with OpenGL (CGL), as on
+v1.0-2026.10.21. ANGLE is a 9 GB gclient checkout to build, its Metal backend is untried on macOS 11 and Intel HD
+graphics, and the renderer is experimental and off by default upstream.
+
+diff --git a/LightTouchMac.xcodeproj/project.pbxproj b/LightTouchMac.xcodeproj/project.pbxproj
+index ce7f8414..c47bf72d 100644
+--- a/LightTouchMac.xcodeproj/project.pbxproj
++++ b/LightTouchMac.xcodeproj/project.pbxproj
+@@ -10,8 +10,6 @@
+ 		A1D0C0DE3800000000000000030 /* libqemu-arm.dylib in Embed Vendor Frameworks */ = {isa = PBXBuildFile; fileRef = A1D0C0DE3800000000000000010; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+ 		A1D0C0DE3800000000000000031 /* libavcodec.63.1.101.dylib in Embed Vendor Frameworks */ = {isa = PBXBuildFile; fileRef = A1D0C0DE3800000000000000011; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+ 		A1D0C0DE3800000000000000032 /* libavutil.61.1.101.dylib in Embed Vendor Frameworks */ = {isa = PBXBuildFile; fileRef = A1D0C0DE3800000000000000012; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+-		A1D0C0DE3800000000000000035 /* libEGL.dylib in Embed Vendor Frameworks */ = {isa = PBXBuildFile; fileRef = A1D0C0DE3800000000000000015; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+-		A1D0C0DE3800000000000000036 /* libGLESv2.dylib in Embed Vendor Frameworks */ = {isa = PBXBuildFile; fileRef = A1D0C0DE3800000000000000016; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+ 		A1D0C0DE3800000000000000033 /* libimobiledevice-1.0.dylib in Embed Vendor Frameworks */ = {isa = PBXBuildFile; fileRef = A1D0C0DE3800000000000000013; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+ 		A1D0C0DE3800000000000000034 /* libplist-2.0.dylib in Embed Vendor Frameworks */ = {isa = PBXBuildFile; fileRef = A1D0C0DE3800000000000000014; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+ 		A1D0C0DE3800000000000000070 /* usbmuxd in Embed Vendor Tools */ = {isa = PBXBuildFile; fileRef = A1D0C0DE3800000000000000050; settings = {ATTRIBUTES = (CodeSignOnCopy, ); }; };
+@@ -60,7 +58,7 @@
+ 			isa = PBXCopyFilesBuildPhase;
+ 			dstPath = "";
+ 			dstSubfolder = Frameworks;
+-			files = (A1D0C0DE3800000000000000030, A1D0C0DE3800000000000000031, A1D0C0DE3800000000000000032, A1D0C0DE3800000000000000033, A1D0C0DE3800000000000000034, A1D0C0DE3800000000000000035, A1D0C0DE3800000000000000036);
++			files = (A1D0C0DE3800000000000000030, A1D0C0DE3800000000000000031, A1D0C0DE3800000000000000032, A1D0C0DE3800000000000000033, A1D0C0DE3800000000000000034);
+ 			name = "Embed Vendor Frameworks";
+ 			runOnlyForDeploymentPostprocessing = 1;
+ 		};
+diff --git a/LightTouchMac/UI/SettingsWindowController.swift b/LightTouchMac/UI/SettingsWindowController.swift
+index 6fdbccb1..3d803e42 100644
+--- a/LightTouchMac/UI/SettingsWindowController.swift
++++ b/LightTouchMac/UI/SettingsWindowController.swift
+@@ -124,7 +124,6 @@ struct GeneralSettingsView: View {
+     @AppStorage(NetworkAccessPreference.key) private var internet: Bool?
+     @AppStorage(VibrationSound.key) private var vibrationSound = true
+     @AppStorage(DisplayRefresh.key) private var refresh120 = false
+-    @AppStorage(ANGLERenderer.key) private var angle = false
+     @AppStorage(FirmwareJobs.withoutMountingKey) private var withoutMounting = false
+     @AppStorage(ClipboardSync.key) private var shareClipboard = true
+ 
+@@ -142,10 +141,7 @@ struct GeneralSettingsView: View {
+                 Text("120 Hz refresh (experimental)")
+                 Text("Takes effect when a device next starts. Games that count frames run too fast.")
+             }
+-            Toggle(isOn: $angle) {
+-                Text("ANGLE renderer (experimental)")
+-                Text("Takes effect when a device next starts. Draws with Metal through ANGLE instead of OpenGL.")
+-            }
++            // Big Sur port: no ANGLE renderer; the build leaves ANGLE out (patch 17), so the devices draw with OpenGL.
+             Toggle(isOn: $withoutMounting) {
+                 Text("Prepare devices without mounting disk images (experimental)")
+                 Text(

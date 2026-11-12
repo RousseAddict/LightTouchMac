@@ -5,7 +5,7 @@ override as Locale.region does, ICU's identifier conversion and likely subtags.
 compat-checks compares them with macOS 13's API on CI.
 
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift
-index da7e1cd9..4cc17fd2 100644
+index 0753df94..ab4cec33 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/FinishedSetup.swift
 @@ -7,6 +7,7 @@
@@ -13,10 +13,10 @@ index da7e1cd9..4cc17fd2 100644
  // seedLanguage's, which every prepared device gets.
  
 +import BigSurCompat
+ import BinaryParsing
  import Foundation
  
- extension SystemEdits {
-@@ -92,7 +93,7 @@ extension SystemEdits {
+@@ -93,7 +94,7 @@ extension SystemEdits {
      ) -> (language: String, locale: String) {
          let language = Bundle.preferredLocalizations(from: supported, forPreferences: preferred).first ?? "en"
          if let locale, formats?.contains(locale) == true { return (language, locale) }
@@ -25,7 +25,7 @@ index da7e1cd9..4cc17fd2 100644
          return (language, region.map { "\(code)_\($0)" } ?? code)
      }
  
-@@ -134,7 +135,7 @@ extension SystemEdits {
+@@ -136,7 +137,7 @@ extension SystemEdits {
          appleLocale: String? = CFPreferencesCopyAppValue("AppleLocale" as CFString, kCFPreferencesAnyApplication)
              as? String
      ) -> String {
@@ -34,7 +34,7 @@ index da7e1cd9..4cc17fd2 100644
      }
  
      /// Sets the device's language and region (`deviceLanguage`, from `tag`, else the Mac's) in each user's
-@@ -152,7 +153,7 @@ extension SystemEdits {
+@@ -155,7 +156,7 @@ extension SystemEdits {
          formats: Set<String>? = nil
      ) throws -> (language: String, locale: String, keyboards: [String])? {
          let preferred = tag.map { [$0] } ?? Locale.preferredLanguages
@@ -44,7 +44,7 @@ index da7e1cd9..4cc17fd2 100644
          let mac = catalog == nil ? [] : macKeyboards(keyboards)
          var chosen: (language: String, locale: String, keyboards: [String])?
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/Keyboards.swift b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/Keyboards.swift
-index 6b918173..04023fcc 100644
+index 1f72238a..d0930613 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/Keyboards.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/Keyboards.swift
 @@ -1,6 +1,7 @@
@@ -55,7 +55,7 @@ index 6b918173..04023fcc 100644
  import Carbon
  import Foundation
  
-@@ -92,8 +93,8 @@ extension SystemEdits {
+@@ -93,8 +94,8 @@ extension SystemEdits {
          static func squash(_ s: String) -> String { s.lowercased().replacingOccurrences(of: " ", with: "") }
          /// "zh-Hans", "ja-Jpan": a language with its script, so zh_Hans and zh_TW part.
          static func script(_ language: String) -> String {
@@ -66,7 +66,7 @@ index 6b918173..04023fcc 100644
          }
  
          /// The mode as AppleKeyboards stores it: as the firmware's own defaults name it ("fr_FR", "ja_JP-Kana"), iOS
-@@ -123,7 +124,7 @@ extension SystemEdits {
+@@ -124,7 +125,7 @@ extension SystemEdits {
                  guard let v = m.split(separator: "-").dropFirst().first?.lowercased() else { return false }
                  return tokens.contains { $0.hasPrefix(v) }
              }
@@ -75,7 +75,7 @@ index 6b918173..04023fcc 100644
              return c.first
          }
  
-@@ -131,7 +132,7 @@ extension SystemEdits {
+@@ -132,7 +133,7 @@ extension SystemEdits {
          /// where it lists them, else its keyboard for the language and region), then the `mac` keyboards it has, each
          /// as the firmware's keyboard for its language (in the device's region where there is a choice).
          func keyboards(language: String, locale: String, mac: [MacKeyboard]) -> [String] {
@@ -84,7 +84,7 @@ index 6b918173..04023fcc 100644
              let device =
                  defaults[locale] ?? defaults[language.replacingOccurrences(of: "-", with: "_")]
                  ?? mode(language: language, regions: [region].compactMap { $0 } + likelyRegion(language)).map { [$0] }
-@@ -160,8 +161,7 @@ extension SystemEdits {
+@@ -161,8 +162,7 @@ extension SystemEdits {
          }
  
          func likelyRegion(_ language: String) -> [String] {
@@ -94,6 +94,24 @@ index 6b918173..04023fcc 100644
          }
      }
  }
+diff --git a/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift b/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
+index bdaebba4..c78ef067 100644
+--- a/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
++++ b/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
+@@ -1,3 +1,4 @@
++import BigSurCompat
+ import Darwin
+ import Foundation
+ 
+@@ -133,7 +134,7 @@ public struct PreparedDeviceBoot {
+     /// Welcome animation; with no country it lists every language and no Welcome. Nil (the emulator's US) for a
+     /// region that is not a country ("001").
+     static func wifiCountry(_ locale: Locale = .current) -> String? {
+-        guard let region = locale.region?.identifier, region.count == 2, region.allSatisfy(\.isLetter) else {
++        guard let region = locale.compatRegionIdentifier, region.count == 2, region.allSatisfy(\.isLetter) else {
+             return nil
+         }
+         return region
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Services/ClockRegion.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Services/ClockRegion.swift
 index 578bb6ca..27e080a8 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Services/ClockRegion.swift
@@ -116,21 +134,3 @@ index 578bb6ca..27e080a8 100644
          let format = DateFormatter.dateFormat(fromTemplate: "j", options: 0, locale: locale) ?? ""
          uses24HourClock = format.contains("H") || format.contains("k")
      }
-diff --git a/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift b/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
-index 2b81c991..4680e5c9 100644
---- a/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
-+++ b/Packages/HostRuntime/Sources/HostRuntime/PreparedDeviceBoot.swift
-@@ -1,3 +1,4 @@
-+import BigSurCompat
- import Darwin
- import Foundation
- 
-@@ -133,7 +134,7 @@ public struct PreparedDeviceBoot {
-     /// Welcome animation; with no country it lists every language and no Welcome. Nil (the emulator's US) for a
-     /// region that is not a country ("001").
-     static func wifiCountry(_ locale: Locale = .current) -> String? {
--        guard let region = locale.region?.identifier, region.count == 2, region.allSatisfy(\.isLetter) else {
-+        guard let region = locale.compatRegionIdentifier, region.count == 2, region.allSatisfy(\.isLetter) else {
-             return nil
-         }
-         return region

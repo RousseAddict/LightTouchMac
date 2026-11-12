@@ -3,7 +3,7 @@ generate, MaterialParameters, UnlitMaterial.color). The view is only made from m
 #available), so updateFrame and updateScreenMaterial return at once before macOS 12, which lets it compile for 11.
 
 diff --git a/LightTouchMac/UI/DeviceModelView.swift b/LightTouchMac/UI/DeviceModelView.swift
-index 8f209541..3ec8e7a0 100644
+index 4a24867e..7e26dcd2 100644
 --- a/LightTouchMac/UI/DeviceModelView.swift
 +++ b/LightTouchMac/UI/DeviceModelView.swift
 @@ -376,6 +376,8 @@ final class DeviceModelView: NSView {

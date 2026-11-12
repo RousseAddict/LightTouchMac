@@ -48,6 +48,12 @@ MEDIA = [
 SHIPPED = ["HostRuntime", "DeviceRuntime", "DeviceServices", "FirmwareKit", "LightTouchCore"]
 COMPAT_PACKAGES = {"BigSurCompat": "Packages/BigSurCompat", "ObservationCompat": "Packages/ObservationCompat"}
 PROJECT = "LightTouchMac.xcodeproj/project.pbxproj"
+# The native recipes: under scripts/ until v1.0-2026.10.21, under build-support/recipes/ from v1.0-2026.11.05. ANGLE's
+# recipe isn't here: the Big Sur build leaves ANGLE out (patch 17).
+NATIVE_RECIPES = [
+    f"{d}/{n}" for d in ("scripts", "build-support/recipes")
+    for n in ("build-package-native.sh", "build-static-deps.sh", "build-iboot32patcher.sh")
+]
 SWIFT = "swift"
 APP = "app"  # the Swift files of the app target (LightTouchMac/)
 SWIFTUI = "swiftui"  # the app's Swift files that import SwiftUI
@@ -119,17 +125,26 @@ SYMBOLS = {
 RULES = [
     Rule("xcconfig: macOS 11", ["Configuration/Shared.xcconfig"],
          r"^MACOSX_DEPLOYMENT_TARGET = 14\.4$", "MACOSX_DEPLOYMENT_TARGET = 11.0"),
-    Rule("project: macOS 11", [PROJECT], r"MACOSX_DEPLOYMENT_TARGET = 14\.4;", "MACOSX_DEPLOYMENT_TARGET = 11.0;"),
+    # From v1.0-2026.11.05 the device helper runs under the App Sandbox by default. The Big Sur build keeps it out, as
+    # every build before was: the sandbox extensions and the ad-hoc signed app group are untried on macOS 11.
+    Rule("xcconfig: the device helper without the App Sandbox", ["Configuration/Shared.xcconfig"],
+         r"^LTM_HELPER_SANDBOX = YES$", "LTM_HELPER_SANDBOX = NO", required=False),
+    # Before v1.0-2026.11.05 the project file also set it per configuration; from then the xcconfig alone does.
+    Rule("project: macOS 11", [PROJECT], r"MACOSX_DEPLOYMENT_TARGET = 14\.4;", "MACOSX_DEPLOYMENT_TARGET = 11.0;",
+         required=False),
     # Xcode 27's format; GitHub's newest Xcode is 26, which opens 77 and builds the project unchanged.
     Rule("project: objectVersion 77", [PROJECT], r"objectVersion = 1\d\d;", "objectVersion = 77;"),
     local_package("swift-subprocess", "swift-subprocess", "Packages/BigSur/swift-subprocess"),
     local_package("Sparkle", "sparkle-project/Sparkle", "Packages/BigSur/Sparkle"),
     # The native build (scripts/vendor): every host binary built for macOS 11, and checked against it (minos, no weak
     # imports), as the release build holds them to 14.
-    Rule("native: compiler and linker minimums",
-         ["scripts/build-package-native.sh", "scripts/build-static-deps.sh", "scripts/build-iboot32patcher.sh"],
+    Rule("native: compiler and linker minimums", NATIVE_RECIPES,
          r"(-mmacosx-version-min=|MACOSX_DEPLOYMENT_TARGET=)14\.0\b", r"\g<1>11.0"),
-    Rule("native: iBoot32Patcher's Mach-O check", ["scripts/build-iboot32patcher.sh"], r"--minos 14\.0\b", "--minos 11.0"),
+    Rule("native: iBoot32Patcher's Mach-O check", [r for r in NATIVE_RECIPES if "iboot32patcher" in r],
+         r"--minos 14\.0\b", "--minos 11.0"),
+    # scripts/vendor (from v1.0-2026.11.05) refuses any Xcode before 27; the port builds with Xcode 26.6.
+    Rule("native: scripts/vendor takes Xcode 26", ["scripts/vendor"], r"\(\(version < 27\)\)", "((version < 26))",
+         required=False),
     Rule("native: the vendor build's Mach-O check", ["Packages/BuildTools/Sources/BuildTools/Vendor.swift"],
          r'\bminos = "14\.4"', 'minos = "11.0"'),
     Rule("native: check-macho's default", ["Packages/BuildTools/Sources/ltm-build/main.swift"],

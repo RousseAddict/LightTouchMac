@@ -3,7 +3,7 @@ format through BigSurCompat's CompatFormat, the formatters that give the same te
 with FormatStyle on CI).
 
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceRow.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceRow.swift
-index 2f3a8ce2..85cf629d 100644
+index 1667824b..c8d7dae4 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceRow.swift
 +++ b/Packages/LightTouchCore/Sources/LightTouchCore/Device/DeviceRow.swift
 @@ -357,11 +357,11 @@ public nonisolated struct DeviceRow: Equatable, Sendable {
@@ -21,18 +21,18 @@ index 2f3a8ce2..85cf629d 100644
  
      /// Before a download or preparation, when `available` bytes can't hold it: the copy's words; nil when there is room.
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
-index 779229b7..400911fa 100644
+index 41e2c63b..1b0b384d 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
 +++ b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
-@@ -181,7 +181,7 @@ public nonisolated enum BugReportInfo {
+@@ -186,7 +186,7 @@ public nonisolated enum BugReportInfo {
                  let jailbreak = d.jailbreak.map { $0 ? ", Jailbreak" : ", stock" } ?? ""
                  facts.append(
                      "Prepared base: recipe \(recipe)"
 -                        + (d.prepared.map { ", \($0.formatted(.iso8601.year().month().day()))" } ?? "")
 +                        + (d.prepared.map { ", \(CompatFormat.iso8601Day($0))" } ?? "")
+                         + (d.withoutMounting ? ", without mounting" : "")
                          + (d.skipSetup == true ? ", Skip Setup" : "") + jailbreak
                          + (d.sandboxPatch.map { " (sandbox patch \($0))" } ?? "")
-                 )
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Transport/AppEventLog.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Transport/AppEventLog.swift
 index 8cf5e217..e88079d0 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Transport/AppEventLog.swift

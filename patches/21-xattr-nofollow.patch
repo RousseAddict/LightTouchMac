@@ -6,10 +6,10 @@ FIFO from blocking the open. DevicePath's O_SEARCH needs no change: macOS 11 ope
 works through it.
 
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/StoppedVolumeEdit/StoppedVolumeEdit.swift b/Packages/FirmwareKit/Sources/FirmwareKit/StoppedVolumeEdit/StoppedVolumeEdit.swift
-index 3d6e7304..79d81701 100644
+index e76867ba..f1931588 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/StoppedVolumeEdit/StoppedVolumeEdit.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/StoppedVolumeEdit/StoppedVolumeEdit.swift
-@@ -525,23 +525,33 @@ public enum StoppedVolumeEdit {
+@@ -532,23 +532,33 @@ public enum StoppedVolumeEdit {
          guard checkedResult.ok else { throw FirmwareError(.internal, "edited metadata failed filesystem validation") }
      }
      private static func restoreMissingAttributes(from source: URL, to destination: URL, compressed: Bool) throws {

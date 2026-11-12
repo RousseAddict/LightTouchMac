@@ -3,7 +3,7 @@ makes it (the identifier is AppKitCompat's .compatToggleInspector): a button for
 menu's Show Inspector.
 
 diff --git a/LightTouchMac/UI/MainWindowController+Toolbar.swift b/LightTouchMac/UI/MainWindowController+Toolbar.swift
-index 88ecde05..7499d85d 100644
+index 8ebfdeaa..fb451e69 100644
 --- a/LightTouchMac/UI/MainWindowController+Toolbar.swift
 +++ b/LightTouchMac/UI/MainWindowController+Toolbar.swift
 @@ -126,6 +126,9 @@ extension MainWindowController {

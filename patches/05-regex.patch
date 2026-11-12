@@ -21,7 +21,7 @@ index 59073a12..a379882a 100644
      }
  
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift b/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
-index f7d35e82..4b1fab70 100644
+index ef2f30a7..bc3c0660 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
 @@ -1,6 +1,7 @@
@@ -32,7 +32,7 @@ index f7d35e82..4b1fab70 100644
  import Foundation
  
  extension FitCheck {
-@@ -485,7 +486,7 @@ extension FitCheck {
+@@ -486,7 +487,7 @@ extension FitCheck {
                  }
                  proof.append("macro context: \(slots) unnamed dispatch slots, named by the stock exports at run time")
              }
@@ -42,7 +42,7 @@ index f7d35e82..4b1fab70 100644
              guard unknown.isEmpty else {
                  return Fit(
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift b/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
-index a0fc2907..e3902fa3 100644
+index 27cd90b9..44bea3c3 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
 @@ -24,6 +24,7 @@
@@ -53,31 +53,31 @@ index a0fc2907..e3902fa3 100644
  import Foundation
  
  final class N45Board: Board {
-@@ -254,9 +255,9 @@ final class N45Board: Board {
+@@ -257,9 +258,9 @@ final class N45Board: Board {
              "boot_args": N45NOR.bootArgs,
              "kernel": N72Board.firstMatch(
                  try Data(contentsOf: c.decFile("kernelcache.mach")),  // host file
 -                /Darwin Kernel Version [^\x00]+/
 +                CompatRegex(#"Darwin Kernel Version [^\x00]+"#)
              ) ?? NSNull(),
--            "iboot": N72Board.firstMatch(iboot, /iBoot-[0-9.]+/) ?? "?",
-+            "iboot": N72Board.firstMatch(iboot, CompatRegex(#"iBoot-[0-9.]+"#)) ?? "?",
+-            "iboot": N72Board.firstMatch(iboot, /iBoot-[0-9.]+/) ?? "?"
++            "iboot": N72Board.firstMatch(iboot, CompatRegex(#"iBoot-[0-9.]+"#)) ?? "?"
          ]
      }
  
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/N72/N72Recipe.swift b/Packages/FirmwareKit/Sources/FirmwareKit/N72/N72Recipe.swift
-index 6bbf2e10..e9ec17d4 100644
+index d234eb5e..192dd358 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/N72/N72Recipe.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/N72/N72Recipe.swift
-@@ -151,9 +151,9 @@ final class N72Board: Board {
+@@ -152,9 +152,9 @@ final class N72Board: Board {
              "kernelcache_path": kcPath, "kernelcache_member": kcMember,
              "kernel": Self.firstMatch(
                  try Data(contentsOf: c.decFile("kernelcache.mach")),
 -                /Darwin Kernel Version [^\x00]+/
 +                CompatRegex(#"Darwin Kernel Version [^\x00]+"#)
              ) ?? NSNull(),
--            "iboot": Self.firstMatch(iboot, /iBoot-[0-9.]+/) ?? "?", "direct_iboot": major >= 3,
-+            "iboot": Self.firstMatch(iboot, CompatRegex(#"iBoot-[0-9.]+"#)) ?? "?", "direct_iboot": major >= 3,
+-            "iboot": Self.firstMatch(iboot, /iBoot-[0-9.]+/) ?? "?", "direct_iboot": major >= 3
++            "iboot": Self.firstMatch(iboot, CompatRegex(#"iBoot-[0-9.]+"#)) ?? "?", "direct_iboot": major >= 3
          ]
          prefix = "Firmware/all_flash/all_flash.\(e.board).production/"
          let img3Members = try ipsw.names().filter { $0.hasPrefix(prefix) && $0.hasSuffix(".img3") }
@@ -93,7 +93,7 @@ index 6bbf2e10..e9ec17d4 100644
  
      /// The volume path the decrypted iBoot loads the kernelcache from (its one kcPrefix string), without the "/".
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
-index cbdf8d9c..c515004b 100644
+index 4ede9abb..990808e6 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
 @@ -23,6 +23,7 @@
@@ -104,20 +104,20 @@ index cbdf8d9c..c515004b 100644
  import Foundation
  
  public enum SystemEdits {
-@@ -644,7 +645,7 @@ public enum SystemEdits {
-             return "no __GLIFunctionDispatchRec @encode in the shared cache: the shim will read OpenGLES's trampolines"
+@@ -649,7 +650,7 @@ public enum SystemEdits {
          }
-         let names = (try? String(contentsOf: helpers.appendingPathComponent(Helpers.glesNames), encoding: .utf8)) ?? ""  // host file
+         let namesURL = helpers.appendingPathComponent(Helpers.glesNames)
+         let names = (try? String(contentsOf: namesURL, encoding: .utf8)) ?? ""  // host file
 -        let known = Set(names.matches(of: /(?m)^GLES_FN\(\w+,\s*(\w+),/).map { String($0.1) })
 +        let known = Set(names.compatMatches(of: CompatRegex(#"(?m)^GLES_FN\(\w+,\s*(\w+),"#)).map { String($0[1]) })
          let unknown = have.filter { !known.contains($0) }
          return "GLI dispatch: \(have.count) slots, \(unknown.count) unknown to the name table"
              + (unknown.isEmpty ? "" : " (\(unknown.prefix(8).joined(separator: ", ")))")
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift b/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
-index a603d005..e5bb4d06 100644
+index 30a9aeda..6e0120e7 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
-@@ -198,10 +198,10 @@ public enum VolumeMount {
+@@ -260,10 +260,10 @@ public enum VolumeMount {
          var counts: [UInt32: UInt32] = [:]
          for i in stride(from: 0, to: lines.count, by: 2) {
              guard
@@ -133,7 +133,7 @@ index a603d005..e5bb4d06 100644
              counts[id] = n
          }
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
-index 06842514..7c5b8b49 100644
+index 2c4cf459..ec2012b5 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
 +++ b/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
 @@ -5,6 +5,7 @@
@@ -156,10 +156,10 @@ index 06842514..7c5b8b49 100644
      }
  }
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
-index f74d4733..c8d85c05 100644
+index 88a9f38a..41e2c63b 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
 +++ b/Packages/LightTouchCore/Sources/LightTouchCore/Features/BugReportInfo.swift
-@@ -213,8 +213,8 @@ public nonisolated enum BugReportInfo {
+@@ -219,8 +219,8 @@ public nonisolated enum BugReportInfo {
      public static func recentErrors(log: URL, limit: Int = 5, width: Int = 200) -> [String] {
          // ponytail: reads the log's last 256 KB; the rotated app.log.1 is left out.
          let text = DiagnosticsExport.tail(of: log, limit: 262_144).text

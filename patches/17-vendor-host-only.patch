@@ -2,49 +2,98 @@ scripts/vendor with LTM_VENDOR_HOST_ONLY=1 builds only the host binaries: the na
 dylib, iBoot32Patcher and ipod-helper into Frameworks/ and MacOS/ (with include/ and dSYMs/), checked against
 macOS 11 by codemod.py's native rules, and leaves Resources/Guest, Device, licenses and usbmuxd-conf empty. The
 Big Sur build takes its resources from the official release (install.sh), so it needs neither the SecureROMs, the
-armv6 SDK, the guest tools, the developer tools nor the built-in iPod's IPSW. The stamp records host-only, so a
-full run afterwards builds the rest.
+armv6 and iPad SDKs, the guest tools, the developer tools nor the built-in iPod's IPSW, and its checks don't ask for
+them. It leaves ANGLE out (patch 22): QEMU is built without the ANGLE renderer and Frameworks/ has no libEGL or
+libGLESv2. It still writes the machine options (MachineOptions.swift) from the dylib it built, which Xcode's first
+phase compares. vendor.json records host-only, so a full run afterwards builds the rest.
 
 diff --git a/Packages/BuildTools/Sources/BuildTools/Vendor.swift b/Packages/BuildTools/Sources/BuildTools/Vendor.swift
-index 2c321d82..d3470996 100644
+index 3b2d059a..4e2997b6 100644
 --- a/Packages/BuildTools/Sources/BuildTools/Vendor.swift
 +++ b/Packages/BuildTools/Sources/BuildTools/Vendor.swift
-@@ -28,6 +28,10 @@ public struct Vendor {
-         SecureROMs, default ~/Developer/qemu-ios-files), the n72ap-7E18 IPSW in the app's IPSW cache (or
-         LTM_BUILT_IN_IPSW), network for the pinned source archives. LTM_VENDOR_ROOT moves the cache (default
+@@ -38,10 +38,16 @@ public struct Vendor {
+         n72ap-7E18 IPSW in the app's IPSW cache (or LTM_BUILT_IN_IPSW), network for the pinned source archives.
+         QEMU_IOS_DIR and USBMUXD_SOURCE_DIR move the checkouts; LTM_VENDOR_ROOT moves the cache (default
          ~/Developer/ltm-vendor.noindex, which Spotlight leaves alone).
 +
-+        LTM_VENDOR_HOST_ONLY=1 builds Frameworks/, MacOS/, include/ and dSYMs/ only, with Resources/Guest, Device,
-+        licenses and usbmuxd-conf left empty: for a build whose resources come from an official release. It needs
-+        neither the SecureROMs, the armv6 SDK nor the IPSW.
++        LTM_VENDOR_HOST_ONLY=1 builds Frameworks/, MacOS/, include/ and dSYMs/ only, without ANGLE, with Resources/Guest,
++        Device, licenses and usbmuxd-conf left empty: for a build whose resources come from an official release. It
++        needs neither the SecureROMs nor the armv6 and iPad SDKs.
          """
  
      let root: URL
-@@ -674,11 +678,26 @@ public struct Vendor {
-         defer { close(lock) }
-         let vendor = try directory()
-         let work = vendor.appendingPathComponent("work")
--        let stamp = ["recipe": try treeHash(Self.tools), "device": try treeHash(Self.deviceSources)]
-+        let hostOnly = environment["LTM_VENDOR_HOST_ONLY"] == "1"
-+        var stamp = ["recipe": try treeHash(Self.tools), "device": try treeHash(Self.deviceSources)]
-+        if hostOnly { stamp["host-only"] = "1" }
-         let done = vendor.appendingPathComponent("vendor.json")
-         let previous = ((try? readJSON(done)) ?? [:]).compactMapValues { $0 as? String }
-         try writeXCConfig(vendor)
-         if previous == stamp { return vendor }
+     let environment = ProcessInfo.processInfo.environment
++    /// Big Sur port: the host binaries only (LTM_VENDOR_HOST_ONLY=1), without ANGLE.
++    var hostOnly: Bool { environment["LTM_VENDOR_HOST_ONLY"] == "1" }
+     var home: URL { files.homeDirectoryForCurrentUser }
+     var vendorRoot: URL {
+         url(
+@@ -207,7 +213,7 @@ public struct Vendor {
+ 
+     /// One build-package-native.sh root per slice (usbmuxd at its pin, the QEMU dylib, iBoot32Patcher), with the
+     /// static prefix cached per recipe, then merged into one universal root.
+-    func native(_ work: URL, qemu: URL, angle: URL) throws -> URL {
++    func native(_ work: URL, qemu: URL, angle: URL?) throws -> URL {
+         let universal = work.appendingPathComponent("universal")
+         if files.fileExists(atPath: universal.appendingPathComponent("native-build.json").path),
+             files.fileExists(atPath: universal.appendingPathComponent("build/iBoot32Patcher/iBoot32Patcher").path)
+@@ -226,7 +232,7 @@ public struct Vendor {
+             let e = env([
+                 "LTM_ARCH": arch, "QEMU_IOS_DIR": qemu.path, "USBMUXD_SOURCE_DIR": checkout("usbmuxd").path,
+                 "USBMUXD_COMMIT": pin("usbmuxd")["commit"] ?? "",
+-                "LTM_STATIC_DEPS": staticRoot.appendingPathComponent("prefix").path, "LTM_ANGLE": angle.path
++                "LTM_STATIC_DEPS": staticRoot.appendingPathComponent("prefix").path, "LTM_ANGLE": angle?.path ?? ""
+             ])
+             if !Self.staticComplete(staticRoot) {
+                 remove(staticRoot)
+@@ -467,7 +473,7 @@ public struct Vendor {
+     }
+ 
+     /// Frameworks/ and MacOS/: every non-system dependency embedded once under @rpath, build rpaths dropped.
+-    func binaries(_ vendor: URL, universal: URL, qemu: URL, angle: URL, work: URL) throws {
++    func binaries(_ vendor: URL, universal: URL, qemu: URL, angle: URL?, work: URL) throws {
+         let frameworks = vendor.appendingPathComponent("Frameworks")
+         let tools = vendor.appendingPathComponent("MacOS")
+         let toolsLog = work.appendingPathComponent("logs/tools.log")
+@@ -514,7 +520,9 @@ public struct Vendor {
+         _ = try embed(prefix.appendingPathComponent("lib/libimobiledevice-1.0.dylib"), as: "libimobiledevice-1.0.dylib")
+         _ = try embed(prefix.appendingPathComponent("lib/libplist-2.0.dylib"), as: "libplist-2.0.dylib")
+         _ = try embed(universal.appendingPathComponent("qemu-build/libqemu-arm.dylib"), as: "libqemu-arm.dylib")
+-        for name in ["libEGL.dylib", "libGLESv2.dylib"] { _ = try embed(angle.appendingPathComponent(name), as: name) }
++        if let angle {
++            for name in ["libEGL.dylib", "libGLESv2.dylib"] { _ = try embed(angle.appendingPathComponent(name), as: name) }
++        }
+         let helper = work.appendingPathComponent("ipod-helper")
+         try run(
+             ["/usr/bin/cc", "-O2", "-Wall"] + Self.archs.flatMap { ["-arch", $0] } + [
+@@ -808,6 +816,7 @@ public struct Vendor {
+                 )
+             }
+         }
++        if hostOnly { return missing }  // Big Sur port: no guest tools, SecureROMs or built-in iPod to build
+         if !files.fileExists(atPath: sdk.appendingPathComponent("usr/lib/libSystem.dylib").path) {
+             missing.append(
+                 (
+@@ -878,6 +887,22 @@ public struct Vendor {
+             record["recipe"] != recipe
+             || !files.fileExists(atPath: vendor.appendingPathComponent("Frameworks/libqemu-arm.dylib").path)
+         let prepareBuiltIn = release && (rebuild || record["device"] != device || !files.fileExists(atPath: blob.path))
 +        if hostOnly {
-+            try files.createDirectory(at: work, withIntermediateDirectories: true)
-+            let qemu = try qemuTree(work)
-+            try binaries(vendor, universal: try native(work, qemu: qemu), qemu: qemu, work: work)
-+            for name in ["Guest", "Device", "licenses", "usbmuxd-conf"] {
-+                let directory = vendor.appendingPathComponent("Resources/\(name)")
-+                remove(directory)
-+                try files.createDirectory(at: directory, withIntermediateDirectories: true)
++            if rebuild || record["host-only"] != "1" {
++                try files.createDirectory(at: work, withIntermediateDirectories: true)
++                let qemu = try qemuTree(work)
++                try binaries(vendor, universal: try native(work, qemu: qemu, angle: nil), qemu: qemu, angle: nil, work: work)
++                for name in ["Guest", "Device", "licenses", "usbmuxd-conf"] {
++                    let directory = vendor.appendingPathComponent("Resources/\(name)")
++                    remove(directory)
++                    try files.createDirectory(at: directory, withIntermediateDirectories: true)
++                }
++                remove(vendor.appendingPathComponent("Resources/build-inputs.json"))
++                try writeJSON(["recipe": recipe, "host-only": "1"], to: done)
 +            }
-+            remove(vendor.appendingPathComponent("Resources/build-inputs.json"))
-+            try writeJSON(stamp, to: done)
++            try machineOptions(vendor, qemu: qemuHost)
 +            return vendor
 +        }
-         for name in Self.bootROMs where !files.fileExists(atPath: assets.appendingPathComponent(name).path) {
-             throw ToolError("vendor: no SecureROM \(assets.appendingPathComponent(name).path) (LTM_ASSETS)")
-         }
+         if rebuild || prepareBuiltIn {
+             try files.createDirectory(at: work, withIntermediateDirectories: true)
+             let qemu = try qemuTree(work)

@@ -3,12 +3,12 @@ it. The tree's HEAD stays the pinned commit, which is what qemuTree checks. A ch
 key, since that covers build-support/patches, and so makes a new tree.
 
 diff --git a/Packages/BuildTools/Sources/BuildTools/Vendor.swift b/Packages/BuildTools/Sources/BuildTools/Vendor.swift
-index d3470996..6509d286 100644
+index 4e2997b6..0c875ea2 100644
 --- a/Packages/BuildTools/Sources/BuildTools/Vendor.swift
 +++ b/Packages/BuildTools/Sources/BuildTools/Vendor.swift
-@@ -161,6 +161,11 @@ public struct Vendor {
+@@ -179,6 +179,11 @@ public struct Vendor {
              try run([
-                 "/usr/bin/git", "-C", checkout("qemu-ios").path, "worktree", "add", "--detach", "-q", tree.path, commit,
+                 "/usr/bin/git", "-C", checkout("qemu-ios").path, "worktree", "add", "--detach", "-q", tree.path, commit
              ])
 +            // Big Sur port: its patches to the pinned tree, once, as the tree is made (they are in the pin key).
 +            for patch in try entries(root.appendingPathComponent("build-support/patches"))

@@ -3,10 +3,10 @@ subjectAltName and extendedKeyUsage from a config file instead, which every Libr
 the same (checked with LibreSSL 2.8.3: both extensions, and the PKCS#12 export).
 
 diff --git a/LightTouchMac/Features/PhoneRemoteController.swift b/LightTouchMac/Features/PhoneRemoteController.swift
-index b0231a72..f1fdb18b 100644
+index 0f474ef4..c4b6d5f5 100644
 --- a/LightTouchMac/Features/PhoneRemoteController.swift
 +++ b/LightTouchMac/Features/PhoneRemoteController.swift
-@@ -329,11 +329,25 @@ import SystemConfiguration
+@@ -358,11 +358,25 @@ import os
          try StorageLocations.privateDirectory(folder)
          let key = folder.appendingPathComponent("key.pem").path
          let certificate = folder.appendingPathComponent("certificate.pem").path
@@ -30,8 +30,8 @@ index b0231a72..f1fdb18b 100644
          try openssl([
              "req", "-x509", "-newkey", "rsa:2048", "-nodes", "-days", "825", "-subj", "/CN=\(host)",
 -            "-addext", "subjectAltName=DNS:\(host)", "-addext", "extendedKeyUsage=serverAuth",
--            "-keyout", key, "-out", certificate,
-+            "-config", config, "-extensions", "ext", "-keyout", key, "-out", certificate,
+-            "-keyout", key, "-out", certificate
++            "-config", config, "-extensions", "ext", "-keyout", key, "-out", certificate
          ])
          try? FileManager.default.removeItem(at: p12)
          try openssl([

@@ -2,7 +2,7 @@ Date.now is macOS 12. v1.0-2026.10.21 writes it .now where a Date is expected, w
 from a clock's .now: the clipboard's last interaction and ClipboardSync's default time are Date().
 
 diff --git a/LightTouchMac/Features/ClipboardSharing.swift b/LightTouchMac/Features/ClipboardSharing.swift
-index bb6020d9..1057727e 100644
+index 0f30c14f..0b1f6411 100644
 --- a/LightTouchMac/Features/ClipboardSharing.swift
 +++ b/LightTouchMac/Features/ClipboardSharing.swift
 @@ -65,7 +65,7 @@ import LightTouchCore

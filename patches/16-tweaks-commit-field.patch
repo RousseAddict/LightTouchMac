@@ -3,7 +3,7 @@ CommitField is its title beside a CompatTextField whose placeholder is the promp
 which macOS 11 reports both on Return and on leaving the field.
 
 diff --git a/LightTouchMac/UI/TweaksPanel.swift b/LightTouchMac/UI/TweaksPanel.swift
-index 5c2ac934..a01c6ff4 100644
+index 2dc50ab2..8c91da44 100644
 --- a/LightTouchMac/UI/TweaksPanel.swift
 +++ b/LightTouchMac/UI/TweaksPanel.swift
 @@ -162,16 +162,15 @@ private struct CommitField: View {
