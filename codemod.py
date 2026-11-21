@@ -200,6 +200,9 @@ RULES = [
          required=False),
     Rule("swiftui: .contextMenu(forSelectionType:)", SWIFTUI, r"\.contextMenu\((\s*)forSelectionType:",
          r".compatContextMenu(\1forSelectionType:"),
+    # A preview's traits (macOS 14, the Settings panes' fixed layouts): the plain #Preview builds at macOS 11.
+    Rule("swiftui: #Preview(_:traits: .fixedLayout)", SWIFTUI,
+         r'#Preview\(("[^"]*"), traits: \.fixedLayout\(width: [\d.]+, height: [\d.]+\)\)', r"#Preview(\1)"),
     # Every view follows ObservationCompat models through CompatObserving (SwiftUI only tracks Observation's).
     Rule("swiftui: views observe ObservationCompat models", SWIFTUI,
          r"^([ \t]*)((?:(?:public|private|fileprivate|internal) )?)var body: some View \{",
@@ -211,6 +214,8 @@ RULES = [
     Rule("app: sectionHeader(title:)", APP, r"\.sectionHeader\(title:", ".compatSectionHeader(title:"),
     Rule("app: loadViewIfNeeded()", APP, r"\bloadViewIfNeeded\(\)", "compatLoadViewIfNeeded()"),
     Rule("app: NSColor.systemFill", APP, r"\bNSColor\.systemFill\b", "NSColor.compatSystemFill"),
+    # NSApplication.activate() (macOS 14), from v1.0-2026.11.12's move-to-Applications offer.
+    Rule("app: NSApp.activate()", APP, r"\bNSApp\.activate\(\)", "NSApp.activate(ignoringOtherApps: true)"),
     # macOS 13 time and lock APIs.
     Rule("swift: Duration", SWIFT, r"\bDuration\b", "CompatDuration", "BigSurCompat"),
     Rule("swift: ContinuousClock", SWIFT, r"\bContinuousClock\b", "CompatContinuousClock", "BigSurCompat"),

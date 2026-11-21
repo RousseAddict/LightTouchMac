@@ -333,6 +333,12 @@ extension CompatLabeledContent where Label == Text, Content == Text {
     init<S: StringProtocol>(_ titleKey: LocalizedStringKey, value: S) {
         self.init(content: { Text(value).foregroundColor(.secondary) }) { Text(titleKey) }
     }
+
+    /// A title that is a string, not a key (Storage's info sheet facts, from v1.0-2026.11.12).
+    @_disfavoredOverload
+    init<T: StringProtocol, S: StringProtocol>(_ title: T, value: S) {
+        self.init(content: { Text(value).foregroundColor(.secondary) }) { Text(title) }
+    }
 }
 
 /// `NavigationSplitView` with a sidebar and a detail (macOS 13); a NavigationView on macOS 11.

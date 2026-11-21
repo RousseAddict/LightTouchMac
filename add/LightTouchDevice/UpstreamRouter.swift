@@ -53,16 +53,7 @@ final class UpstreamRouter: NSObject, URLSessionDataDelegate, @unchecked Sendabl
             completionHandler: completionHandler)
     }
 
-    func urlSession(
-        _ session: URLSession,
-        dataTask: URLSessionDataTask,
-        willCacheResponse proposedResponse: CachedURLResponse,
-        completionHandler: @escaping (CachedURLResponse?) -> Void
-    ) {
-        guard let upstream = upstream(for: dataTask) else { return completionHandler(proposedResponse) }
-        upstream.urlSession(
-            session, dataTask: dataTask, willCacheResponse: proposedResponse, completionHandler: completionHandler)
-    }
+    // No willCacheResponse: from v1.0-2026.11.16 the session has no URLCache and Upstream doesn't answer it (f8a738bf).
 
     func urlSession(
         _ session: URLSession,
