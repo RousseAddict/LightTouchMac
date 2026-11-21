@@ -1,0 +1,8 @@
+            switch object.statusOfValue(forKey: key, error: &error) {
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:202:2: error: 'Preview(_:traits:body:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:206:2: error: 'Preview(_:traits:body:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:210:2: error: 'Preview(_:traits:body:)' is only available in macOS 14.0 or newer
+error: The file “Light_Touch.abi.json” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftdoc” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftmodule” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
