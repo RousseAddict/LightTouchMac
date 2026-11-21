@@ -1,7 +1,6 @@
 Regex is macOS 13. Light Touch's 13 uses go through BigSurCompat's CompatRegex (NSRegularExpression, ICU) with
 the same patterns as raw strings; a match's groups read as match[1] where a Regex output reads match.1.
 check/compat.sh runs each pattern on the text it reads.
-
 diff --git a/LightTouchMac/UI/MainWindowController+Diagnostics.swift b/LightTouchMac/UI/MainWindowController+Diagnostics.swift
 index 59073a12..a379882a 100644
 --- a/LightTouchMac/UI/MainWindowController+Diagnostics.swift
@@ -21,7 +20,7 @@ index 59073a12..a379882a 100644
      }
  
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift b/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
-index ef2f30a7..bc3c0660 100644
+index ae8a6706..949a7def 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/FitCheck/Pieces.swift
 @@ -1,6 +1,7 @@
@@ -32,7 +31,7 @@ index ef2f30a7..bc3c0660 100644
  import Foundation
  
  extension FitCheck {
-@@ -486,7 +487,7 @@ extension FitCheck {
+@@ -488,7 +489,7 @@ extension FitCheck {
                  }
                  proof.append("macro context: \(slots) unnamed dispatch slots, named by the stock exports at run time")
              }
@@ -42,7 +41,7 @@ index ef2f30a7..bc3c0660 100644
              guard unknown.isEmpty else {
                  return Fit(
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift b/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
-index 27cd90b9..44bea3c3 100644
+index 73dff600..ab8c5b45 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/N45/N45Recipe.swift
 @@ -24,6 +24,7 @@
@@ -93,7 +92,7 @@ index d234eb5e..192dd358 100644
  
      /// The volume path the decrypted iBoot loads the kernelcache from (its one kcPrefix string), without the "/".
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
-index 4ede9abb..990808e6 100644
+index 261e1399..4a74b4d3 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/SystemEdits/SystemEdits.swift
 @@ -23,6 +23,7 @@
@@ -104,7 +103,7 @@ index 4ede9abb..990808e6 100644
  import Foundation
  
  public enum SystemEdits {
-@@ -649,7 +650,7 @@ public enum SystemEdits {
+@@ -714,7 +715,7 @@ public enum SystemEdits {
          }
          let namesURL = helpers.appendingPathComponent(Helpers.glesNames)
          let names = (try? String(contentsOf: namesURL, encoding: .utf8)) ?? ""  // host file
@@ -114,10 +113,10 @@ index 4ede9abb..990808e6 100644
          return "GLI dispatch: \(have.count) slots, \(unknown.count) unknown to the name table"
              + (unknown.isEmpty ? "" : " (\(unknown.prefix(8).joined(separator: ", ")))")
 diff --git a/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift b/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
-index 30a9aeda..6e0120e7 100644
+index b2dfe5be..816de1ab 100644
 --- a/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
 +++ b/Packages/FirmwareKit/Sources/FirmwareKit/VolumeMount/VolumeMount.swift
-@@ -260,10 +260,10 @@ public enum VolumeMount {
+@@ -279,10 +279,10 @@ public enum VolumeMount {
          var counts: [UInt32: UInt32] = [:]
          for i in stride(from: 0, to: lines.count, by: 2) {
              guard
@@ -133,7 +132,7 @@ index 30a9aeda..6e0120e7 100644
              counts[id] = n
          }
 diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
-index 2c4cf459..ec2012b5 100644
+index 69c80c55..c8902d6f 100644
 --- a/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
 +++ b/Packages/LightTouchCore/Sources/LightTouchCore/Device/GuestFaults.swift
 @@ -5,6 +5,7 @@
@@ -144,7 +143,7 @@ index 2c4cf459..ec2012b5 100644
  import Foundation
  
  public nonisolated enum GuestFaults {
-@@ -90,8 +91,8 @@ public nonisolated enum GuestFaults {
+@@ -97,8 +98,8 @@ public nonisolated enum GuestFaults {
          let name = (path as NSString).lastPathComponent
          guard ["plist", "ips", "crash"].contains((name as NSString).pathExtension),
              !name.hasPrefix("LatestCrash"), !name.hasPrefix("Sandbox-"), !name.hasPrefix("SystemLog_"),
@@ -169,4 +168,32 @@ index 88a9f38a..41e2c63b 100644
 +        return text.split(separator: "\n").filter { $0.compatContains(failure) }.suffix(limit).map {
              $0.count > width ? String($0.prefix(width - 1)) + "…" : String($0)
          }
+     }
+diff --git a/Packages/LightTouchCore/Sources/LightTouchCore/Device/GLESRefusals.swift b/Packages/LightTouchCore/Sources/LightTouchCore/Device/GLESRefusals.swift
+index 1cbf85fb..867b8179 100644
+--- a/Packages/LightTouchCore/Sources/LightTouchCore/Device/GLESRefusals.swift
++++ b/Packages/LightTouchCore/Sources/LightTouchCore/Device/GLESRefusals.swift
+@@ -5,6 +5,7 @@
+ // that could carry anything else (a guest shim's names are the guest's text) is dropped whole.
+ // Pure Foundation; LightTouchCoreTests' GLESRefusalsTests.
+ 
++import BigSurCompat
+ import Foundation
+ 
+ public nonisolated struct GLESRefusals {
+@@ -44,12 +45,12 @@ public nonisolated struct GLESRefusals {
+         let call = columns[2]
+         let fields = name.split(separator: ":", omittingEmptySubsequences: false)
+         guard name.count <= 96, fields.count >= 2,
+-            fields.allSatisfy({ $0.wholeMatch(of: /[A-Za-z0-9_\-]{1,40}(\/[A-Za-z0-9_\-]{1,40})?/) != nil }),
+-            call.isEmpty || call.wholeMatch(of: /gl[A-Za-z0-9_]{1,62}/) != nil
++            fields.allSatisfy({ $0.compatWholeMatch(of: CompatRegex(#"[A-Za-z0-9_\-]{1,40}(/[A-Za-z0-9_\-]{1,40})?"#)) != nil }),
++            call.isEmpty || call.compatWholeMatch(of: CompatRegex(#"gl[A-Za-z0-9_]{1,62}"#)) != nil
+         else { return nil }
+         var parameters = ["refusal": String(name), "kind": String(fields[0])]
+         if !call.isEmpty { parameters["call"] = String(call) }
+-        let hex = fields.dropFirst().first { $0.wholeMatch(of: /0x[0-9a-fA-F]{1,8}/) != nil }.map(String.init)
++        let hex = fields.dropFirst().first { $0.compatWholeMatch(of: CompatRegex(#"0x[0-9a-fA-F]{1,8}"#)) != nil }.map(String.init)
+         parameters[fields[0] == "glerror" ? "error" : "enum"] = hex
+         return parameters
      }

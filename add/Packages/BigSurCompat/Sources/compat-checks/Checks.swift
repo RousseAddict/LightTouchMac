@@ -126,6 +126,16 @@ struct Checks {
               "Regex output")
         let identifying = CompatRegex("ecid|imei|iccid|meid|serial|mac|uid")
         check("ecid".compatContains(identifying) && !"board".compatContains(identifying), "Regex contains, plain")
+        // GLESRefusals (Guest.glRefused): a refusal name's fields, its GL call, a field's hex value
+        let field = CompatRegex(#"[A-Za-z0-9_\-]{1,40}(/[A-Za-z0-9_\-]{1,40})?"#)
+        let fields = ["glerror", "gles-shim/fence_2", "a/b/c", "x y"].map { $0[...].compatWholeMatch(of: field) != nil }
+        check(fields == [true, true, false, false], "Regex wholeMatch(of:) on a Substring, an optional group")
+        let call = CompatRegex(#"gl[A-Za-z0-9_]{1,62}"#)
+        check("glDrawElements"[...].compatWholeMatch(of: call) != nil
+                && "glFoo()"[...].compatWholeMatch(of: call) == nil, "Regex wholeMatch(of:), a GL call's name")
+        let hex = CompatRegex(#"0x[0-9a-fA-F]{1,8}"#)
+        check("0x500"[...].compatWholeMatch(of: hex) != nil && "174"[...].compatWholeMatch(of: hex) == nil
+                && "0x123456789"[...].compatWholeMatch(of: hex) == nil, "Regex wholeMatch(of:), a bounded hex value")
     }
 
     /// What picks a prepared device's language, region and keyboards (ClockRegion, FinishedSetup, Keyboards).

@@ -164,6 +164,20 @@ RULES = [
     Rule("swiftui: .monospacedDigit()", SWIFTUI, r"\.monospacedDigit\(\)", ".compatMonospacedDigit()"),
     Rule("swiftui: .task", SWIFTUI, r"\.task(\s*\{|\(id:|\(priority:)", r".compatTask\1"),
     Rule("swiftui: .formStyle(.grouped)", SWIFTUI, r"\.formStyle\(\.grouped\)", ".compatGroupedFormStyle()"),
+    # From v1.0-2026.11.12's Settings and Storage panes: a View extension's own call, without the dot (settingsPane).
+    Rule("swiftui: formStyle(.grouped) on self", SWIFTUI, r"(?<![\w.])formStyle\(\.grouped\)",
+         "compatGroupedFormStyle()"),
+    Rule("swiftui: .scrollBounceBehavior(.basedOnSize)", SWIFTUI, r"\.scrollBounceBehavior\(\.basedOnSize\)",
+         ".compatScrollBounceBasedOnSize()"),
+    Rule("swiftui: .textSelection(.disabled)", SWIFTUI, r"\.textSelection\(\.disabled\)",
+         ".compatTextSelectionDisabled()"),
+    Rule("swiftui: .tint(_:)", SWIFTUI, r"(?m)^(\s*)\.tint\(", r"\1.compatTint("),
+    Rule("swiftui: Button(_:systemImage:)", SWIFTUI, r'\bButton\(("[^"\n]*"|[A-Za-z_][\w.]*), systemImage:',
+         r"Button(compatTitle: \1, systemImage:"),
+    # A destructive button reads as any other before macOS 12 (ButtonRole).
+    Rule("swiftui: Button(role: .destructive)", SWIFTUI, r", role: \.destructive\)", ")"),
+    Rule("swiftui: .dropDestination(for: URL.self)", SWIFTUI, r"\.dropDestination\(for: URL\.self\) \{ (\w+), _ in",
+         r".compatDropFileURLs { \1 in"),
     Rule("swiftui: .scrollDisabled", SWIFTUI, r"\.scrollDisabled\(", ".compatScrollDisabled("),
     Rule("swiftui: .onGeometryChange", SWIFTUI, r"\.onGeometryChange\(for:", ".compatOnGeometryChange(for:"),
     Rule("swiftui: .onChange(of:)", SWIFTUI, r"\.onChange\(of:", ".compatOnChange(of:"),
@@ -181,7 +195,9 @@ RULES = [
     Rule("swiftui: .gridColumnAlignment", SWIFTUI, r"\.gridColumnAlignment\(", ".compatGridColumnAlignment("),
     Rule("swiftui: .background(.quaternary, in:)", SWIFTUI, r"\.background\(\.quaternary, in:",
          ".compatBackground(.compatQuaternary, in:"),
-    Rule("swiftui: .selectionDisabled", SWIFTUI, r"\.selectionDisabled\(", ".compatSelectionDisabled("),
+    # v1.0-2026.11.16's Add Device sheet no longer disables rows (5a52e03d); kept for a release that does again
+    Rule("swiftui: .selectionDisabled", SWIFTUI, r"\.selectionDisabled\(", ".compatSelectionDisabled(",
+         required=False),
     Rule("swiftui: .contextMenu(forSelectionType:)", SWIFTUI, r"\.contextMenu\((\s*)forSelectionType:",
          r".compatContextMenu(\1forSelectionType:"),
     # Every view follows ObservationCompat models through CompatObserving (SwiftUI only tracks Observation's).

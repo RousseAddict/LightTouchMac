@@ -82,6 +82,9 @@ To reach a running device from scripts (a host and port for it, its logs, instal
   `LTM_HELPER_SANDBOX = NO` (codemod.py), as every build before it ran. Its sandbox extensions and an ad-hoc signed
   app group are untried on macOS 11.
 - **Sparkle updates:** a stub package; updates come from this branch's Package workflow.
+- **Usage and error reports (TelemetryDeck, from v1.0-2026.11.12):** off by default (patch 23). Upstream sends them
+  unless they're turned off; here they go only once Settings ▸ General ▸ Share anonymous usage and error reports is
+  turned on. MetricKit's hang and CPU-spike reports need macOS 12, so they never come on 11.
 
 ## Applying the port
 

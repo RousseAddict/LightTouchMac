@@ -24,6 +24,12 @@
    "commit": "2f1700600f7ede5f611b34fd4768a26fe449cb4a",
    "reviewed": "2026-11-12",
    "scope": "Light Touch 717e9795..2f170060 (108 commits), every changed line of shipped code and build tooling, tests by pattern; qemu-ios 0abf6376..1ad1c781 (36 commits), every changed line of shipped code and build tooling, no binaries; libplist 2.8.0 (tarball against the tag and GitHub's digest), ANGLE 3d5feae4 (on angle/angle main; the Big Sur build doesn't build it), swift-binary-parsing 0.0.4, swift-crypto 5.0.3 and swift-syntax 603.0.2 (each the official tag's commit), the four new build-support patches: clean. Also checked by the user."
+  },
+  {
+   "tag": "v1.0-2026.11.16",
+   "commit": "668b1fe1233c9aaace1cdd8bfdd03980a5baf9a4",
+   "reviewed": "2026-11-21",
+   "scope": "Light Touch 2f170060..668b1fe1 (76 commits, through v1.0-2026.11.12), every changed line of shipped code and build tooling, tests and recorded listings by pattern, the iPhone 5 shell PNG and the gzip listings checked; qemu-ios 1ad1c781..db230fe8 (50 commits), every changed line of host code, guest tools and build files, tests by pattern; TelemetryDeck SwiftSDK 2.14.2 in full (its archive's sha256 and the tag's commit checked): clean. Telemetry is on by default upstream; the Big Sur build turns it off by default (patch 23)."
   }
  ],
  "pins": {
@@ -31,14 +37,16 @@
    "d563917e016c84c08f73a3c1230678560d262683",
    "ce1db2dfc5aefb0a5a8dbd76bb6c6cf8cef54902",
    "0abf6376534a380bf807ac75ba0776eb105a387f",
-   "1ad1c781fe55b933035d6a8b4511c00ccb994f23"
+   "1ad1c781fe55b933035d6a8b4511c00ccb994f23",
+   "db230fe8e8e4d297724b2eccdc38bdc21876696a"
   ],
   "usbmuxd": [
    "5cb90897479b9021a69db9698fea071ef7b2eceb"
   ],
   "dependencies.json": [
    "508b9cc4f712ebc536b1ae1c37390c98ac17f1c9f23ec25aa502e751f406067f",
-   "59d7d9375b8b4d7d5ca493e5c3f84b1ca95e62bc5180195a4271a0888f01f92e"
+   "59d7d9375b8b4d7d5ca493e5c3f84b1ca95e62bc5180195a4271a0888f01f92e",
+   "3892d0793783ae5b78281efd43263179ea6c916275fa02495bc95ba4e6fb4f38"
   ],
   "developer-disk-images.json": [
    "eacdec6192e1124a2c62e6cd05fc9426bcfa63c443bae1d47ed7c4e877805de8"
@@ -56,6 +64,7 @@
    "swift-fileio@13a83389fb4844f279b43012c4b8d7a3f95773bf",
    "swift-syntax@79e4b74a295b6eb74a8b585e3a39d29e70c1dbd1",
    "swift-system@869129b7bf4ecc57b97d0193ad29690ca2134750",
+   "swiftsdk@58f436299d3f6710bcedc18aff26480aaf1879fc",
    "unrar.swift@7216007a38ac122dbdeae26cfdaf7f10775c868f",
    "zipfoundation@22787ffb59de99e5dc1fbfe80b19c97a904ad48d"
   ]

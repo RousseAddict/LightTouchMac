@@ -1,8 +1,11 @@
 // The part of Sparkle's API Light Touch calls: AppDelegate creates the controller, and the app menu's Check for
-// Updates targets it. Nothing checks for updates; the menu item says why.
+// Updates targets it. Nothing checks for updates; the menu item says why. Analytics' UpdateReports (from
+// v1.0-2026.11.12) is an updater delegate whose method names SPUUpdater; nothing calls it here.
 import AppKit
 
 @objc public protocol SPUUpdaterDelegate {}
+
+@objc public final class SPUUpdater: NSObject {}
 
 @objc public protocol SPUStandardUserDriverDelegate {}
 

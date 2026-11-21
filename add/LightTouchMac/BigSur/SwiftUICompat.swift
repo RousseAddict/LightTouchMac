@@ -7,6 +7,7 @@ import AppKit
 import Combine
 import ObservationCompat
 import SwiftUI
+import UniformTypeIdentifiers
 
 // MARK: - Observation
 
@@ -79,6 +80,62 @@ extension View {
 
     @ViewBuilder func compatFileDialogDefaultDirectory(_ url: URL?) -> some View {
         if #available(macOS 14, *) { fileDialogDefaultDirectory(url) } else { self }
+    }
+
+    @ViewBuilder func compatTextSelectionDisabled() -> some View {
+        if #available(macOS 12, *) { textSelection(.disabled) } else { self }
+    }
+
+    /// `.tint(_:)` (macOS 12); before it the accent color, which a borderless button's label takes.
+    @ViewBuilder func compatTint(_ color: Color) -> some View {
+        if #available(macOS 12, *) { tint(color) } else { accentColor(color) }
+    }
+
+    /// `.scrollBounceBehavior(.basedOnSize)` (macOS 13.3); before it a scroll view bounces as it always did.
+    @ViewBuilder func compatScrollBounceBasedOnSize() -> some View {
+        if #available(macOS 13.3, *) { scrollBounceBehavior(.basedOnSize) } else { self }
+    }
+
+    /// `.dropDestination(for: URL.self)` (macOS 13); before it `.onDrop` of file URLs, which takes the drop at once
+    /// and hands `action` the URLs, on the main queue, once every item has loaded.
+    @ViewBuilder func compatDropFileURLs(_ action: @escaping ([URL]) -> Bool) -> some View {
+        if #available(macOS 13, *) {
+            dropDestination(for: URL.self) { urls, _ in action(urls) }
+        } else {
+            onDrop(of: [UTType.fileURL], isTargeted: nil) { providers in
+                let drop = CompatFileURLDrop(action)
+                let group = DispatchGroup()
+                for provider in providers where provider.canLoadObject(ofClass: URL.self) {
+                    group.enter()
+                    _ = provider.loadObject(ofClass: URL.self) { url, _ in
+                        if let url = url { drop.add(url) }
+                        group.leave()
+                    }
+                }
+                group.notify(queue: .main) { drop.finish() }
+                return !providers.isEmpty
+            }
+        }
+    }
+}
+
+/// The URLs of one compatDropFileURLs drop, as its items load on NSItemProvider's queues.
+private final class CompatFileURLDrop: @unchecked Sendable {
+    private let action: ([URL]) -> Bool
+    private let lock = NSLock()
+    private var urls: [URL] = []
+
+    init(_ action: @escaping ([URL]) -> Bool) { self.action = action }
+
+    func add(_ url: URL) { lock.withLock { urls.append(url) } }
+
+    func finish() { _ = action(lock.withLock { urls }) }
+}
+
+extension Button where Label == SwiftUI.Label<Text, Image> {
+    /// `Button(_:systemImage:action:)` (macOS 14): the title and symbol as a Label.
+    init(compatTitle title: String, systemImage: String, action: @escaping () -> Void) {
+        self.init(action: action) { SwiftUI.Label(title, systemImage: systemImage) }
     }
 }
 

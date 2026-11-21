@@ -1,0 +1,82 @@
+Usage and error reports (TelemetryDeck, from v1.0-2026.11.12) are off in the Big Sur build unless turned on in
+Settings ▸ General ▸ Share anonymous usage and error reports, where upstream sends them unless turned off; Help says so.
+MetricKit's subscriber is macOS 12 (MXMetricManagerSubscriber, MXDiagnosticPayload), so Diagnostics is made and added
+there only; on 11 the hang and CPU-spike reports don't exist. The classes are in 11.7's MetricKit, so the framework
+loads.
+
+diff --git a/LightTouchMac/App/Analytics.swift b/LightTouchMac/App/Analytics.swift
+index 0ed18407..584b30fd 100644
+--- a/LightTouchMac/App/Analytics.swift
++++ b/LightTouchMac/App/Analytics.swift
+@@ -18,11 +18,15 @@ enum Analytics {
+     static let key = "shareUsageReports"
+     private static let appID = "F768F1A3-426B-4D24-AFF6-C258D0D2265E"
+     private static var started = false
+-    private static let diagnostics = Diagnostics()
++    // Big Sur port: MetricKit's diagnostics are macOS 12 (Diagnostics, below), so the subscriber is made there only.
++    private static let diagnostics: NSObject? = {
++        if #available(macOS 12, *) { return Diagnostics() } else { return nil }
++    }()
+     /// Sparkle's delegate, for an update that fails (issue 95).
+     static let updates = UpdateReports()
+ 
+-    static var isOn: Bool { UserDefaults.standard.object(forKey: key) as? Bool ?? true }
++    // Big Sur port: off unless turned on in Settings ▸ General (upstream: on unless turned off).
++    static var isOn: Bool { UserDefaults.standard.object(forKey: key) as? Bool ?? false }
+ 
+     /// Once, first thing at launch: the SDK (and its session start) when sharing is on, and the reports that come
+     /// later: the packages' (AppReports), crash reports, MetricKit's hangs.
+@@ -38,7 +42,9 @@ enum Analytics {
+             }
+         }
+         _ = startIfOn()
+-        MXMetricManager.shared.add(diagnostics)
++        if #available(macOS 12, *), let diagnostics = diagnostics as? Diagnostics {
++            MXMetricManager.shared.add(diagnostics)
++        }
+         sendCrashReports()
+     }
+ 
+@@ -226,6 +232,7 @@ enum Analytics {
+ 
+ /// MetricKit's diagnostics of the app's own process: a hang of its main thread (issues 26, 107: the window stalling)
+ /// as App.hang and a CPU spike as App.cpuException, each with its seconds and where it was.
++@available(macOS 12, *)
+ private final class Diagnostics: NSObject, MXMetricManagerSubscriber {
+     nonisolated func didReceive(_ payloads: [MXDiagnosticPayload]) {
+         let binary = Bundle.main.executableURL?.lastPathComponent ?? "LightTouch"
+diff --git a/LightTouchMac/Help.txt b/LightTouchMac/Help.txt
+index fd78eb16..529268b2 100644
+--- a/LightTouchMac/Help.txt
++++ b/LightTouchMac/Help.txt
+@@ -54,7 +54,7 @@ During startup, progress stays visible until the Home screen responds. If startu
+ 
+ Window → Device Logs shows app events, available device console output, and USB logs, including retained previous files. Help → Export Diagnostics collects the complete retained logs for a bug report, and Help → Copy Bug Report Info copies a short summary to paste into one. Both leave out personal details: your home folder, user and Mac names, serial numbers and device identifiers.
+ 
+-Light Touch sends anonymous usage and error reports to TelemetryDeck (https://telemetrydeck.com): that it opened and how many devices of which kinds it has; which device starts, with its iOS version, how it was prepared and how long it took; the apps you open on a device and install in it, by their App Store identifiers; features such as screenshots, recordings and Play on Phone; and what failed, such as a device that didn’t start or stopped responding, a preparation, download, install or update that failed, storage the device couldn’t write, a graphics call an app made that the device couldn’t carry out (the call’s name and numbers, once per app each time the device starts), or a crash of Light Touch or one of its own processes, with the last steps before it. Each report includes the Mac’s model, graphics, macOS version and language, and the bezel and renderer settings. They carry no names, file paths or device identifiers, and no messages but the line iOS printed for a problem inside a device; a crash is sent only as where in Light Touch’s code it happened, and a random identifier for this copy of Light Touch is hashed before it’s sent. Turn off Light Touch → Settings → General → Share anonymous usage and error reports to stop them.
++Light Touch sends anonymous usage and error reports to TelemetryDeck (https://telemetrydeck.com): that it opened and how many devices of which kinds it has; which device starts, with its iOS version, how it was prepared and how long it took; the apps you open on a device and install in it, by their App Store identifiers; features such as screenshots, recordings and Play on Phone; and what failed, such as a device that didn’t start or stopped responding, a preparation, download, install or update that failed, storage the device couldn’t write, a graphics call an app made that the device couldn’t carry out (the call’s name and numbers, once per app each time the device starts), or a crash of Light Touch or one of its own processes, with the last steps before it. Each report includes the Mac’s model, graphics, macOS version and language, and the bezel and renderer settings. They carry no names, file paths or device identifiers, and no messages but the line iOS printed for a problem inside a device; a crash is sent only as where in Light Touch’s code it happened, and a random identifier for this copy of Light Touch is hashed before it’s sent. This Big Sur build sends them only once you turn on Light Touch → Settings → General → Share anonymous usage and error reports; turn it off to stop them.
+ 
+ Use Shut Down or Quit when you can, so the device finishes saving. Restart and Erase All Content and Settings ask first. Erase removes installed apps, media, and settings.
+ 
+diff --git a/LightTouchMac/UI/SettingsWindowController.swift b/LightTouchMac/UI/SettingsWindowController.swift
+index 608b6007..7c8c473f 100644
+--- a/LightTouchMac/UI/SettingsWindowController.swift
++++ b/LightTouchMac/UI/SettingsWindowController.swift
+@@ -118,7 +118,7 @@ struct GeneralSettingsView: View {
+     @AppStorage(DisplayRefresh.key) private var refresh120 = false
+     @AppStorage(FirmwareJobs.withoutMountingKey) private var withoutMounting = false
+     @AppStorage(ClipboardSync.key) private var shareClipboard = true
+-    @AppStorage(Analytics.key) private var shareReports = true
++    @AppStorage(Analytics.key) private var shareReports = false  // Big Sur port: off unless turned on
+     @AppStorage(Board.NameStyle.key) private var nameStyle = Board.NameStyle.marketing
+ 
+     var body: some View { CompatObserving { observedBody } }
+@@ -182,7 +182,7 @@ struct GeneralSettingsView: View {
+         refresh120 = false
+         withoutMounting = false
+         shareClipboard = true
+-        shareReports = true
++        shareReports = false
+     }
+ }
+ 

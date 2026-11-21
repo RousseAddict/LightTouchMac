@@ -1,0 +1,75 @@
+Settings ▸ Storage and the Settings window (v1.0-2026.11.12) on macOS 11, past what codemod.py rewrites:
+- A deletion asks in an alert with a destructive button: confirmationDialog is macOS 12.
+- The info sheet closes through the presentation mode: the dismiss action is macOS 12.
+- Each pane's hosting controller sets sizingOptions (macOS 13) only where it exists. On 11 it keeps no
+  preferredContentSize, so a pane switch sizes the window to the pane's fitting size.
+
+diff --git a/LightTouchMac/UI/SettingsWindowController.swift b/LightTouchMac/UI/SettingsWindowController.swift
+index c973b5b6..1305d1f6 100644
+--- a/LightTouchMac/UI/SettingsWindowController.swift
++++ b/LightTouchMac/UI/SettingsWindowController.swift
+@@ -66,7 +66,7 @@ final class SettingsWindowController: NSWindowController {
+                 drop(urls)
+             }
+         )
+-        pane.sizingOptions = .preferredContentSize
++        if #available(macOS 13, *) { pane.sizingOptions = .preferredContentSize }
+         pane.title = title
+         let item = NSTabViewItem(viewController: pane)
+         item.label = title
+@@ -87,10 +87,12 @@ final class SettingsWindowController: NSWindowController {
+ private final class SettingsTabViewController: NSTabViewController {
+     override func tabView(_ tabView: NSTabView, willSelect tabViewItem: NSTabViewItem?) {
+         super.tabView(tabView, willSelect: tabViewItem)
+-        guard let window = view.window, window.isVisible, let size = tabViewItem?.viewController?.preferredContentSize
+-        else {
++        guard let window = view.window, window.isVisible, let pane = tabViewItem?.viewController else {
+             return
+         }
++        // Big Sur port: macOS 11's hosting controller keeps no preferredContentSize (sizingOptions is macOS 13), so the
++        // pane's fitting size stands in.
++        let size = pane.preferredContentSize == .zero ? pane.view.fittingSize : pane.preferredContentSize
+         let frame = window.frameRect(forContentRect: NSRect(origin: .zero, size: size))
+         window.setFrame(
+             NSRect(x: window.frame.minX, y: window.frame.maxY - frame.height, width: frame.width, height: frame.height),
+diff --git a/LightTouchMac/UI/StorageSettingsView.swift b/LightTouchMac/UI/StorageSettingsView.swift
+index 3a3ff691..c6176d42 100644
+--- a/LightTouchMac/UI/StorageSettingsView.swift
++++ b/LightTouchMac/UI/StorageSettingsView.swift
+@@ -389,14 +389,17 @@ extension View {
+         first: @escaping () -> Void = {
+         }
+     ) -> some View {
+-        confirmationDialog(confirmation?.title ?? "", isPresented: isPresented, presenting: confirmation) {
+-            confirmation in
+-            Button(confirmation.action) {
+-                first()
+-                confirmation.perform()
+-            }
+-        } message: { confirmation in
+-            Text(confirmation.message)
++        // Big Sur port: confirmationDialog is macOS 12; an alert with a destructive button asks the same.
++        alert(isPresented: isPresented) {
++            Alert(
++                title: Text(confirmation?.title ?? ""),
++                message: confirmation.map { Text($0.message) },
++                primaryButton: .destructive(Text(confirmation?.action ?? "")) {
++                    first()
++                    confirmation?.perform()
++                },
++                secondaryButton: .cancel()
++            )
+         }
+     }
+ }
+@@ -404,7 +407,9 @@ extension View {
+ private struct StorageInfoSheet: View {
+     let info: StorageInfo
+     @State private var isConfirming = false
+-    @Environment(\.dismiss) private var dismiss
++    // Big Sur port: the dismiss action is macOS 12; the presentation mode dismisses the sheet before it.
++    @Environment(\.presentationMode) private var presentationMode
++    private func dismiss() { presentationMode.wrappedValue.dismiss() }
+ 
+     var body: some View { CompatObserving { observedBody } }
+     @ViewBuilder var observedBody: some View {
