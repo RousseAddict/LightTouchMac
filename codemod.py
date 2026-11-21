@@ -200,9 +200,12 @@ RULES = [
          required=False),
     Rule("swiftui: .contextMenu(forSelectionType:)", SWIFTUI, r"\.contextMenu\((\s*)forSelectionType:",
          r".compatContextMenu(\1forSelectionType:"),
-    # A preview's traits (macOS 14, the Settings panes' fixed layouts): the plain #Preview builds at macOS 11.
-    Rule("swiftui: #Preview(_:traits: .fixedLayout)", SWIFTUI,
-         r'#Preview\(("[^"]*"), traits: \.fixedLayout\(width: [\d.]+, height: [\d.]+\)\)', r"#Preview(\1)"),
+    # The Settings panes' previews show an NSViewController, whose #Preview (Preview(_:traits:body:)) is macOS 14, as
+    # their traits are; a View's #Preview builds at macOS 11. They're Xcode's canvas only, so the Big Sur build leaves
+    # them out.
+    Rule("swiftui: #Preview of an NSViewController", SWIFTUI,
+         r'(?m)^(#Preview\("[^"]*"(?:, traits: [^\n]*)?\) \{\n    settingsPreview\(\.\w+\)\n\})',
+         "#if false  // Big Sur port: an NSViewController's #Preview is macOS 14\n\\1\n#endif"),
     # Every view follows ObservationCompat models through CompatObserving (SwiftUI only tracks Observation's).
     Rule("swiftui: views observe ObservationCompat models", SWIFTUI,
          r"^([ \t]*)((?:(?:public|private|fileprivate|internal) )?)var body: some View \{",
