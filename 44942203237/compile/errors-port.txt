@@ -1,0 +1,17 @@
+            switch object.statusOfValue(forKey: key, error: &error) {
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/UpstreamRouter.swift:63:28: error: incorrect argument label in call (have '_:dataTask:willCacheResponse:completionHandler:', expected '_:dataTask:didReceive:completionHandler:')
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/UpstreamRouter.swift:64:61: error: cannot convert value of type 'CachedURLResponse' to expected argument type 'URLResponse'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/UpstreamRouter.swift:64:98: error: cannot convert value of type '(CachedURLResponse?) -> Void' to expected argument type '(URLSession.ResponseDisposition) -> Void'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/App/AppDelegate.swift:193:15: error: 'activate()' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:202:2: error: 'Preview(_:traits:body:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:202:30: error: 'fixedLayout(width:height:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:206:2: error: 'Preview(_:traits:body:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:206:30: error: 'fixedLayout(width:height:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:210:2: error: 'Preview(_:traits:body:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/SettingsWindowController.swift:210:30: error: 'fixedLayout(width:height:)' is only available in macOS 14.0 or newer
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchMac/UI/StorageSettingsView.swift:438:64: error: cannot convert value of type 'String' to expected argument type 'LocalizedStringKey'
+error: The file “Light_Touch.abi.json” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftdoc” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftmodule” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “Light_Touch.swiftsourceinfo” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
+error: The file “LightTouchDevice” couldn’t be opened because there is no such file. (in target 'Light Touch' from project 'LightTouchMac')
