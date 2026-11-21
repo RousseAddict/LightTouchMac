@@ -1,0 +1,3 @@
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/UpstreamRouter.swift:63:28: error: incorrect argument label in call (have '_:dataTask:willCacheResponse:completionHandler:', expected '_:dataTask:didReceive:completionHandler:')
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/UpstreamRouter.swift:64:61: error: cannot convert value of type 'CachedURLResponse' to expected argument type 'URLResponse'
+/Users/runner/work/LightTouchMac/LightTouchMac/src/LightTouchDevice/UpstreamRouter.swift:64:98: error: cannot convert value of type '(CachedURLResponse?) -> Void' to expected argument type '(URLSession.ResponseDisposition) -> Void'
